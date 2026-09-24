@@ -23,7 +23,7 @@ permissions.
 
 > [!NOTE]
 > **Status: design phase.** The architecture has been planned and reviewed, and the implementation
-> plan comes next. Nothing is usable yet. This page describes what the extension will do.
+> plan is written. Nothing is usable yet. This page describes what the extension will do.
 
 ## Why it exists
 
@@ -147,7 +147,7 @@ Full detail, with the reasoning behind each choice, in [`docs/arquitetura.md`](d
 - [x] Architecture designed and documented (decisions D-001 to D-034)
 - [x] Directus internals verified in the source code (version 12.4.1)
 - [x] Design reviewed against the glossary and the decisions
-- [ ] Implementation plan, in phases
+- [x] Implementation plan, in phases
 - [ ] Foundation: permitted queries, adapters, tiles and the capability matrix
 - [ ] Studio surfaces, operations, time and movement
 - [ ] Evidence reports, starting with the geofence template
@@ -164,6 +164,7 @@ will ship with the first release.
 | [`docs/arquitetura.md`](docs/arquitetura.md) | The full architecture |
 | [`docs/decisoes.md`](docs/decisoes.md) | Every decision, with the reason and the alternatives ruled out |
 | [`docs/verificacoes.md`](docs/verificacoes.md) | Facts verified in the source code of Directus, PostGIS and the other tools, and pending checks |
+| [`docs/implementacao/`](docs/implementacao/README.md) | The implementation plan, phase by phase |
 
 ## Author
 
