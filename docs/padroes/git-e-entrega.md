@@ -2,19 +2,111 @@
 
 **Commits e pushes são sempre do mantenedor.** Agentes sugerem a mensagem; não executam.
 
-## Commits
+## Mensagens de commit
 
-- [Conventional Commits](https://www.conventionalcommits.org/), em inglês: `feat(radius): order items by
-  distance`, `fix(tiles): ...`, `test(permissions): ...`, `docs: ...`.
-- Assunto no imperativo, com até ~72 caracteres; o corpo explica o porquê.
-- **Nunca** uma linha de coautoria de Claude ou de qualquer IA (`Co-Authored-By`), em nenhum commit.
-- Um commit, uma ideia. Refatoração fica separada de mudança de comportamento.
+O padrão é o [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) (V-62), em inglês,
+conferido pelo commitlint (V-63):
+
+```
+<tipo>(<escopo>): <assunto>
+
+<corpo>
+
+<rodapés>
+```
+
+**Tipo,** em minúsculas, um destes:
+
+| Tipo | Quando |
+|---|---|
+| `feat` | Algo novo para quem usa a extensão, a API ou o SDK |
+| `fix` | Correção de um comportamento errado |
+| `perf` | Mais rápido ou mais leve, sem mudar o comportamento |
+| `refactor` | Mudança no código sem mudar o comportamento |
+| `test` | Só testes |
+| `docs` | Só documentação: `docs/`, README, comentários |
+| `build` | Build, empacotamento e dependências |
+| `ci` | Integração contínua |
+| `style` | Só formatação |
+| `revert` | Desfaz um commit anterior |
+| `chore` | Manutenção que não cabe em nenhum outro; se outro tipo servir, use o outro |
+
+**Escopo,** opcional, em minúsculas com hífen: a parte do projeto que muda. Pode ser a operação (`radius`), o
+módulo (`tiles`, `cache`, `queue`, `live`, `reports`, `internals`), o pacote (`sdk`, `contract`) ou o banco
+(`postgis`, `sqlite`). Um commit que mexe em muita coisa fica sem escopo.
+
+**Assunto:**
+- no imperativo, completando a frase "If applied, this commit will…": `add`, `fix`, `remove`, e não `added` nem
+  `adds`;
+- começa em minúscula e não termina com ponto;
+- o cabeçalho inteiro tem até 72 caracteres;
+- diz o que muda para quem lê o histórico. Não valem `update files`, `fix bug`, `changes`, `wip`, `review` nem
+  `misc`.
+
+**Corpo,** depois de uma linha em branco, quando o assunto não basta:
+- explica o porquê e o que muda no comportamento, e não a lista de arquivos, que o diff já mostra;
+- linhas de até 100 caracteres, o limite do lint; o ideal é quebrar perto de 72;
+- vira lista com hífen quando são várias mudanças.
+
+**Rodapés,** depois de outra linha em branco, no formato `Token: valor`:
+- `Refs: F02-03`, com o identificador da issue do plano;
+- `Closes #12`, quando houver issue no GitHub;
+- `BREAKING CHANGE: <o que quebra e como migrar>`, junto com o `!` no cabeçalho (`fix(contract)!: ...`), quando
+  a mudança quebra cliente. Isso só acontece em versão major, com o aviso de descontinuação antes
+  ([`api-e-contrato.md`](api-e-contrato.md));
+- **nunca** uma linha de coautoria de Claude ou de qualquer IA (`Co-Authored-By`), em nenhum commit.
+
+**O tipo não decide a versão.** Quem decide é o changeset do pull request (veja Versões). O tipo e o `!` servem a
+quem lê o histórico e a quem procura uma mudança.
+
+**Um commit, uma ideia.** Refatoração fica separada de mudança de comportamento.
+
+Exemplos:
+
+```
+feat(radius): order items by distance from the center
+```
+
+```
+fix(queue): resume an interrupted job from the last saved batch
+
+The lease expired while a batch was still writing, and the next worker
+started the job from the beginning, duplicating rows.
+
+Refs: F06-04
+```
+
+```
+fix(contract)!: rename the error code MAX_ITEMS to LIMIT_EXCEEDED
+
+BREAKING CHANGE: clients that check error.code for MAX_ITEMS must check
+LIMIT_EXCEEDED. The old code was deprecated in 1.4.
+
+Refs: F05-02
+```
+
+### Como o padrão é garantido
+
+Nasce na F00:
+- **commitlint** com a `@commitlint/config-conventional` (V-63) e três ajustes do projeto:
+  - cabeçalho de até 72 caracteres, e não 100;
+  - escopo em minúsculas com hífen (`scope-case: kebab-case`);
+  - linha em branco antes do corpo e dos rodapés como erro, e não como aviso.
+- **Hook `commit-msg` local,** com o husky, instalado pelo `prepare` no `pnpm install` (P-20). Uma mensagem fora do
+  padrão nem vira commit.
+- **O título do pull request na CI,** pelo mesmo commitlint, bloqueando o merge. É a conferência que mais importa,
+  porque no merge por squash o título vira o commit do `main` (V-64). O próprio commitlint lê o título, sem
+  action de terceiros.
+- **O squash no GitHub** configurado para usar o título e a descrição do pull request (V-64). O título vira o
+  cabeçalho do commit, e a descrição vira o corpo e os rodapés; o modelo do pull request termina com
+  `Refs: Fxx-yy`.
 
 ## Ramos e pull requests
 
 - Desenvolvimento baseado no tronco: o `main` sempre verde, e ramos curtos.
-- **Uma issue, um ramo, um pull request.** O ramo leva o identificador da issue (`f02-03/radius-order`), e o título
-  do pull request começa por ele (`F02-03: radius natural order`).
+- **Uma issue, um ramo, um pull request.** O ramo leva o identificador da issue (`f02-03/radius-order`). O título
+  do pull request segue o padrão de commit (`feat(radius): order items by distance`), porque vira o commit do
+  `main`, e o identificador vai no rodapé `Refs: F02-03` da descrição.
 - Pull request mesmo trabalhando sozinho: é onde a integração contínua roda e onde fica o registro da mudança. O
   modelo do pull request traz a lista "Pronto quer dizer" do [`README.md`](README.md).
 - Merge por squash, com a mensagem no padrão Conventional Commits, para o `main` ficar com um commit por issue.
@@ -28,6 +120,7 @@ GitHub Actions desde a F00, crescendo com as fases:
 |---|---|---|
 | Formatação, lint, tipos, unitários, cobertura do código novo | F00 | A cada push |
 | `gitleaks`, `pnpm audit`, OSV-Scanner | F00 | A cada push |
+| Título do pull request no padrão de commit (commitlint) | F00 | Em pull request, bloqueando o merge |
 | Integração no PostGIS (a versão mínima) e no SQLite, no Directus 11.17 e no 12, um job por combinação | F00 | A cada push |
 | O PostGIS na versão mais nova | F00 | Toda noite |
 | Paridade de permissão, contrato da API, lint do OpenAPI | F02 | A cada push |

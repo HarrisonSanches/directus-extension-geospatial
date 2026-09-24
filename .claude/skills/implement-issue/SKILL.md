@@ -71,6 +71,6 @@ Não existe guia didático em arquivo. A documentação pública (README, site) 
 4. **O que aprender aqui:** os conceitos novos em três ou quatro linhas.
 5. **Decisões tomadas fora da issue**, se houve, e por quê.
 6. **Sugestões** para a issue, a fase ou os padrões, sem editar por conta própria.
-7. **Mensagem de commit sugerida** (Conventional Commits, em inglês, sem linha de coautoria) e um texto curto de pull request com o identificador da issue.
+7. **Mensagem de commit sugerida,** no padrão de `docs/padroes/git-e-entrega.md` e sem linha de coautoria, e o texto do pull request: o título no mesmo padrão e a descrição terminando em `Refs: <issue>`.
 
 **Não avance para a próxima issue.** Espere o mantenedor pedir.

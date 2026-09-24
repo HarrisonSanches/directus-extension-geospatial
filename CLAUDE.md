@@ -43,7 +43,7 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - **Princípios** em [arquitetura §2](docs/arquitetura.md#2-princípios). A regra de ouro das permissões é a D-001, e uma porta de mão única nunca muda sem uma decisão nova.
 - **Git:**
   - nunca adicione Claude ou qualquer IA como coautor; sem linha `Co-Authored-By`, em nenhum commit;
-  - mensagens em inglês, no padrão Conventional Commits;
+  - mensagens em inglês, no padrão Conventional Commits, com as regras de [docs/padroes/git-e-entrega.md](docs/padroes/git-e-entrega.md);
   - commit e push só quando o mantenedor pedir.
 - **Comandos no ambiente** só com confirmação, dizendo o que o comando faz e como desfazer: instalar algo no sistema, Docker fora dos testes, bancos fora dos containers de teste, publicar no npm, push.
 - **Skills** do projeto em `.claude/skills`.

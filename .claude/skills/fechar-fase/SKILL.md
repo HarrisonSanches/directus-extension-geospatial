@@ -8,7 +8,7 @@ argument-hint: "<fase, ex.: F00>"
 
 Fase: **$ARGUMENTS**, ou a que está "em andamento" no índice `docs/implementacao/README.md`.
 
-**Não faça commit, tag nem push.** Sugira; o mantenedor executa. Qualquer mensagem sugerida vai em inglês, no padrão Conventional Commits, e **nunca** tem linha de coautoria de Claude ou de qualquer IA.
+**Não faça commit, tag nem push.** Sugira; o mantenedor executa. Qualquer mensagem sugerida segue o padrão de `docs/padroes/git-e-entrega.md` e **nunca** tem linha de coautoria de Claude ou de qualquer IA.
 
 ## 1. Conferir, e parar se algo faltar
 
