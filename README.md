@@ -2,9 +2,9 @@
 
 # Geospatial
 
-**Spatial analysis for Directus, inside your database**
+**See it. Analyze it. Prove it. Without leaving Directus.**
 
-Your Directus Studio, turned into an operational map.
+Maps, spatial analysis and evidence reports for Directus: your Studio, turned into an operational map.
 
 Draw an area, follow a vehicle, count incidents by neighborhood, prove when a truck entered a
 geofence. Every spatial operation runs in the database, and every answer respects Directus
