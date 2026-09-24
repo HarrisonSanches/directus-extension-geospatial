@@ -91,9 +91,9 @@ teste.
 
 | Quando | O que roda |
 |---|---|
-| A cada push e pull request | Unitários; integração, paridade e contrato no PostGIS e no SQLite, no Directus 11.17 e no 12; contrato da API; cobertura do código novo |
+| A cada push e pull request | Unitários; integração, paridade e contrato no PostGIS (a versão mínima) e no SQLite, no Directus 11.17 e no 12; contrato da API; cobertura do código novo |
 | Pull request que mexe num adaptador | Mais o contrato daquele banco |
 | Pull request que mexe na interface | Mais o ponta a ponta, sem bloquear o merge (§7.4) |
-| Toda noite | A matriz inteira de bancos (a partir da F15), a mínima e a mais nova de cada; o ponta a ponta; a mutação |
+| Toda noite | O PostGIS na versão mais nova; a partir da F15, a matriz inteira de bancos, a mínima e a mais nova de cada; o ponta a ponta; a mutação |
 | Antes de cada release | Tudo o que roda à noite, mais o teste manual com leitor de tela (NVDA e VoiceOver) |
 | Canário | A suíte de integração contra cada versão nova do Directus, assim que ela sai |

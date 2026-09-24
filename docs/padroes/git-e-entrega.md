@@ -28,13 +28,18 @@ GitHub Actions desde a F00, crescendo com as fases:
 |---|---|---|
 | Formatação, lint, tipos, unitários, cobertura do código novo | F00 | A cada push |
 | `gitleaks`, `pnpm audit`, OSV-Scanner | F00 | A cada push |
-| Integração no PostGIS e no SQLite, no Directus 11.17 e no 12, um job por combinação | F00 | A cada push |
+| Integração no PostGIS (a versão mínima) e no SQLite, no Directus 11.17 e no 12, um job por combinação | F00 | A cada push |
+| O PostGIS na versão mais nova | F00 | Toda noite |
 | Paridade de permissão, contrato da API, lint do OpenAPI | F02 | A cada push |
+| Build sem código do `@directus/api`, e o aviso de licenças de terceiros gerado | F02 | A cada push |
 | Mutação no módulo de permissões; canário | F02 | Toda noite; a cada versão nova do Directus |
 | Peso do arquivo inicial de extensões (`size-limit`) | F04 | A cada push |
 | Ponta a ponta com Playwright e axe | F04 | Em pull request que toca a interface, sem bloquear; toda noite |
 | Matriz inteira de bancos | F15 | Toda noite e antes da release |
 | Publicação no npm com provenance, e o SBOM | F16 | Na release |
+
+Enquanto o repositório for privado, os minutos das Actions são limitados; por isso o pull request roda o conjunto
+mínimo, e a noite, o resto.
 
 ## Revisão
 

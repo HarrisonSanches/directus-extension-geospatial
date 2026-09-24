@@ -14,8 +14,13 @@ confiança se constrói no repositório.
 
 - Cada dependência nova precisa de motivo: o que ela resolve que a plataforma, ou uma dependência que já temos, não
   resolve. No Studio, o peso também conta.
-- **Licença conferida antes:** no que vai dentro do pacote, só licenças permissivas (MIT, BSD, ISC, Apache-2.0),
-  porque o pacote é MIT (D-019).
+- **Licença conferida antes:** no que vai dentro do pacote, só licenças permissivas (MIT, BSD, ISC, Apache-2.0, e a
+  OFL nas fontes do mapa), porque o pacote é MIT (D-019).
+- **O build gera o aviso de licenças de terceiros,** junto do `dist`, como as licenças MIT e BSD exigem de quem
+  redistribui.
+- **Nenhum código do `@directus/api` dentro do pacote.** O núcleo do Directus tem licença própria, a MSCL-1.0-GPL,
+  diferente da MIT dos pacotes de apoio (V-60). A extensão usa os internos do Directus que já está rodando, e uma
+  conferência na CI garante que o build os deixou de fora.
 - **Cadeia de suprimentos:**
   - lockfile versionado, e instalação com o lockfile congelado na CI;
   - scripts de instalação das dependências desligados, com a lista explícita das que podem rodar
@@ -42,12 +47,14 @@ confiança se constrói no repositório.
 - Na dúvida sobre permissão, negar: a checagem dos internos na inicialização desliga as operações, em vez de
   arriscar (D-001).
 - Nada de recurso de fora no navegador sem necessidade: sem CDN, dentro da CSP padrão do Directus (V-33).
+- O servidor só faz pedidos para endereços que o admin configurou (provedores de endereço, mapas de fundo), nunca
+  para um endereço que veio no pedido do usuário.
 
 ## Páginas e rotas públicas
 
 - A página de verificação e as rotas do papel público respondem igual para "não existe" e para erro interno, leem
   só as colunas de que precisam e têm limite de pedidos por IP (D-034).
-- O PDF enviado para conferência não fica guardado.
+- O PDF enviado para conferência não fica guardado, e o servidor não o interpreta: só calcula o hash dos bytes.
 
 ## A demo pública
 
