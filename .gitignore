@@ -19,5 +19,6 @@ test-results/
 *.log
 .DS_Store
 
-# Local Claude Code settings (each machine has its own)
+# Local Claude Code settings and personal notes (each machine has its own)
 .claude/settings.local.json
+CLAUDE.local.md

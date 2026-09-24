@@ -29,10 +29,14 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 
 ## Como trabalhar neste projeto
 
+- **O mantenedor** é quem conduz o trabalho com o agente: aprova, decide e faz commit e push. É o nome usado nas skills e nos docs.
+- Preferências pessoais de quem trabalha no projeto ficam no `CLAUDE.local.md`, que não vai para o Git.
 - Um passo de cada vez, uma decisão por vez, sempre com uma recomendação.
 - Explicações didáticas e passo a passo na conversa, ao entregar algo novo ou quando o mantenedor pedir. Não existe guia didático em arquivo.
 - O desenho é sempre o da extensão completa, sem recortes de "primeira versão". A ordem só aparece no plano de implementação.
-- Pesquisas curtas e focadas. Uma afirmação sobre ferramenta de terceiros se confere no código-fonte ou na documentação oficial e vai para `docs/verificacoes.md`.
+- Cada proposta traz a prática consagrada do mercado, pelo nome e com o porquê.
+- Pesquisas curtas e focadas: poucas perguntas por agente, com resposta em minutos. Uma afirmação sobre ferramenta de terceiros se confere no código-fonte ou na documentação oficial e vai para `docs/verificacoes.md`.
+- Texto comercial (frase de impacto, landing, topo do README) vende o que a pessoa ganha e nunca fala de banco nem do funcionamento interno, que ficam no corpo do texto. Numa frase de impacto, ofereça três ou quatro opções com uma recomendação, e o mantenedor escolhe.
 
 ## Regras
 
