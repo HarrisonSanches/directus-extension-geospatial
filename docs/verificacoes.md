@@ -98,6 +98,7 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
   - com `MARKETPLACE_TRUST=sandbox`, o Studio pede ao registro só as extensões em sandbox, na lista e no download; com `all`, não há esse filtro (`api/src/controllers/extensions.ts`, `api/src/extensions/lib/installation/manager.ts`);
   - o registro do Marketplace espelha o npm e oferece só a última versão de cada extensão (documentação de publicação).
 - **V-35** **Versões mais recentes em 23/09/2026:** 11.17.4 (último v11) e 12.4.1 (tags do repositório).
+- **V-59** **Ferramentas do repositório do Directus** (`main`, conferido em 24/09/2026 no `package.json` e no `pnpm-workspace.yaml` da raiz): Node 22 e pnpm 10 (`packageManager` 10.27.0), com catálogos em modo estrito e a lista `onlyBuiltDependencies`; ESLint 10, com `typescript-eslint`, `eslint-plugin-vue`, `eslint-plugin-import-x` e `eslint-config-prettier`; Prettier 3; Stylelint; TypeScript 5.9; Vitest 4.1; Vite 8; `vue-tsc` 3; tsdown; e Changesets para as versões. O SDK de extensões exporta os composables `useApi`, `useSdk` e `useStores`, entre outros, e o `@directus/errors` exporta o `createError`.
 
 ### Outras ferramentas
 

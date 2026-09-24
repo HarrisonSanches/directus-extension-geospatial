@@ -7,7 +7,8 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - Planejamento concluído em 23/09/2026.
 - Questionamento da documentação (skill `grill-with-docs`) concluído em 24/09/2026: decisões D-022 a D-034, fatos V-44 a V-58 e pendências P-12 a P-14.
 - Plano de implementação criado em 24/09/2026, com 18 fases (F00 a F17), em [docs/implementacao/](docs/implementacao/README.md).
-- Próximo passo: os padrões em `docs/padroes/` e, depois, `/to-issues F00`.
+- Padrões de desenvolvimento criados em 24/09/2026, em [docs/padroes/](docs/padroes/README.md).
+- Próximo passo: `/to-issues F00`.
 
 ## Documentação
 
@@ -18,7 +19,7 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 | [docs/decisoes.md](docs/decisoes.md) | As decisões D-0xx; as portas de mão única ficam no topo. Não existe `docs/adr/` |
 | [docs/verificacoes.md](docs/verificacoes.md) | Fatos verificados em ferramentas de terceiros (V-xx) e pendências (P-xx) |
 | [docs/implementacao/](docs/implementacao/README.md) | Plano por fases, issues, especificações, achados e histórico |
-| `docs/padroes/` | Padrões de código e de testes, e o que "Pronto quer dizer" (nasce com o plano de implementação) |
+| [docs/padroes/](docs/padroes/README.md) | Padrões de código e de testes, e o que "Pronto quer dizer" |
 
 ## Idioma
 
