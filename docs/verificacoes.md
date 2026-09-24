@@ -44,6 +44,8 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
 - **V-18** O Studio junta traduções num sistema de idiomas global (`app/src/stores/translations.ts`), e as traduções da extensão entram nesse mesmo sistema.
 - **V-19** O mapa nativo usa as variáveis de tema do Directus (`--theme--*`).
 - **V-20** **Flows:** a operação nativa "Ler dados" tem a opção "Permissões" (do gatilho, o padrão; papel público; acesso total) (`app/src/operations/item-read/index.ts`). As operações de extensão recebem os serviços do Directus, os dados do Flow e a identidade de quem disparou (`packages/types/src/extensions/operations.ts`).
+- **V-45** **Flows:** a saída de cada operação entra nos dados do Flow com a chave da operação e também em `$last`, ao lado de `$trigger`, `$accountability` e `$env` (`api/src/flows.ts`).
+- **V-53** **Registro dos Flows:** o padrão é `all` (migração `20220429A-add-flows.ts`). Com `all`, cada execução grava uma revisão com os dados de todos os passos, e só alguns campos sensíveis são redigidos, como `authorization`, `cookie`, `password` e `token` (`api/src/flows.ts`).
 
 ### Directus: leitura de dados e permissões
 
@@ -51,6 +53,12 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
 - **V-22** **Permissão por linha:** o filtro da página, E (OU das regras das políticas) (`join-filter-with-cases`).
 - **V-23** O pacote `@directus/api` exporta os módulos internos (`"./*": "./dist/*.js"`).
 - **V-24** Os apelidos das queries são determinísticos (`api/src/database/run-ast/utils/generate-alias.ts`).
+- **V-44** **`aggregate` com `groupBy`:** o `/items` troca os itens por uma linha para cada combinação de valores do `groupBy`. O banco devolve apelidos como `count->id`, e o `PayloadService` os aninha por função, no formato `{ count: { id: 5 }, regiao: 'sul' }` (`api/src/database/run-ast/lib/apply-query/aggregate.ts`, `api/src/services/payload.ts`).
+- **V-52** **Arquivos:** um `PATCH /files/:id` com upload troca o conteúdo do arquivo e mantém o mesmo id. Todo item que aponta para ele passa a mostrar o conteúdo novo (`api/src/controllers/files.ts`).
+- **V-55** **`$NOW` nos filtros e nas permissões:** `$NOW` e `$NOW(-7 days)` viram o instante do relógio, com `new Date()`, toda vez que o Directus processa o filtro, e as permissões passam pelo mesmo `parseFilter`. Uma permissão com `$NOW` muda o SQL a cada pedido (`packages/utils/shared/parse-filter.ts`, `parse-now.ts`, `api/src/permissions/utils/process-permissions.ts`).
+- **V-56** **Horários no MySQL:** ao ler e gravar um `timestamp`, o Directus ajusta o valor pelo fuso do processo Node (`getTimezoneOffset`) (`api/src/database/helpers/date/dialects/mysql.ts`).
+- **V-57** **Campos especiais de data:** o `date-created` é preenchido pelo Directus quando o item é criado pela API, e o `date-updated`, só quando o item é atualizado por ele. Gravações feitas direto no banco não passam por aí (`api/src/services/payload.ts`).
+- **V-58** **Permissões em Arquivos:** o `FilesService` estende o `ItemsService`, então os arquivos passam pelas mesmas permissões das coleções. A `directus_files` tem `folder` e `uploaded_by`, que uma política pode usar no filtro (`api/src/services/files.ts`, `packages/system-data/src/fields/files.yaml`).
 
 ### Directus: geometria e bancos
 
@@ -66,6 +74,8 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
   - no SQL Server, a coluna é `geometry` com SRID 4326;
   - no Oracle, a coluna é `sdo_geometry` com SRID 4326, e o filtro usa `sdo_overlapbdyintersect`;
   - no SQLite, só há geometria com a SpatiaLite carregada, porque o Directus apenas verifica se ela existe.
+- **V-49** **O filtro `_intersects`** é `st_intersects(coluna, geometria)` na classe base, usada por Postgres, MySQL e SQLite. O SQL Server usa `STIntersects`, e o Oracle, `sdo_overlapbdyintersect` (`api/src/database/helpers/geometry/types.ts` e `dialects/`).
+- **V-54** **Tipos de data no Postgres:** `timestamp with time zone` vira o tipo `timestamp` do Directus, e `timestamp without time zone` vira `dateTime` (`api/src/utils/get-local-type.ts`).
 - **V-28** Os testes do próprio Directus rodam com PostGIS 3.6 (Postgres 18), MySQL 9.7, MariaDB 12.3, SQL Server 2025, Oracle 23 Free e CockroachDB 25.4 (`docker-compose.yml`).
 - **V-29** A documentação diz que o Directus suporta as versões LTS de PostgreSQL, MySQL, SQLite, SQL Server, MariaDB, CockroachDB e OracleDB.
 - **V-30** A documentação diz que o Redis é obrigatório para escalar o Directus horizontalmente.
@@ -103,6 +113,11 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
   - O desenho livre não funciona em telas de toque.
   - Há validação de área mínima e máxima em m².
 - **V-42** **PostGIS:** para `geography`, o `ST_Distance` calcula sobre o elipsoide com a GeographicLib desde a 2.2 (com PROJ 4.9 ou mais novo).
+- **V-46** **PostGIS, `ST_Buffer` em `geography`:** é um invólucro da versão plana. Escolhe o sistema plano que melhor cobre a caixa da geometria (UTM, Lambert azimutal polar ou Mercator), calcula nele e volta para o WGS84. Cada quarto de círculo tem 8 segmentos por padrão (`quad_segs`) ([documentação](https://postgis.net/docs/ST_Buffer.html)).
+- **V-47** **PostGIS, `ST_Centroid`:** aceita `geography` desde a 2.4.0, com `use_spheroid` ligado por padrão. Num polígono, o centro pode cair fora dele; para um ponto garantidamente dentro, a documentação indica o `ST_PointOnSurface` ([documentação](https://postgis.net/docs/ST_Centroid.html)).
+- **V-48** **PostGIS, `ST_SimplifyPreserveTopology`:** o resultado é válido e simples se a entrada for, e a tolerância está na unidade do SRID da entrada. A documentação só cita `geometry` ([documentação](https://postgis.net/docs/ST_SimplifyPreserveTopology.html)).
+- **V-50** **PostGIS, `ST_CoveredBy`:** verdadeiro quando todo ponto de A está no interior ou na borda de B, e aceita `geography`. A documentação o recomenda no lugar do `ST_Within`, que tem a peculiaridade de a borda não estar "dentro" da própria geometria ([documentação](https://postgis.net/docs/ST_CoveredBy.html)).
+- **V-51** **PostGIS, `ST_DFullyWithin`:** testa se uma geometria está inteira a até uma distância de outra e usa o índice, mas só aceita `geometry` ([documentação](https://postgis.net/docs/ST_DFullyWithin.html)).
 - **V-43** **Política do Nominatim público:**
   - no máximo 1 pedido por segundo;
   - busca enquanto se digita proibida no cliente;
@@ -123,7 +138,10 @@ Confirmações rápidas antes da implementação:
 - **P-07** Se o `ST_Distance_Sphere` do MariaDB vale só para pontos.
 - **P-08** O SQL montado pelo Directus é o mesmo para o mesmo pedido (base do cache).
 - **P-09** O adaptador do Terra Draw funciona com a versão do MapLibre que escolhermos. O README cita v4/5, e o Studio já usa a v6.
+- **P-12** No Oracle, o `_intersects` do Directus usa `sdo_overlapbdyintersect` (V-49). Pela máscara, ele pode não devolver um ponto que está dentro de um polígono. Confirmar no container; se confirmar, a paridade no Oracle compara com o resultado calculado, e não com o filtro nativo.
+- **P-13** Como os horários `timestamp` e `dateTime` chegam ao SQL da extensão em cada banco. No MySQL, o Directus ajusta pelo fuso do processo Node (V-56), e no SQL Server a conexão usa `useUTC: false`. Os testes de contrato precisam cobrir o fuso em cada banco.
 
 Benchmarks:
 - **P-10** Tabela principal com GiST + BRIN contra tabela auxiliar particionada, num dataset de rastreamento com cerca de 100 milhões de pontos.
 - **P-11** Tempos de criação dos índices no dataset de demonstração.
+- **P-14** Ganho do `ST_Subdivide` na operação por área e na contagem por região com polígonos pesados, usando os limites de municípios do IBGE, e o número de vértices a partir do qual vale subdividir.

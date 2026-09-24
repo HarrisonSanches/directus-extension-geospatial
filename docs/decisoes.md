@@ -48,12 +48,12 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Mostrar as operações indisponíveis desabilitadas para todos: polui a tela do operador, que não pode mudar o ambiente.
 - **Consequências:** a matriz de testes cobre todos os bancos, e cada operação nova precisa declarar a capacidade em cada um.
 
-## D-003 — Quatro formas: layout, módulo, painel e operação de Flow
+## D-003 — Quatro superfícies: layout, módulo, painel e operação de Flow
 
 - **Estado:** aceita em 23/09/2026.
 - **Onde:** §4, §7.3 (grupo 1), §7.8 · V-01 a V-07, V-20.
 - **Contexto:** o mapa nativo não pode ser estendido, e cada tipo de extensão do Directus tem vantagens e limites diferentes.
-- **Decisão:** a extensão aparece em quatro formas, todas sobre o mesmo núcleo e todas com várias camadas:
+- **Decisão:** a extensão aparece em quatro superfícies, todas sobre o mesmo núcleo e todas com várias camadas:
   - o layout, que herda a busca, os filtros, os bookmarks e as ações em lote da página;
   - o módulo, com várias coleções e visões salvas;
   - o painel, para dashboards;
@@ -61,7 +61,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Alternativas descartadas:**
   - Só o layout: ficaria sem várias coleções.
   - Só o módulo: perderia os recursos da página da coleção.
-  - Começar por uma forma e deixar as outras para depois: vai contra o princípio de extensão completa.
+  - Começar por uma superfície e deixar as outras para depois: vai contra o princípio de extensão completa.
 - **Consequências:** o layout aparece em toda coleção (com aviso quando não há geometria) e não consegue escrever no filtro da página. A extensão traz o próprio MapLibre.
 
 ## D-004 — Tiles vetoriais no banco, pedidos por consulta registrada
@@ -71,7 +71,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Contexto:** os volumes são grandes (500 mil itens num raio). A ideia do handoff era somar páginas de pontos no mapa.
 - **Decisão:**
   - Tiles MVT montados com `ST_AsMVT` em volta da query permitida.
-  - A interface registra a consulta uma vez, com um id que é o hash do conteúdo, e pede por esse id os tiles, a lista, a contagem e a exportação.
+  - A interface registra a consulta uma vez, com um id que é o hash do conteúdo, e pede por esse id os tiles, as partes do resultado (D-022) e a exportação.
   - Um único pedido por tile traz todas as camadas (fontes compostas), com cache separado por camada.
 - **Alternativas descartadas:**
   - Páginas de GeoJSON no mapa: memória, travadas, área errada e uma mancha em zoom baixo.
@@ -240,7 +240,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Decisão:**
   - **Dois estilos:**
     - o formato do `/items` (`GET` ou `SEARCH /geospatial/items/:coleção`, com o parâmetro `geo`);
-    - a consulta registrada (`POST /geospatial/queries`, mais tiles, lista, contagem e exportação).
+    - a consulta registrada (`POST /geospatial/queries`, mais tiles, uma rota para cada parte do resultado e exportação; D-022).
   - **Convenções do Directus:** autenticação, formato de erro e valores calculados em `$geo`.
   - **OpenAPI** em `/geospatial/openapi.json`, como fonte dos tipos e da validação. A entrada é validada antes de chegar ao banco.
   - **SDK** `directus-geospatial-sdk`, com comandos usados em `client.request`.
@@ -325,3 +325,219 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Só a imagem, sem os dados do momento: edições posteriores mudariam a evidência.
   - Chromium no servidor: pesado demais.
 - **Consequências:** os cinco modelos de relatório usam a mesma estrutura, e a implementação começa pelo modelo de cerca virtual.
+
+## D-022 — Resultado em três partes, com uma rota para cada parte
+
+- **Estado:** aceita em 23/09/2026. Detalha a D-016.
+- **Onde:** §7.3 (grupo 4), §7.8 (API e SDK, Flows), §7.9 · V-44, V-45.
+- **Contexto:** o desenho dizia que cada operação produz um de três tipos (itens, formas ou resumos), mas quase todas produzem mais de um. O raio dá os itens de dentro e o círculo, e os focos dão o contorno e a contagem de cada um. A API só tinha rotas para os itens e para a contagem.
+- **Decisão:**
+  - Um resultado tem até três partes: itens, formas e resumos. Cada operação declara quais produz.
+  - Na consulta registrada, uma rota para cada parte: `/items` e `/shapes`, por cursor, e `/summary`, que substitui a `/count` e traz o total em dois tempos e as medidas.
+  - A rota `/items` aceita o id de uma região, célula da grade ou foco, para descer até os itens de dentro (§7.3, grupo 2).
+  - O número que pertence a um elemento vai junto dele: a contagem da região no `$geo` do item, a da célula da grade ou do foco nas propriedades da forma, e o foco de cada ponto no `$geo` do ponto.
+  - No formato do `/items`, `data` são os itens. Nas operações que agregam, `data` traz uma linha por região, célula da grade ou foco, como o `aggregate` com `groupBy` do Directus (V-44). As formas só saem pela consulta registrada.
+  - A operação de Flow e o SDK devolvem as mesmas partes.
+- **Alternativas descartadas:**
+  - Um tipo por operação: não descreve o raio, o corredor, o trajeto nem os focos, e o encadeamento perderia o contorno dos focos como entrada.
+  - Tudo numa resposta só: cada pedido esperaria a parte mais lenta, como a contagem exata, e as formas não teriam paginação.
+  - Formas e resumos no `meta` do formato do `/items`: incha a resposta de quem só quer os itens, e uma grade com milhares de células não cabe ali.
+- **Consequências:**
+  - O mapa, a lista e o resumo carregam em paralelo, e cada parte tem o próprio tempo limite (7.1).
+  - As rotas `/items`, `/shapes` e `/summary` entram no contrato público da D-016.
+
+## D-023 — "Dentro" quer dizer "toca", com as opções "inteiramente dentro" e "fora"
+
+- **Estado:** aceita em 23/09/2026.
+- **Onde:** §6, §7.4 (testes) · V-49, V-50, V-51 · P-12.
+- **Contexto:** o desenho usava "itens dentro" com dois sentidos. A área desenhada tinha como referência o `ST_Within`, que exige o item inteiro dentro e deixa de fora o ponto na borda. O raio, o corredor e o entorno usam o `ST_DWithin`, que pega o item se qualquer parte dele estiver a até a distância. Em pontos, a diferença fica só na borda; em linhas e polígonos, uma rua que atravessa a área entra num sentido e fica de fora no outro.
+- **Decisão:**
+  - Em toda operação que pega itens por área ou distância, "dentro" quer dizer "toca" por padrão: qualquer parte do item na área ou a até a distância, com a borda incluída (`ST_Intersects`, `ST_DWithin`).
+  - A opção "inteiramente dentro", para linhas e polígonos, usa o `ST_CoveredBy`, que conta a borda. No raio, no corredor e no entorno, compara com o polígono do entorno montado com mais segmentos (erro de cerca de 0,03% da distância), porque o `ST_DFullyWithin` não aceita `geography`.
+  - A opção "fora" pega os itens que não tocam a área.
+- **Alternativas descartadas:**
+  - "Inteiro dentro" como padrão (`ST_Within`): diverge do `_intersects` do Directus e do `ST_DWithin` das outras operações, e deixa de fora o ponto na borda.
+  - Um sentido para cada operação: a mesma palavra mudaria de significado de uma operação para outra.
+  - Todos os predicados do padrão OGC (cruza, sobrepõe, encosta, contém): demais para um painel de operação. "Toca", "inteiramente dentro" e "fora" cobrem o catálogo e os relatórios.
+- **Consequências:**
+  - O teste de paridade compara "toca" com o `_intersects` e "fora" com o `_nintersects` do Directus. No Oracle, isso depende da P-12.
+  - A opção escolhida faz parte da consulta registrada, então entra no id e na chave do cache.
+
+## D-024 — Nomes públicos das operações: o termo canônico do glossário
+
+- **Estado:** aceita em 23/09/2026. Detalha a D-016.
+- **Onde:** §7.8 (API e SDK) · [CONTEXT.md](../CONTEXT.md).
+- **Contexto:** o SDK usava `withinRadius()` e `countByPolygon()`, mas o termo canônico de "contagem por região" é *count by region*. A antiga "área desenhada" passou a receber qualquer forma, com as opções da D-023, e o nome não a descrevia mais.
+- **Decisão:**
+  - O id de cada operação na API é o termo canônico do glossário em camelCase, e o comando do SDK é o mesmo id com o prefixo `geo`: `radius` e `geoRadius()`, `byArea` e `geoByArea()`, `countByRegion` e `geoCountByRegion()`.
+  - A operação de área se chama "Por área" (*By area*). "Área desenhada" fica como o nome da forma que o usuário desenha.
+- **Alternativas descartadas:**
+  - "Área" (*Area*): brigaria com a medida (a área de um polígono) e com expressões como "área visível".
+  - Nomes livres no SDK, como `withinRadius()`: cada superfície acabaria com um vocabulário próprio.
+  - Comandos sem prefixo: nomes genéricos como `center()` e `measure()` colidiriam com funções do código de quem usa e de outras extensões.
+- **Consequências:** um termo novo no glossário define também o nome público da operação, e renomear depois é mudança incompatível (D-016).
+
+## D-025 — Trajeto por objeto, com trechos, pontos suspeitos e várias origens
+
+- **Estado:** aceita em 23/09/2026.
+- **Onde:** §6, §7.3 (grupo 5), §7.6.
+- **Contexto:** o catálogo dizia só "linha ordenada no tempo". Numa frota ou numa investigação por placa, isso liga pontos de objetos diferentes, atravessa prédios nas faltas de posição e transforma um erro de GPS num espigão de dezenas de quilômetros. Os números errados iriam para o relatório de frota e para a evidência. O caso que testou as regras foi o de uma placa lida numa câmera, vista de novo 30 min depois, seguida a cada 30 s numa perseguição e vista mais uma vez 15 min depois em outro lugar.
+- **Decisão:**
+  - A coleção com campo de data ganha configurações de trajeto, feitas pelo admin (D-027): o campo do objeto, comparado normalizado; o perfil (contínuo ou esparso, pelo ritmo em que as posições chegam), com o limite do trecho e o tratamento do ponto suspeito; a velocidade máxima; e o campo de velocidade, opcional.
+  - Quando falta posição por mais tempo que o limite, a linha se quebra, e a lacuna aparece tracejada, com o tempo, a distância em linha reta e a velocidade mínima do salto. A distância da lacuna fica fora do total.
+  - O ponto que exigiria velocidade acima da máxima é suspeito. No perfil contínuo, ele sai da linha; no esparso, fica na linha, porque pode ser um identificador duplicado, como uma placa clonada. Nos dois casos, fica marcado.
+  - Um trajeto pode juntar várias camadas com o mesmo objeto, cada uma pela sua query permitida.
+  - Na tela, a cor da linha mostra o tempo (uma cor por dia até 7 dias, e um gradiente acima disso), e o símbolo do ponto mostra a origem.
+- **Alternativas descartadas:**
+  - Ligar todos os pontos em ordem de tempo: soma distâncias que ninguém percorreu e sugere caminhos que ninguém viu.
+  - Apagar os pontos suspeitos: esconderia a placa clonada e tiraria o ponto da evidência.
+  - Quebrar a linha a cada dia: cortaria no meio uma perseguição que atravessa a meia-noite.
+  - Um trajeto por coleção: a mesma placa vista por câmera, viatura e rastreador ficaria em três linhas separadas.
+- **Consequências:**
+  - O relatório de frota e o de cerca virtual usam as mesmas configurações de trajeto.
+  - A saúde do índice passa a sugerir um B-tree em (objeto, data) nas camadas com trajeto.
+
+## D-026 — Parada por raio e tempo, com a parada provável à parte
+
+- **Estado:** aceita em 23/09/2026.
+- **Onde:** §7.3 (grupo 5), §7.9 (modelo de frota).
+- **Contexto:** o relatório de frota mostra paradas e tempo parado, mas o critério não estava definido. Parado, o GPS oscila alguns metros e a velocidade calculada nunca zera, nem toda coleção tem campo de velocidade, e muitos rastreadores não mandam a ignição. Além disso, um rastreador que dorme com o motor desligado deixa uma lacuna longa justamente onde o veículo ficou parado.
+- **Decisão:**
+  - O objeto está parado quando fica dentro de um raio por um tempo mínimo, com os valores no perfil de trajeto (no perfil contínuo, 50 m por 5 min).
+  - A lacuna em que o objeto reaparece perto de onde sumiu é uma parada provável, mostrada à parte.
+  - Com campo de ignição, a parada de motor ligado é ociosa.
+  - No perfil esparso, a parada vem desligada: com posições de vez em quando, uma câmera que lê o carro na saída e na volta viraria uma "parada provável" de horas em frente a ela.
+  - A parada é uma forma do resultado do trajeto: um ponto no centro das posições, com início, fim e duração.
+- **Alternativas descartadas:**
+  - Por velocidade: a oscilação do GPS impede a velocidade de zerar, e o campo nem sempre existe.
+  - Só por ignição: muitos rastreadores não mandam.
+  - Tratar a lacuna como parada certa: o veículo pode ter saído e voltado, e a evidência afirmaria o que ninguém viu.
+- **Consequências:** as paradas entram no encadeamento, por exemplo "paradas → por área → cercas dos clientes" para provar uma entrega.
+
+## D-027 — Configuração dos dados por coleção, feita pelo admin
+
+- **Estado:** aceita em 24/09/2026.
+- **Onde:** §7.3 (grupo 5), §7.6, §7.8 (configuração por coleção).
+- **Contexto:** as configurações de trajeto e o campo de data de atualização estavam descritos "na camada". Uma camada existe em cada layout, visão e painel, então a mesma coleção seria configurada várias vezes, e dois relatórios poderiam dar números diferentes para o mesmo veículo.
+- **Decisão:**
+  - O que descreve os dados fica na coleção, configurado uma vez pelo admin: os campos padrão, o trajeto, a detecção de mudanças feitas fora do Directus e, na mesma tela, a saúde dos índices.
+  - O que descreve a visão fica na camada: filtro, estilo, agrupamento e "ao vivo".
+  - Uma análise pode ajustar os valores do trajeto para uma pergunta específica. O ajuste fica na consulta registrada, e o resultado e o relatório mostram os critérios usados.
+- **Alternativas descartadas:**
+  - Tudo na camada: a configuração se repetiria em cada visão, e os números poderiam divergir.
+  - Tudo na coleção, sem ajuste na análise: o gestor não conseguiria pedir, por exemplo, só as paradas longas.
+- **Consequências:** a coleção de configurações da extensão (D-015) guarda uma entrada por coleção. Uma coleção sem configuração usa os padrões e só oferece o trajeto depois que o admin escolhe o objeto.
+
+## D-028 — Cerca virtual calculada sobre o histórico, com o Flow só para o alerta
+
+- **Estado:** aceita em 24/09/2026.
+- **Onde:** §6, §7.3 (grupo 4), §7.8 (Flows), §7.9.
+- **Contexto:** a ação de Flow guardava as áreas atuais num campo do item e as comparava com a posição nova. Numa coleção de posições, cada posição é um item novo, então não há item do objeto para guardar o estado. O Flow também não deixava histórico para o relatório, uma cerca criada depois não teria histórico nenhum, e posições atrasadas chegam fora de ordem e trocam entradas e saídas.
+- **Decisão:**
+  - A cerca virtual é uma operação do catálogo (`geofence`). Para um período, ela ordena as posições de cada objeto pela hora, marca cada uma como dentro ou fora de cada cerca e anota as mudanças: de fora para dentro é uma entrada, de dentro para fora é uma saída, e o que fica entre as duas é a visita.
+  - O resultado tem as três partes: as posições dentro das cercas, as visitas e os resumos por cerca e por objeto.
+  - O relatório de cerca virtual e qualquer consulta de entradas e saídas saem desse cálculo, que é a versão definitiva.
+  - O Flow só dá o alerta na hora. O estado fica por objeto, em memória ou no Redis, e é refeito pelo histórico ao reiniciar. Uma posição mais antiga que a última processada não gera alerta.
+- **Alternativas descartadas:**
+  - Registrar as entradas e saídas no Flow e montar o relatório com esse registro: depende do Flow estar ligado, erra com posições atrasadas e não cobre cercas criadas depois.
+  - Guardar o estado num campo do item: numa coleção de posições, não existe item do objeto.
+- **Consequências:**
+  - Com os mesmos dados, o relatório gerado de novo dá o mesmo resultado, o que sustenta o hash e a verificação (D-021).
+  - O alerta pode faltar ou divergir do relatório quando há posições atrasadas, e a documentação avisa o usuário disso.
+
+## D-029 — Hora de entrada e de saída como intervalo observado, mais uma estimativa
+
+- **Estado:** aceita em 24/09/2026.
+- **Onde:** §7.3 (grupo 5), §7.9.
+- **Contexto:** a entrada real acontece entre a última posição fora e a primeira dentro. Uma cerca pequena pode ser atravessada sem nenhuma posição dentro, e a oscilação do GPS na borda faz um veículo parado entrar e sair dezenas de vezes.
+- **Decisão:**
+  - O relatório mostra o intervalo observado como fato e a hora estimada, pelo cruzamento da borda na linha entre as duas posições, como estimativa. A permanência traz o mínimo observado e a estimativa.
+  - No perfil contínuo, a linha entre duas posições seguidas que atravessa a cerca registra uma passagem estimada, marcada como tal. Lacunas e o perfil esparso não geram passagem.
+  - Uma saída seguida de nova entrada na mesma cerca em menos de 1 min vira uma visita só.
+- **Alternativas descartadas:**
+  - Só as posições: perderia as passagens rápidas por cercas pequenas.
+  - Só a hora estimada: a evidência afirmaria um instante que ninguém observou.
+  - Exigir um tempo mínimo dentro para contar a entrada: apagaria a passagem rápida de verdade.
+- **Consequências:** o relatório de cerca virtual separa, em cada linha, o que foi observado do que foi estimado.
+
+## D-030 — Saída do Flow com limite, e o resultado inteiro por id
+
+- **Estado:** aceita em 24/09/2026.
+- **Onde:** §7.8 (Flows) · V-53.
+- **Contexto:** a saída da operação "Geo" vai para os dados do Flow. Um raio sobre 500 mil ocorrências poria tudo na memória do Directus a cada disparo. Além disso, todo Flow novo vem com o registro completo, que grava os dados de todos os passos numa revisão a cada execução.
+- **Decisão:**
+  - Itens e formas saem até um limite, de 100 por padrão, ajustável na operação até o máximo da instalação. O resumo vem sempre completo, com o total real, e a saída avisa quando cortou.
+  - A saída traz só os campos pedidos, e o padrão é o id mais os valores de `$geo`.
+  - A saída traz o id da consulta registrada, e a ação "Resultado inteiro" usa esse id para exportar ou para editar, arquivar e apagar em lotes, em segundo plano.
+- **Alternativas descartadas:**
+  - Saída completa: memória e revisões crescem com o volume, a cada disparo.
+  - Só o resumo: o passo seguinte não teria os itens para agir, como no despacho da viatura mais próxima.
+- **Consequências:** o limite e o máximo entram no contrato da operação (D-016), e a documentação orienta o registro "só atividade" nos Flows de alta frequência.
+
+## D-031 — Datas e fusos: fuso dos dados na coleção, fuso gravado no relatório e janela resolvida no registro
+
+- **Estado:** aceita em 24/09/2026.
+- **Onde:** §7.1 (cache), §7.3 (grupo 5), §7.8 (configuração por coleção), §7.9 · V-54, V-55, V-56 · P-13.
+- **Contexto:** o desenho só dizia que os horários aparecem como no Studio. Um campo `dateTime` não tem fuso, então juntar origens de tipos diferentes desloca uma delas em horas. O "dia" da cor, dos separadores e do "hoje" depende de onde cai a meia-noite. O relatório é montado no servidor, que não sabe o fuso de quem pediu. E o `$NOW` do Directus muda a cada pedido.
+- **Decisão:**
+  - A configuração da coleção diz o fuso dos dados dos campos sem fuso, com o fuso da instalação como padrão.
+  - O filtro por período converte o parâmetro, nunca a coluna, para manter os índices.
+  - No Studio, vale o fuso do navegador. O relatório guarda o próprio fuso, mostra-o na capa e escreve cada hora com o deslocamento. A API usa ISO 8601 com deslocamento e aceita um fuso no que agrupa por dia.
+  - A janela relativa e o `$NOW` dos filtros do usuário são resolvidos uma vez, no registro da consulta, arredondados ao minuto. A visão guarda a janela relativa; a captura e o relatório, a absoluta.
+  - A ordem é pela hora com desempate pelo id, a posição com hora no futuro é suspeita, e trajeto, parada e cerca exigem data e hora.
+  - Um campo de hora de recebimento, opcional na configuração da coleção, mostra quando a posição chegou ao servidor. As regras usam só a hora da posição.
+- **Alternativas descartadas:**
+  - Tudo em UTC: o "dia" do usuário e o do relatório ficariam errados em qualquer fuso diferente de zero.
+  - Converter a coluna no filtro: o banco deixaria de usar o BRIN e o B-tree (objeto, data).
+  - Resolver a janela relativa a cada pedido: mapa, lista e resumo responderiam a janelas um pouco diferentes, e o cache nunca acertaria.
+- **Consequências:**
+  - Um papel com `$NOW` na permissão fica correto, mas sem cache.
+  - Os testes de contrato cobrem o fuso em cada banco (P-13).
+
+## D-032 — Relatório é documento: quem o lê vê tudo o que está nele
+
+- **Estado:** aceita em 24/09/2026.
+- **Onde:** §7.8 (armazenamento), §7.9 · V-58.
+- **Contexto:** o relatório é uma cópia congelada dos dados. Compartilhado, ele mostra o que a Maria pôde ver a quem não poderia. O PDF em Arquivos fica ao alcance de quem lê a biblioteca inteira. E a página de verificação precisa ser pública, porque quem lê o QR code nem sempre tem conta no Directus.
+- **Decisão:**
+  - Quem pode ler o relatório lê tudo o que está nele. Quem decide é a permissão do Directus na coleção de relatórios.
+  - A visibilidade começa em "só o dono", e abrir para o papel ou para todos pede confirmação com aviso.
+  - PDF e imagens ficam numa pasta própria, fora do alcance dos papéis comuns por uma política pronta, e o download passa pelo endpoint da extensão, que confere a permissão no relatório.
+  - A página de verificação é pública e só confirma: válido ou não, hash, data, versão e assinatura.
+- **Alternativas descartadas:**
+  - Refiltrar o conteúdo pela permissão de quem abre: o documento mudaria de leitor para leitor, e o hash deixaria de bater.
+  - Só deixar compartilhar com quem tem as mesmas permissões: a extensão teria de comparar regras de permissão, contra a D-001.
+  - Verificação com login: quem recebe o PDF impresso, como um juiz, não teria como conferir.
+- **Consequências:** o painel de saúde avisa quando algum papel consegue ler a pasta dos relatórios.
+
+## D-033 — Arquivos na evidência: cópia com hash, só do que a captura mostra
+
+- **Estado:** aceita em 24/09/2026.
+- **Onde:** §7.9 · V-52.
+- **Contexto:** a captura congela os valores dos itens, mas o valor de um campo de arquivo é só o id, e o Directus permite trocar o conteúdo mantendo o mesmo id. A evidência mudaria sem ninguém perceber. A extensão não sabe o que o item representa: o arquivo pode ser a foto de uma ocorrência, a imagem de uma leitura ou um documento.
+- **Decisão:**
+  - Na hora da captura, a extensão copia para a pasta dos relatórios os arquivos dos campos que a camada mostra, e o SHA-256 de cada cópia entra no hash da captura. A captura aponta para a cópia.
+  - No PDF, as imagens aparecem em miniatura, e todo arquivo aparece com nome e hash. Os arquivos inteiros ficam na pasta.
+  - Um máximo de arquivos e de tamanho por relatório, na configuração da instalação, limita as cópias. Acima dele, fica só o hash, com aviso.
+- **Alternativas descartadas:**
+  - Só a referência: o arquivo pode ser trocado depois.
+  - Só o hash: detecta a troca, mas não mostra o original.
+  - Copiar todos os arquivos do item: traria arquivos que ninguém viu na tela e encheria o disco.
+- **Consequências:** o espaço em disco dos relatórios cresce com as imagens, e o limite da instalação o controla.
+
+## D-034 — Verificação do arquivo pelo upload, com dois hashes e ciclo de vida
+
+- **Estado:** aceita em 24/09/2026. Complementa a D-021.
+- **Onde:** §7.9.
+- **Contexto:** a verificação conferia o registro e o QR, mas não o arquivo em si. O QR não pode carregar o hash do próprio PDF em que está impresso, porque escrevê-lo no arquivo muda o arquivo. As ideias vieram em parte de um relatório de acessos que o autor já fez: prévia sem autenticidade, token aleatório no QR, código legível, hash por subtração, ciclo de vida e rota pública sem vazamento.
+- **Decisão:**
+  - Dois hashes: o do conteúdo, por subtração e listado no PDF, e o do arquivo, calculado sobre os bytes do PDF final (depois da assinatura, quando há) e guardado no registro.
+  - A página de verificação confere o estado pelo token aleatório do QR e o arquivo pelo upload do PDF, comparando o SHA-256 do que recebeu com o hash do arquivo. Sem o QR, acha o relatório pelo hash.
+  - Cada relatório tem um código legível e único e um estado: válido, revogado ou substituído, sem apagar a trilha e sem ciclos.
+  - A prévia não tem código, token, hash nem QR.
+  - Token inexistente e erro interno recebem a mesma resposta, e a página lê só as colunas de que precisa.
+- **Alternativas descartadas:**
+  - Conferir só o conteúdo: um PDF alterado com os mesmos dados de cabeçalho passaria.
+  - O id do relatório no QR: permitiria descobrir relatórios tentando ids.
+  - Prévia com marca d'água sobre um documento com QR e hash de verdade: poderia ser apresentada como oficial.
+- **Consequências:** um PDF salvo de novo, mesmo sem alteração visível, não confere, e a página explica o motivo.

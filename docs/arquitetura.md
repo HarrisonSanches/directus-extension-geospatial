@@ -51,18 +51,18 @@ flowchart LR
   DX --> AD["Adaptador do banco: parte espacial em volta"]
   AD --> DB[("Banco: PostGIS e outros")]
   AD -.->|"o que o banco não faz"| NODE["Node, com limite"]
-  EP -->|"tiles, lista, contagem"| UI
+  EP -->|"tiles, itens, formas, resumo"| UI
 ```
 
 1. **Motor no servidor.** Extensão de API (endpoint) que roda fora do sandbox e executa as operações no banco. Tem um adaptador por banco e usa o Node para completar o que o banco não faz (7.4). Usa conexões, fila e cache próprios (7.1).
-2. **Interface no Studio.** São três formas com o mesmo núcleo (mapa, ferramentas de desenho e lista de resultados), todas com várias camadas (7.3):
+2. **Interface no Studio.** São três superfícies com o mesmo núcleo (mapa, ferramentas de desenho e lista de resultados), todas com várias camadas (7.3):
    - **Layout de coleção:** aparece no seletor de layouts da página da coleção. Aproveita a busca, os filtros, os bookmarks, as ações em lote e a exportação da página, e guarda o próprio estado nas opções do layout.
    - **Módulo:** tem um item próprio na barra lateral, que o admin ativa. É o painel operacional com várias coleções ao mesmo tempo.
    - **Painel** para os dashboards (Insights).
-3. **SDK.** Pacote separado (`directus-geospatial-sdk`), tipado e no estilo do SDK oficial, com comandos como `withinRadius()` e `countByPolygon()` (7.8).
+3. **SDK.** Pacote separado (`directus-geospatial-sdk`), tipado e no estilo do SDK oficial, com comandos como `geoRadius()` e `geoCountByRegion()` (7.8).
 4. **Operação de Flow e relatórios.** Uma operação "Geo" para as automações (7.8) e os relatórios em PDF (7.9), sobre o mesmo motor.
 
-**Consulta registrada.** A interface registra a consulta uma vez (filtro, busca, operação e geometria desenhada) e recebe um id curto. Tiles, lista e contagem são pedidos por esse id. A permissão é aplicada em cada pedido com a identidade de quem pede, então repassar o id a outra pessoa não vaza nada. O mesmo id serve para cache, consultas salvas e compartilhamento. O registro fica em memória ou no Redis (7.8).
+**Consulta registrada.** A interface registra a consulta uma vez (filtro, busca, operação e geometria desenhada) e recebe um id curto. Os tiles e as três partes do resultado (itens, formas e resumo, 7.3 grupo 4) são pedidos por esse id. A permissão é aplicada em cada pedido com a identidade de quem pede, então repassar o id a outra pessoa não vaza nada. O mesmo id serve para cache, consultas salvas e compartilhamento. O registro fica em memória ou no Redis (7.8).
 
 **Resposta no formato do `/items`.** A ideia continua: aceitar os mesmos parâmetros (filter, fields, sort, limit etc.) mais os geoespaciais, e devolver no mesmo formato. Entra no desenho da API (7.8).
 
@@ -126,12 +126,16 @@ A alternativa era usar só a API pública, ou seja, traduzir cada operação em 
 
 As referências PostGIS são a implementação de referência. Nos outros bancos, cada operação roda no banco, roda no Node com limite, ou não aparece (7.4). As medições são sempre em metros (7.6).
 
+**O que é "dentro" (D-023).** Em toda operação que pega itens por área ou por distância (por área, raio, corredor e entorno encadeado), "dentro" quer dizer **toca**: basta qualquer parte do item estar na área ou a até a distância, e o ponto na borda entra. É o mesmo sentido do `_intersects` do Directus (V-49). Duas opções mudam isso:
+- **inteiramente dentro**, para camadas de linhas e polígonos: o item inteiro, contando a borda (`ST_CoveredBy`, V-50). No raio, no corredor e no entorno, a comparação é com o polígono do entorno montado com mais segmentos, e o erro fica em cerca de 0,03% da distância, porque o `ST_DFullyWithin` não aceita `geography` (V-51);
+- **fora**: os itens que não tocam a área, como o `_nintersects` do Directus.
+
 ### Básico
 
 | # | Operação | O que o usuário faz | O que aparece no mapa | Referência PostGIS |
 |---|---|---|---|---|
 | 1 | Raio | Clica num ponto e informa a distância | Círculo desenhado, itens de dentro destacados, lista com a distância de cada um | `ST_Buffer` (desenho), `ST_DWithin` (seleção) |
-| 2 | Área desenhada | Desenha um polígono livre | Itens dentro do polígono | `ST_Within`, `ST_Contains` |
+| 2 | Por área | Desenha uma área ou usa uma forma existente | Os itens que tocam a área, ficam inteiramente dentro ou ficam fora | `ST_Intersects`; `ST_CoveredBy` em "inteiramente dentro" |
 | 3 | Medir | Seleciona dois itens, ou um polígono | Linha entre os itens com a distância; área e perímetro do polígono | `ST_Distance`, `ST_MakeLine`, `ST_Area`, `ST_Perimeter` |
 | 4 | Mais próximos | Clica num ponto e escolhe N | Os N itens mais próximos ligados ao ponto por linhas | Operador `<->` (KNN) |
 
@@ -139,20 +143,35 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
 
 | # | Operação | O que o usuário faz | O que aparece no mapa | Referência PostGIS |
 |---|---|---|---|---|
-| 5 | Trajeto | Escolhe itens com data (ex.: pontos GPS) | Linha ordenada no tempo, com a distância total | `ST_MakeLine` ordenado, `ST_Length` |
-| 6 | Corredor | Escolhe uma linha (ex.: rodovia) e uma largura | Faixa ao longo da linha e os itens dentro dela | `ST_Buffer` em linha, `ST_Intersects` |
+| 5 | Trajeto | Escolhe uma ou mais camadas com data e o objeto (ex.: uma placa, um veículo) | Uma linha por objeto, em ordem de tempo, com os trechos, as lacunas tracejadas e a distância total | Funções de janela por objeto, `ST_MakeLine` por trecho, `ST_Length` |
+| 6 | Corredor | Escolhe uma linha (ex.: rodovia) e uma largura | Faixa ao longo da linha e os itens dentro dela | `ST_Buffer` em linha (desenho), `ST_DWithin` (seleção), `ST_LineLocatePoint` (posição na linha) |
 | 7 | Contagem por região | Escolhe uma coleção de polígonos (ex.: bairros) | Mapa colorido pela quantidade de itens em cada região | Junção espacial + contagem |
+| 8 | Cerca virtual | Escolhe coleções com trajeto, uma coleção de cercas e o período | As visitas de cada objeto em cada cerca, com entrada, saída e permanência | Funções de janela por objeto, em ordem de tempo, sobre `ST_Intersects` com as cercas |
 
 ### Avançado
 
 | # | Operação | O que o usuário faz | O que aparece no mapa | Referência PostGIS |
 |---|---|---|---|---|
-| 8 | Grade de densidade | Escolhe o tamanho da célula | Hexágonos coloridos pela concentração de pontos | `ST_HexagonGrid`, `ST_SquareGrid` (PostGIS 3.1+) |
-| 9 | Focos | Define os parâmetros de agrupamento | Grupos de pontos próximos com o contorno de cada um | `ST_ClusterDBSCAN`, `ST_ConcaveHull` |
+| 9 | Grade de densidade | Escolhe o tamanho da célula da grade, em metros | Hexágonos coloridos pela concentração de pontos | `ST_HexagonGrid`, `ST_SquareGrid` (PostGIS 3.1+) |
+| 10 | Focos | Define os parâmetros de agrupamento | Grupos de pontos próximos com o contorno de cada um | `ST_ClusterDBSCAN`, `ST_ConcaveHull` |
+
+### Operações de forma
+
+Recebem itens ou formas e produzem só formas. Servem de entrada para outra operação (7.3, grupo 4), viram itens novos ou rodam num Flow (7.8).
+
+| # | Operação | O que o usuário faz | O que aparece no mapa | Referência PostGIS |
+|---|---|---|---|---|
+| 11 | Entorno | Escolhe itens ou formas e uma distância | A área em volta de cada um | `ST_Buffer` em `geography` (desenho), `ST_DWithin` (seleção) |
+| 12 | Centro | Escolhe itens ou formas | Um ponto em cada um | `ST_Centroid`; `ST_PointOnSurface` quando o centro cai fora |
+| 13 | Simplificar | Escolhe uma forma e a tolerância em metros | A mesma forma com menos vértices | `ST_SimplifyPreserveTopology` |
+
+- **Seleção exata no entorno.** Numa cadeia, "entorno → itens dentro" vira um `ST_DWithin`, como no raio e no corredor: exato sobre o elipsoide e pelo índice. O polígono do `ST_Buffer` só é montado para desenhar e para salvar, porque é uma aproximação: o PostGIS calcula num sistema plano e fecha o círculo com 32 segmentos (V-46), o que dá até uns 2,4 m de diferença na borda de um entorno de 500 m.
+- **Centro dentro da forma.** O centro geométrico de um polígono pode cair fora dele (V-47), como num bairro em forma de U. Nesse caso, a extensão usa um ponto garantidamente dentro, para que "em qual região fica" dê a resposta certa.
+- **Tolerância em metros.** O `ST_SimplifyPreserveTopology` trabalha na unidade do SRID da coluna (V-48), então a extensão converte para um sistema métrico antes de simplificar, como nas outras medidas (7.6).
 
 **Fora de escopo por ora:** rotas por ruas reais e isócronas (dependem do pgRouting) e diagramas de Voronoi (pouco usados em operação).
 
-**Outras funções para expandir o catálogo no futuro:** `ST_Centroid`, `ST_Union`, `ST_Intersection`, `ST_Difference`, `ST_ConvexHull`, `ST_Simplify`, `ST_Extent`, `ST_ClusterKMeans`, `ST_LineLocatePoint`.
+**Outras funções para expandir o catálogo no futuro:** `ST_Union`, `ST_Intersection`, `ST_Difference`, `ST_ConvexHull`, `ST_Extent`, `ST_ClusterKMeans`.
 
 ## 7. Desenho por tema
 
@@ -180,7 +199,7 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
 - Há dois estilos a partir dos mesmos tiles: círculos com o número ou mapa de calor, com o peso dado pela contagem.
 - As contagens vêm da query permitida, então cada usuário só conta o que pode ver.
 - Linhas e polígonos nunca são agrupados, só simplificados conforme o zoom (tolerância de cerca de 1 pixel). Um trajeto mantém a forma e, no zoom de rua, mostra exatamente as ruas percorridas.
-- Cada camada configura três coisas: se agrupa ou não, o tamanho da célula e o zoom a partir do qual tudo aparece solto (como o `clusterMaxZoom` do supercluster). Esse último é necessário para pontos de GPS densos.
+- Cada camada configura três coisas: se agrupa ou não, o tamanho da célula da tela e o zoom a partir do qual tudo aparece solto (como o `clusterMaxZoom` do supercluster). Esse último é necessário para pontos de GPS densos.
 
 #### Lista e contagem
 
@@ -190,15 +209,16 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
   |---|---|
   | Raio, mais próximos | Distância até o centro |
   | Corredor | Posição ao longo da linha |
-  | Trajeto | Tempo |
-  | Área desenhada | A ordenação escolhida na página |
+  | Trajeto | Tempo, com desempate pelo id |
+  | Cerca virtual | Hora da entrada |
+  | Por área | A ordenação escolhida na página |
   | Contagem por região, grade, focos | Maior contagem primeiro |
 
 - **Paginação por cursor**, e não por número de página. Com número de página, o banco lê e descarta tudo o que vem antes, e a lista se desloca quando entram itens novos. Com cursor, o banco vai direto ao ponto pelo índice, na mesma velocidade em qualquer profundidade.
 - **Rolagem virtual.** A lista desenha só as linhas visíveis e busca as próximas pelo cursor conforme o usuário rola.
 - **Contagem em dois tempos.** Primeiro, uma contagem rápida que para em 10.001 e mostra "10.000+" (o limite é configurável). Depois, a contagem exata roda em segundo plano, com tempo limite; se ele estourar, fica o "10.000+". A lista e o mapa não esperam pela contagem.
 - **Durante o carregamento**, aparecem um resumo no topo ("Raio de 2 km · 10.000+ itens" e depois "512.340 itens"), linhas provisórias na lista e uma barra fina de progresso no mapa.
-- Mapa, lista e contagem usam o mesmo id de consulta, então respondem à mesma pergunta.
+- Mapa, lista e resumo usam o mesmo id de consulta, então respondem à mesma pergunta. A contagem é parte do resumo (7.8).
 
 #### Proteção do banco
 
@@ -213,6 +233,7 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
 4. **Cache.**
    - A chave junta o SQL montado pelo Directus, a versão da coleção e o tile. Como o SQL já traz a permissão, quem tem exatamente as mesmas permissões compartilha o cache e quem tem permissões diferentes nunca recebe o dado do outro.
    - O Directus gera o SQL de forma determinística. Se um dia ele variar, o efeito é só perder o cache, nunca vazar dado. Um teste automatizado cobre isso.
+   - O `$NOW` muda o SQL a cada pedido (V-55). Nos filtros do usuário, a extensão o resolve uma vez, no registro da consulta, arredondado ao minuto. Numa permissão com `$NOW`, o resultado continua correto, mas aquele papel fica sem cache.
    - Toda gravação feita pelo Directus muda a versão da coleção. As gravações feitas fora dele são detectadas como no grupo 5 do 7.3 (gatilho no Postgres ou campo de data de atualização), e um tempo de vida curto fica como rede de segurança.
    - O cache fica em memória ou no Redis, quando o Directus usa Redis. No navegador, `Cache-Control: private`.
 5. **Painel de saúde para o admin**, o mesmo do índice (7.6): tempo dos tiles, tamanho da fila, taxa de acerto do cache e consultas lentas, cada uma com o id da consulta.
@@ -237,8 +258,9 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
   | ↓ ou → | Próximo item |
   | ↑ ou ← | Item anterior |
   | Home / End | Primeiro / último |
-  | Enter | Abre o drawer |
-  | Espaço | Marca ou desmarca na seleção |
+  | Enter | Abre o drawer do item, ou desce até os itens de uma região, célula da grade ou foco (7.3, grupo 2) |
+  | Espaço | Marca ou desmarca na seleção; numa região, célula da grade ou foco, marca todos os itens de dentro |
+  | Backspace | Volta um nível depois de descer |
   | Esc | Sai da navegação |
   | ? | Mostra os atalhos |
 
@@ -258,7 +280,7 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
   - A lista segue o padrão *listbox* do WAI-ARIA, e o leitor de tela anuncia cada item.
   - O resumo é anunciado numa região ao vivo.
   - O foco fica sempre visível.
-  - Seleção e destaque não dependem só de cor: usam também contorno e forma.
+  - Seleção e destaque não dependem só de cor: usam também contorno e símbolo.
   - Com "reduzir movimento" ligado no sistema, a câmera pula sem animar.
 
   O resto da acessibilidade fica no grupo 6 do 7.3.
@@ -268,7 +290,7 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
 #### Grupo 1: camadas
 
 - **O que é uma camada:** uma coleção (com o campo de geometria e o filtro dela), o resultado de uma operação ou as formas desenhadas pelo usuário. Cada camada tem estilo, agrupamento e contagem próprios.
-- **Em cada forma:**
+- **Em cada superfície:**
   - **Layout:** a primeira camada é a coleção da página, presa aos filtros, à busca e à seleção da página. O usuário pode adicionar outras coleções como camadas extras (por exemplo, bairros por baixo das ocorrências), cada uma com o seu filtro. Tudo fica nas opções do layout, e o bookmark restaura.
   - **Módulo:** as camadas são livres. A visão (camadas, filtros, mapa de fundo e enquadramento) é salva numa coleção da própria extensão, e as permissões do Directus nessa coleção decidem quem vê e quem edita cada visão. As coleções da extensão estão no 7.8.
   - **Painel:** as camadas ficam nas opções do painel, e as variáveis globais do dashboard podem alimentar os filtros. Uma variável "região", por exemplo, filtra todas as camadas.
@@ -298,6 +320,14 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
 - **Hover** mostra um cartão pequeno com o template de exibição da coleção, usando o mesmo componente do Directus.
 - **Vários itens no mesmo lugar:** o clique abre uma lista curta para escolher qual abrir.
 - A navegação pelo teclado está no 7.2.
+
+**Descer até os itens de uma região, célula da grade ou foco**
+- **Quando.** Na contagem por região, na grade e nos focos, a lista mostra regiões, células da grade ou focos (7.1). Célula e foco não são itens, e a região é item de outra coleção. Por isso, abrir um deles desce até os itens de dentro, em vez de abrir o drawer.
+- **Como.** O clique, no mapa ou na lista, ou o Enter enquadram a forma no mapa, e a lista passa a mostrar os itens de dentro, na ordem da página. O trilho ganha a etapa ("Focos → Foco 3 · 412 pontos"), e o trilho ou o Backspace voltam.
+- **Seleção.** O Espaço marca todos os itens de dentro, por consulta ao servidor, com o limite da seleção.
+- **Nos focos, "dentro" quer dizer "do foco":** os pontos que o DBSCAN juntou nele, pelo id do foco no `$geo`. O contorno côncavo pode envolver pontos soltos ou de outro foco, então o filtro não usa o contorno.
+- **A região em si.** Ctrl/Cmd + clique abre a página da região numa nova aba, como em qualquer item.
+- **Permissão.** Descer é a mesma consulta com mais um filtro, então a Maria só vê as ocorrências da zona sul dentro do foco. Pela API, é a rota dos itens com o id da região, da célula ou do foco (7.8).
 
 #### Grupo 3: desenho, medição e busca
 
@@ -340,18 +370,33 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
 #### Grupo 4: encadear e salvar
 
 **Encadear operações**
-- **Tipos de resultado.** Cada operação produz um de três:
-  - itens (raio, área, mais próximos, corredor);
-  - formas (círculo, faixa, contorno de foco, área desenhada);
-  - resumos (contagem por região, grade, focos).
-- **Encadear é usar um resultado como entrada da próxima operação.** Exemplos:
-  - escolas → faixa de 500 m → ocorrências dentro da faixa;
+- **As partes de um resultado.** Um resultado tem até três partes: itens, formas e resumos. Cada operação declara quais produz:
+
+  | Operação | Itens | Formas | Resumos |
+  |---|---|---|---|
+  | Raio | itens dentro, com a distância | círculo | total |
+  | Por área | os itens, conforme a opção | a área | total |
+  | Medir | — | a linha ou o polígono medido | distância, área, perímetro |
+  | Mais próximos | os N, com a distância | — | — |
+  | Trajeto | os pontos em ordem de tempo, com os suspeitos marcados | uma linha por trecho de cada objeto, e as paradas | distância, duração, lacunas, paradas e tempo parado |
+  | Corredor | itens dentro, com a posição na linha | faixa | total |
+  | Contagem por região | as regiões | — | contagem por região |
+  | Grade de densidade | — | as células da grade | contagem por célula |
+  | Focos | os pontos de cada foco | contorno de cada foco | contagem por foco |
+  | Cerca virtual | as posições dentro das cercas | cada visita: o trecho do trajeto dentro da cerca, com entrada, saída e permanência | entradas e permanência por cerca e por objeto |
+  | Entorno | — | a área em volta de cada item ou forma | — |
+  | Centro | — | um ponto por item ou forma | — |
+  | Simplificar | — | a forma simplificada | vértices antes e depois |
+
+  Nos mais próximos, as linhas que ligam os itens ao ponto são só desenho: não são forma e não podem ser salvas. A resposta da API e do SDK segue as mesmas partes (7.8).
+- **Encadear é usar uma parte de um resultado como entrada da próxima operação.** Exemplos:
+  - escolas → entorno de 500 m → ocorrências dentro do entorno;
   - focos de ocorrências → câmeras dentro de cada foco;
   - raio de 5 km → contagem por bairro só dentro do raio.
 - **A cadeia inteira vira uma consulta só.** As etapas são compostas num único SQL, e cada coleção entra pela sua query permitida (seção 5). Nenhuma lista de ids é guardada no meio do caminho, por isso funciona com qualquer volume. O id da consulta cobre a cadeia toda.
 - **Na interface:**
-  - cada resultado tem a ação "usar como entrada", com as operações que fazem sentido para o tipo dele;
-  - um trilho no topo mostra a cadeia ("Escolas → Faixa 500 m → Ocorrências");
+  - cada resultado tem a ação "usar como entrada", que pergunta qual parte segue adiante (os itens ou as formas) e oferece as operações que fazem sentido para ela;
+  - um trilho no topo mostra a cadeia ("Escolas → Entorno 500 m → Ocorrências") e os níveis abertos ao descer (grupo 2);
   - cada etapa pode ser editada ou removida, e o resto é recalculado.
 - **Limites:**
   - profundidade máxima configurável (por exemplo, 5 etapas);
@@ -359,10 +404,10 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
   - se alguma etapa rodar no Node com limite, o resultado final avisa.
 
 **Salvar um resultado como item**
-- **O que pode ser salvo:** uma forma (faixa, contorno de foco, área desenhada, linha do trajeto) vira um item novo de uma coleção.
+- **O que pode ser salvo:** uma forma (por exemplo, um entorno, uma faixa, um contorno de foco, uma área desenhada, a linha do trajeto ou um centro) vira um item novo de uma coleção.
 - **Coleções oferecidas:** só as coleções em que o usuário pode criar itens e que têm campo de geometria compatível (polígono para áreas, linha para trajetos, ponto para centros).
 - **Como salva:** abre o drawer nativo de criação com a geometria preenchida, e o usuário completa os outros campos. Salvar passa pela API com a permissão dele, então validações, campos obrigatórios, hooks e Flows funcionam como em qualquer criação.
-- **Conversão:** a geometria é convertida para o tipo e o SRID do campo. Formas com vértices demais podem ser simplificadas antes, e o usuário vê o resultado.
+- **Conversão:** a geometria é convertida para o tipo e o SRID do campo. Formas com vértices demais passam antes pela operação Simplificar, e o usuário vê o resultado.
 - **Vários de uma vez** (por exemplo, todos os focos): tem limite, e a confirmação mostra quantos itens serão criados.
 
 **Ações sobre o resultado inteiro**
@@ -388,6 +433,7 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
   - KML, para Google Earth e Google My Maps;
   - GeoPackage, o padrão aberto (OGC) para QGIS e ArcGIS.
 - **Sistema de coordenadas:** 4326 por padrão, ou o SRID da coluna (por exemplo, SIRGAS 2000 / UTM).
+- **Partes:** os itens, por padrão, ou as formas. No GeoPackage, as duas vão juntas, cada uma numa camada.
 - **Colunas:** os campos escolhidos na camada, mais os valores calculados (distância, posição na linha, tempo desde o ponto anterior).
 - **Streaming:** o banco entrega as linhas aos poucos, sem encher a memória do servidor.
 - **Tamanho:** uma exportação pequena baixa na hora. A grande segue o padrão do Directus: roda em segundo plano, o arquivo vai para Arquivos e o usuário recebe uma notificação quando fica pronta ou quando falha.
@@ -405,6 +451,59 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
 - **Trajetos.** A `TripsLayer` anima cada veículo com um rastro que se apaga, com um relógio do instante e a opção "seguir". Ao pausar, o usuário navega ponto a ponto pelo teclado (7.2).
 - **Fuso horário.** Os horários aparecem como no Studio, respeitando o tipo do campo (com ou sem fuso).
 
+**Datas e fusos** (D-031)
+- **Tipos de campo.** O `timestamp` tem fuso e fica guardado em UTC; o `dateTime` não tem fuso (V-54); o `date` não tem hora. O `date` serve para a janela de tempo, mas trajeto, parada e cerca exigem data e hora. Sem isso, o admin vê o motivo, e o usuário comum não vê a operação.
+- **Fuso dos dados.** Num campo `dateTime`, a configuração da coleção diz em que fuso os horários foram gravados, e o padrão é o fuso da instalação. Assim, todas as origens de um trajeto entram na mesma linha do tempo.
+- **Converter o parâmetro, nunca a coluna.** O filtro por período converte os limites da janela para o horário local dos dados e compara com a coluna crua, para o banco continuar usando o BRIN e o B-tree (objeto, data). A conversão da coluna só acontece para ordenar e mostrar, como no filtro em dois estágios do 7.6.
+- **O dia.** No Studio, vale o fuso do navegador, como o Directus faz ao mostrar horários. Na API, os horários saem em ISO 8601 com deslocamento, e o que agrupa por dia aceita um parâmetro de fuso. Quando a consulta agrupa por dia, o fuso faz parte dela, e portanto do id e do cache.
+- **Janela relativa, resolvida uma vez.** "Hoje", "últimas 24 h" e o `$NOW` dos filtros do usuário viram horários fixos no registro da consulta, arredondados ao minuto. Mapa, lista e resumo respondem à mesma janela, e o cache funciona. A visão e o bookmark guardam a janela relativa; a captura e o relatório guardam a absoluta ("24/09 00:00 a 23:59, −03:00").
+- **Ordem estável.** Posições com a mesma hora são desempatadas pelo id, para o cursor não pular nem repetir itens e para o relatório gerado de novo sair igual.
+- **Hora no futuro.** Uma posição mais de 5 min à frente do relógio do servidor é suspeita, com o motivo "hora no futuro".
+- **Hora de recebimento, opcional.** Muitos sistemas guardam, além da hora da posição, a hora em que ela chegou ao servidor. Quando a configuração da coleção aponta esse campo, a lista, o alerta e o relatório mostram "posição às 10:02 · recebida às 10:47 (45 min depois)", porque numa operação importa saber quando o sistema ficou sabendo. As regras continuam usando só a hora da posição.
+  - A tela de configuração sugere um campo `date-created`, que o Directus preenche quando o item é criado pela API (V-57), ou um campo com nome de recebimento.
+  - Se o sistema de rastreamento grava direto no banco, o `date-created` fica vazio, a não ser que a coluna tenha um valor padrão no banco. A tela avisa quando o campo escolhido está vazio nas posições recentes.
+- **Fuso pelo nome.** O fuso é sempre um nome, como America/Sao_Paulo, que conhece o horário de verão antigo. Num campo sem fuso, a hora que se repete na volta do horário de verão é ambígua, e a extensão usa a primeira ocorrência.
+
+**Trajeto** (D-025)
+- **Configurações de trajeto da coleção,** feitas pelo admin (7.8, configuração por coleção). Valem para a operação trajeto, o playback, a camada ao vivo e os relatórios de frota e de cerca virtual:
+  - **campo do objeto:** o que identifica quem se move (veículo, placa, aparelho), ou "um objeto só". A interface sugere os campos candidatos, e o valor é comparado normalizado (maiúsculas, sem hífen e sem espaço);
+  - **perfil**, com valores prontos que o admin pode mudar:
+
+    | Perfil | Quando usar | Limite do trecho | Ponto suspeito | Parada |
+    |---|---|---|---|---|
+    | Contínuo | posições frequentes, como as de um rastreador ou de um app | 10 min | sai da linha e fica marcado na lista | 50 m por 5 min |
+    | Esparso | posições de vez em quando, como as de câmeras ou de registros manuais | 2 min | fica na linha, marcado, porque pode ser um identificador duplicado (uma placa clonada) ou um erro de leitura | desligada |
+
+  - **velocidade máxima** (por padrão, 200 km/h): o ponto que exigiria velocidade maior, em relação ao último ponto válido, é suspeito. Uma posição com hora no futuro também é suspeita (datas e fusos, acima);
+  - **campo de velocidade**, opcional: quando existe, é a velocidade usada; senão, ela é calculada pela distância e pelo tempo.
+- **Trechos e lacunas.** Quando falta posição por mais tempo que o limite do trecho, a linha se quebra, e a lacuna aparece tracejada, com o salto: "30 min · 12 km em linha reta · ao menos 24 km/h".
+  - A velocidade em linha reta é a menor possível. Se nem ela cabe na velocidade máxima, o salto é suspeito.
+  - A distância da lacuna fica fora do total e é informada à parte.
+  - A linha não quebra à meia-noite, só por lacuna.
+- **Paradas** (D-026). O objeto está parado quando fica dentro de um raio por um tempo mínimo (no perfil contínuo, 50 m por 5 min). A parada é uma forma do resultado: um ponto no centro das posições, com início, fim e duração.
+  - **Parada provável:** a lacuna em que o objeto reaparece perto de onde sumiu, como o caminhão que dorme na garagem com o rastreador desligado. Aparece à parte ("parada provável · 12 h sem posição"), porque ele pode ter saído e voltado.
+  - **Parada ociosa:** a parada com o motor ligado, quando a camada tem campo de ignição.
+  - **No perfil esparso, a parada vem desligada.** Com posições de vez em quando, as regras inventariam paradas: uma câmera que lê o carro às 07:00, na saída, e às 19:00, na volta, viraria uma "parada provável de 12 h" em frente à câmera. O relatório omite a seção em vez de mostrar esse número. O admin pode ligar a parada, se os dados da coleção permitirem.
+  - **Encadeamento:** "paradas do caminhão → por área → cercas dos clientes" dá a prova de entrega.
+  - **Detecção:** percorre os pontos de cada objeto em ordem de tempo, em fluxo, sem carregar tudo na memória.
+- **Várias origens para o mesmo objeto.** O trajeto aceita várias camadas, como câmeras fixas, o leitor da viatura, avistamentos e o rastreador do veículo. Cada coleção entra com as suas configurações de trajeto e pela sua query permitida. A que o usuário não pode ler fica de fora, com o aviso "sem acesso".
+- **Leitura na tela:**
+  - a cor da linha mostra o tempo: uma cor por dia até 7 dias, com os dias na legenda, e um gradiente do mais antigo ao mais recente acima disso;
+  - o símbolo do ponto mostra a origem, definido na coleção e trocável na camada, e o ponto suspeito ganha um anel de alerta;
+  - setas de sentido ao longo da linha;
+  - na lista, cada lacuna é uma linha própria entre dois itens ("30 min sem posição · 12 km"), e cada dia tem um separador. A navegação pelas setas passa pelos dois.
+- **No SQL:** funções de janela, por objeto e em ordem de tempo, calculam o intervalo e a velocidade de cada passo, e cada trecho vira uma linha. As várias origens entram juntas, cada uma pela sua query permitida.
+
+**Cerca virtual** (D-028, D-029)
+- **A regra.** As posições de cada objeto são ordenadas pela hora e marcadas como dentro ou fora de cada cerca, com o "toca" da D-023. De fora para dentro é uma entrada, de dentro para fora é uma saída, e o que fica entre as duas é a visita.
+- **A hora é um intervalo observado, mais uma estimativa.**
+  - "Entrou entre 10:01:30 e 10:02:00" é o fato.
+  - "Estimado 10:01:48" é o ponto em que a linha entre as duas posições cruza a borda, supondo velocidade constante.
+  - A permanência traz o mínimo observado, da primeira à última posição dentro, e a estimativa.
+- **Passagem estimada.** No perfil contínuo, a linha entre duas posições seguidas também é testada. Se ela atravessa a cerca sem nenhuma posição dentro, fica registrada uma passagem estimada, marcada como tal. Não vale para lacunas nem para o perfil esparso, porque ali a linha não é um caminho observado.
+- **Vaivém.** Uma saída seguida de nova entrada na mesma cerca em menos de 1 min junta as duas visitas, para que a oscilação do GPS na borda não vire dezenas de entradas. O tempo é ajustável na análise, e uma passagem rápida de verdade continua contando.
+- **Critérios à vista.** O resultado e o relatório mostram os critérios usados (D-027).
+
 **Tempo real**
 - **Opção "ao vivo" por camada,** com a hora da última atualização e um aviso quando os dados param de chegar.
 - **O WebSocket do Directus não é o caminho principal**, por três motivos:
@@ -419,7 +518,7 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
 **Gravações feitas fora do Directus** (por exemplo, o serviço que recebe os GPS gravando direto no banco)
 1. **Pelo Directus:** os hooks da extensão avisam o cache e o tempo real, para tudo o que passa pelo Directus.
 2. **Gatilho no banco (Postgres):** avisa a extensão a cada gravação, venha de onde vier (`LISTEN/NOTIFY`). É criado por ação do admin, com o SQL à vista.
-3. **Campo de data de atualização (qualquer banco):** a extensão verifica periodicamente o que mudou desde o último pulso, usando um campo escolhido na camada. Não enxerga exclusões, e a extensão sugere um índice no campo.
+3. **Campo de data de atualização (qualquer banco):** a extensão verifica periodicamente o que mudou desde o último pulso, usando um campo escolhido na configuração da coleção (7.8). O campo precisa ser preenchido por quem grava, na criação e na atualização: o `date-updated` do Directus sozinho não serve, porque só é preenchido nas atualizações feitas pelo próprio Directus (V-57). Não enxerga exclusões, e a extensão sugere um índice no campo.
 
 A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capacidades: o gatilho existe só no Postgres, e nos outros bancos vale o campo de data.
 
@@ -509,7 +608,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
    - Cada operação declarada na matriz tem um resultado esperado, com tolerância para distâncias.
    - Uma operação não declarada precisa devolver o erro de indisponível.
 2. **Paridade de permissão com o `/items`**, usando um papel restrito.
-   - Quando um filtro nativo faz a mesma pergunta (a área desenhada equivale ao `_intersects`), os IDs precisam ser idênticos.
+   - Quando um filtro nativo faz a mesma pergunta (a operação por área com "toca" equivale ao `_intersects`, e com "fora", ao `_nintersects`), os IDs precisam ser idênticos. No Oracle, isso depende da P-12.
    - Quando não faz, como no raio, o teste calcula a resposta certa: busca os itens permitidos pelo `/items` e calcula com a GeographicLib.
 3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus. Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5.
 
@@ -520,7 +619,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 
 **Fora dos testes que bloqueiam:**
 - Os benchmarks rodam sob demanda, e os números vão para [verificacoes.md](verificacoes.md).
-- A interface tem testes de ponta a ponta (Playwright) com PostGIS, nas três formas: o mapa abre, os tiles chegam e o clique abre o drawer. Esses testes também rodam a verificação de acessibilidade do axe-core.
+- A interface tem testes de ponta a ponta (Playwright) com PostGIS, nas três superfícies do Studio: o mapa abre, os tiles chegam e o clique abre o drawer. Esses testes também rodam a verificação de acessibilidade do axe-core.
 - Antes de cada release, há um teste manual com leitor de tela (NVDA e VoiceOver).
 
 #### Cobertura
@@ -638,6 +737,11 @@ Fica num servidor próprio do autor, com volume moderado (alguns milhões de pon
   - Se falhar, a extensão detecta o índice inválido e oferece apagar e tentar de novo.
   - Os tempos reais de criação serão medidos no dataset de demonstração.
 - **BRIN nos campos de data.** Ele guarda o menor e o maior valor de cada bloco da tabela. Com dados que chegam em ordem de tempo (GPS, telemetria), um filtro por período pula quase toda a tabela, e o índice ocupa poucos MB. A extensão o sugere quando a correlação do campo é alta (`pg_stats.correlation`), no mesmo fluxo do GiST.
+- **B-tree em (objeto, data) nas coleções com trajeto.** O trajeto busca os pontos de um objeto num período, e o B-tree no par vai direto a eles, sem varrer o período de todos os objetos. A extensão o sugere no mesmo fluxo, quando a coleção tem configurações de trajeto (7.3, grupo 5).
+- **Polígonos pesados.** Um polígono salvo com dezenas de milhares de vértices, como o limite de um município do IBGE, usado como área (por área, contagem por região, cerca virtual), deixa a consulta lenta: a caixa dele pega muitos pontos de fora, e cada ponto que sobra é testado contra o polígono inteiro.
+  - Acima de um número de vértices (por exemplo, 256), o SQL divide o polígono em pedaços pequenos com `ST_Subdivide` e testa os pontos contra os pedaços. O resultado é idêntico, só mais rápido, e nada muda no banco, porque tudo acontece dentro da consulta.
+  - Nos bancos sem essa função, o adaptador faz o teste direto, mais lento e igualmente certo.
+  - O ganho será medido com municípios do IBGE ([pendências em verificacoes.md](verificacoes.md#pendências)).
 - **Tabelas particionadas auxiliares: avaliadas e não adotadas como arquitetura.**
   - O Directus não enxerga tabelas particionadas, por isso a ideia era a extensão manter uma cópia particionada só para as leituras espaciais.
   - Motivos para não adotar: dobra o disco, exige sincronização e manutenção de partições, e o Directus continua lento na tabela principal. O principal: pela seção 5, toda consulta na auxiliar precisaria voltar à principal para conferir a permissão, e isso anula o ganho justamente nas consultas pesadas.
@@ -664,9 +768,9 @@ O mapa tem vários mapas de fundo, com um seletor, organizado em três grupos:
 |---|---|
 | Estado do layout | Presets e bookmarks do Directus |
 | Configuração de cada painel | Opções do painel no dashboard |
-| Arquivos PMTiles, imagens das capturas e PDFs dos relatórios | Arquivos do Directus |
+| Arquivos PMTiles, imagens das capturas e PDFs dos relatórios | Arquivos do Directus; os dos relatórios numa pasta própria, fora do alcance dos papéis comuns (7.9) |
 | Visões do módulo, consultas salvas e compartilhadas, configurações do admin, histórico dos índices criados, relatórios e capturas (7.9) | Coleções da própria extensão |
-| Registro das consultas por id, progresso dos índices, versão das coleções para o cache, cache da busca de endereço, limites de pedidos | Memória, ou Redis quando o Directus usa Redis |
+| Registro das consultas por id, progresso dos índices, versão das coleções para o cache, cache da busca de endereço, limites de pedidos, estado das cercas por objeto para os alertas | Memória, ou Redis quando o Directus usa Redis |
 
 - **Coleções do Directus, e não tabelas soltas.** Assim as permissões do Directus decidem quem vê e quem edita cada visão (regra de ouro), as coleções entram no backup e já têm API. Ficam numa pasta própria, ocultas na navegação de conteúdo, e os nomes usam o prefixo `geospatial_` (7.5).
 - **Criação e atualização por ação do admin**, como no índice.
@@ -679,6 +783,23 @@ O mapa tem vários mapas de fundo, com um seletor, organizado em três grupos:
   - O id de uma consulta é o hash do conteúdo dela. Se o servidor esquecer um id, a interface registra de novo sem o usuário perceber.
   - Com várias instâncias, esse estado vai para o Redis, que o Directus já exige para escalar horizontalmente.
   - Salvar ou compartilhar uma consulta copia o conteúdo dela para a coleção da extensão.
+
+#### Configuração por coleção (D-027)
+
+O admin configura cada coleção uma vez, numa tela do módulo. Todas as camadas, visões, painéis, relatórios e Flows daquela coleção herdam essa configuração.
+
+| Seção | O que se configura |
+|---|---|
+| Campos | a geometria padrão, quando há mais de uma, a data padrão, usada pela janela de tempo e pelo playback, o fuso dos dados, nos campos sem fuso, e a hora de recebimento, opcional (7.3, grupo 5) |
+| Trajeto | o objeto, o perfil (contínuo ou esparso) e os valores dele, os campos de velocidade e de ignição, e o símbolo da origem (7.3, grupo 5) |
+| Mudanças feitas fora do Directus | como detectar: só pelo Directus, pelo gatilho no Postgres ou por um campo de data de atualização (7.3, grupo 5) |
+| Índices | a saúde dos índices da coleção, com as ações do admin (7.6) |
+
+- **O que continua na camada:** o filtro, o estilo, o agrupamento, a opacidade, a ordem, a opção "ao vivo" e, se preciso, outro símbolo para a origem.
+- **O que é da instalação:** o fuso da instalação, o provedor de endereço, os mapas de fundo e o padrão deles, os limites (seleção, vértices, profundidade da cadeia, volume no Node, máximo de itens na saída do Flow, máximo de arquivos e de tamanho por relatório), os tempos máximos, a fila, o cache e o pulso ao vivo.
+- **Ajuste na análise:** uma análise pode mudar os valores do trajeto para uma pergunta específica, como "só paradas de pelo menos 15 min". O ajuste fica na consulta registrada, e o resultado e o relatório mostram os critérios usados.
+- **Sem configuração,** a coleção usa os padrões. O trajeto só aparece depois que o admin escolhe o objeto; até lá, o admin vê o motivo e o usuário comum não vê a operação, como na matriz de capacidades (7.4).
+- **Onde fica guardada:** na coleção de configurações da extensão. Só o admin edita.
 
 #### API e SDK
 
@@ -697,7 +818,9 @@ O mapa tem vários mapas de fundo, com um seletor, organizado em três grupos:
 
 **Dois jeitos de usar a API**
 1. **No formato do `/items`, para quem integra.** `GET` ou `SEARCH /geospatial/items/:coleção` recebe os mesmos parâmetros do Directus (fields, filter, search, sort, limit) mais o parâmetro `geo`, com a operação. A resposta é `{ data, meta }`, como no `/items`. O `SEARCH`, que leva a consulta no corpo, é o mesmo que o `/items` aceita.
-2. **Consulta registrada, para o Studio, os dashboards e o compartilhamento.** `POST /geospatial/queries` registra a consulta e devolve o id, que tiles, lista, contagem e exportação usam.
+   - `data` são os itens. Nas operações que agregam (contagem por região, grade e focos), `data` traz uma linha por região, célula da grade ou foco, com a contagem, como o Directus faz com `aggregate` e `groupBy` (V-44).
+   - As formas só saem pela consulta registrada. Quem integra por aqui já conhece a geometria que mandou.
+2. **Consulta registrada, para o Studio, os dashboards e o compartilhamento.** `POST /geospatial/queries` registra a consulta e devolve o id, que os tiles, as três partes do resultado e a exportação usam. Cada parte tem a sua rota, e o mapa, a lista e o resumo carregam em paralelo (D-022).
 
 **Rotas**
 
@@ -706,8 +829,9 @@ O mapa tem vários mapas de fundo, com um seletor, organizado em três grupos:
 | `GET /geospatial/capabilities` | Matriz de capacidades e versão da API |
 | `GET` ou `SEARCH /geospatial/items/:coleção` | Formato do `/items`, com a operação espacial |
 | `POST /geospatial/queries` | Registra a consulta e devolve o id |
-| `GET /geospatial/queries/:id/items` | Lista, por cursor |
-| `GET /geospatial/queries/:id/count` | Contagem rápida ou exata |
+| `GET /geospatial/queries/:id/items` | Os itens, por cursor; com o id de uma região, célula da grade ou foco, só os de dentro |
+| `GET /geospatial/queries/:id/shapes` | As formas, em GeoJSON e por cursor |
+| `GET /geospatial/queries/:id/summary` | O resumo: total rápido ou exato (7.1) e medidas |
 | `GET /geospatial/tiles/:z/:x/:y.mvt?q=id1,id2` | Um tile com várias camadas |
 | `GET /geospatial/queries/:id/export` | Exportação (grupo 4 do 7.3) |
 | `POST /geospatial/measure` | Medições entre itens ou formas |
@@ -721,39 +845,47 @@ O prefixo `/geospatial` vem do nome do pacote (7.5). As rotas de relatório est�
 - **Autenticação:** a do Directus (sessão, token ou `access_token`). O papel público também vale: se ele pode ler uma coleção, a extensão atende anônimos, com limite de pedidos por IP.
 - **Erros:** no formato do Directus, com códigos próprios para operação indisponível, geometria inválida, limite excedido, consulta desconhecida (a interface registra de novo) e tempo esgotado.
 - **Paginação:** por `limit` e `cursor`. O formato do `/items` também aceita `page` e `offset`, por compatibilidade, mas fica mais lento em páginas fundas.
-- **Valores calculados** (distância, posição ao longo da linha, tempo desde o ponto anterior) vêm num campo reservado, `$geo`, na mesma convenção do `$meta` do Directus.
+- **Nomes das operações** (D-024): o id de cada uma é o termo canônico do glossário em camelCase: `radius`, `byArea`, `measure`, `nearest`, `trajectory`, `corridor`, `countByRegion`, `geofence`, `densityGrid`, `hotspots`, `buffer`, `center` e `simplify`.
+- **Valores calculados** (distância, posição ao longo da linha, tempo desde o ponto anterior, contagem da região, foco do ponto) vêm num campo reservado, `$geo`, na mesma convenção do `$meta` do Directus. Nas formas, os números de cada uma (a contagem da célula da grade ou do foco) vão nas propriedades do GeoJSON.
 - **Contrato primeiro:** um documento OpenAPI publicado em `GET /geospatial/openapi.json`. Os tipos do SDK e a validação saem desse mesmo contrato.
 - **Tiles fora do Studio:** um app próprio com MapLibre ou Leaflet consome a mesma URL, com token.
 
 **Validação da entrada, antes de tocar o banco**
 - **Contrato:** tipos, faixas (distância, N, limit) e tamanho da consulta, por exemplo 256 KB, abaixo do limite de 1 MB do Directus.
 - **Geometria:** máximo de vértices (por exemplo, 10 mil), área máxima, coordenadas dentro dos limites, geometria válida e tipos aceitos em cada operação.
+  Acima do limite de vértices, a interface não só recusa: oferece a operação Simplificar, com a tolerância que cabe no limite, e mostra o antes e o depois ("de 50.000 para 8.200 vértices, tolerância de 2 m"). A API continua recusando o que passa do limite.
 - **Nomes de coleções e campos** são conferidos contra o esquema do Directus e nunca entram no SQL como texto vindo do usuário. Os valores vão sempre como parâmetros.
 - **Os limites** são configuráveis pelo admin.
 
 **SDK**
-- **Estilo:** o mesmo do SDK oficial, com comandos usados em `client.request(...)`, como o `readItems`. Por exemplo, `client.request(withinRadius('ocorrencias', { center, distance, fields }))`.
+- **Estilo:** o mesmo do SDK oficial, com comandos usados em `client.request(...)`, como o `readItems`. Por exemplo, `client.request(geoRadius('ocorrencias', { center, distance, fields }))`.
+- **Comandos:** o id da operação com o prefixo `geo` (`geoRadius()`, `geoByArea()`, `geoCountByRegion()`), como o `geoCapabilities()`. O prefixo evita colisão de nomes genéricos, como `center()` e `measure()`, com o código de quem usa e com outras extensões, e agrupa tudo no autocompletar (D-024).
 - **Tipos:** usa o esquema do usuário, com autocompletar de campos.
 - **Paginação:** por cursor, como iterador (`for await`).
+- **Partes do resultado:** na consulta registrada, um comando para cada parte (itens, formas e resumo).
 - **Erros e capacidades:** erros tipados com os códigos da API, e `geoCapabilities()` para checar antes de chamar.
 - **Mapas externos:** um ajudante monta a URL dos tiles.
 
-#### Flows: a quarta forma
+#### Flows: a quarta superfície
 
 - **Por que.** Os Flows são a automação sem código do Directus, onde mora boa parte do valor operacional: despacho, alertas e enriquecimento de dados. A operação funciona com qualquer gatilho: evento, agendamento, webhook, manual (itens selecionados no Studio) e outro Flow.
 - **Uma operação "Geo", com a ação escolhida nas opções:**
   1. **Mais próximos:** os N itens de uma coleção mais perto de um ponto ou de um item. Exemplo: ocorrência criada → viatura disponível mais próxima → "Atualizar dados" atribui a viatura.
   2. **Em qual região fica:** as áreas de uma coleção de polígonos que contêm um ponto. Exemplo: preencher o campo `bairro` de uma ocorrência nova.
-  3. **Itens no raio, na área ou no corredor**, para os próximos passos. Exemplo: avisar todas as equipes num raio de 5 km.
+  3. **Raio, por área ou corredor:** os itens, para os próximos passos. Exemplo: avisar todas as equipes num raio de 5 km.
   4. **Medir:** distância entre pontos ou itens, área e perímetro.
   5. **Endereço:** de endereço para ponto e de ponto para endereço, pelo mesmo provedor da busca (7.3). O limite do Nominatim público vale aqui também; para automação em volume, a documentação indica serviço próprio.
-  6. **Cerca virtual:** em quais áreas um item entrou e de quais saiu. Um campo do item guarda as áreas atuais, e a operação o compara com a nova posição. O passo que grava as áreas usa a opção nativa de não disparar eventos, para não criar laço.
-  7. **Transformar geometria:** faixa em volta, centro e simplificação.
+  6. **Alerta de cerca virtual:** avisa na hora que um objeto entrou numa cerca ou saiu dela (D-028). O estado fica por objeto, em memória ou no Redis, e a posição nova é comparada com ele. Depois de reiniciar, o estado é refeito pela última posição de cada objeto no histórico, então não sai alerta falso. Uma posição mais antiga que a última processada não gera alerta, mas entra no histórico. As entradas e saídas definitivas saem da operação cerca virtual (seção 6), e não dos alertas.
+  7. **Operações de forma:** entorno, centro e simplificar (seção 6). Exemplo: cliente novo cadastrado → entorno de 200 m → "Criar dados" grava a cerca virtual dele.
   8. **Gerar relatório:** a partir de um modelo (7.9), inclusive com agendamento.
+  9. **Resultado inteiro:** pelo id da consulta registrada, exporta (o arquivo vai para Arquivos) ou edita, arquiva e apaga em lotes, em segundo plano, como as ações sobre o resultado inteiro do Studio (7.3, grupo 4). Usa a permissão escolhida no Flow.
 - **Permissões iguais às das operações nativas.** A mesma opção "Permissões" da operação "Ler dados" (do gatilho, papel público ou acesso total). A query permitida (seção 5) é montada com a identidade escolhida.
-- **Saída:** vai para os dados do Flow, no formato da API, com os valores calculados em `$geo`, pronta para os passos seguintes.
+- **Saída:** vai para os dados do Flow com as mesmas partes da API (`items`, `shapes` e `summary`) e os valores calculados em `$geo`. Os passos seguintes a leem pela chave da operação ou por `$last` (V-45), por exemplo `{{ $last.summary.total }}` numa condição. Endereço, alerta de cerca e relatório têm saída própria.
+  - **Limite (D-030):** itens e formas vêm até 100 por padrão, ajustável na operação até o máximo da instalação (por exemplo, 1.000). O resumo vem sempre completo, com o total real, e a saída avisa quando cortou.
+  - **Campos:** só os pedidos, como na "Ler dados" nativa. O padrão é o id mais os valores de `$geo`.
+  - **O resultado inteiro vai por id:** a saída traz o id da consulta registrada, que a ação "Resultado inteiro" usa.
 - **Matriz e erros.** As ações indisponíveis no banco não aparecem nas opções. Um Flow salvo que use uma ação indisponível falha com o código de "indisponível" e segue pelo caminho de erro.
-- **Volume.** Um Flow disparado a cada atualização de posição faz uma consulta espacial por disparo. Com índice, cada uma leva milissegundos, e o pool próprio e a fila (7.1) protegem o banco.
+- **Volume.** Um Flow disparado a cada atualização de posição faz uma consulta espacial por disparo. Com índice, cada uma leva milissegundos, e o pool próprio e a fila (7.1) protegem o banco. Todo Flow novo vem com o registro completo, que grava os dados de todos os passos a cada execução (V-53); por isso a documentação recomenda o registro "só atividade" nos Flows de alta frequência.
 - **Pacote.** A operação entra no mesmo bundle, com uma parte de interface (as opções) e uma parte de API (a execução).
 
 ### 7.9 Relatórios
@@ -770,40 +902,58 @@ O usuário monta o relatório aos poucos, registrando estados da tela, e no fim 
 
 **O que cada captura guarda**
 - **A imagem do mapa como estava,** em resolução de impressão, com legenda, escala, norte e atribuição. É capturada no navegador, porque é o que o usuário viu.
-- **Os dados daquele momento:** os itens envolvidos, com valores e posições da hora da captura (no trajeto, os pontos com horário). Se um item for editado depois, o relatório continua mostrando o estado de então.
+- **Os dados daquele momento:** as três partes do resultado, com valores e posições da hora da captura: os itens envolvidos (no trajeto, os pontos com horário), as formas e os resumos. Se um item for editado depois, o relatório continua mostrando o estado de então.
 - **O contexto:** a operação e os filtros em linguagem legível, a janela de tempo, as camadas e o mapa de fundo, quem capturou, quando (hora do servidor, com fuso) e as versões do Directus e da extensão.
 - **Só o que o usuário pode ver** (regra de ouro).
+- **Os arquivos que a captura mostra, copiados com hash** (D-033). A extensão não sabe o que o item é, e o valor de um campo de arquivo é só o id, cujo conteúdo o Directus deixa trocar (V-52).
+  - Entram só os campos de arquivo que a camada mostra, os mesmos da lista e da exportação. Sem campo de arquivo, nada muda.
+  - A cópia é feita na hora da captura e vai para a pasta dos relatórios. A captura aponta para a cópia, e o SHA-256 de cada uma entra no hash da captura.
+  - No PDF, as imagens aparecem em miniatura na tabela, e todo arquivo aparece com nome e hash. Os arquivos inteiros ficam na pasta, para baixar pelo relatório.
+  - Há um máximo de arquivos e de tamanho por relatório, na configuração da instalação (por exemplo, 200 arquivos e 200 MB). Acima dele, os arquivos que sobram ficam só com o hash, e a captura avisa.
 
 **O PDF**
-- **Estrutura:** capa (título, autor, data, finalidade), índice e uma seção por captura, com o mapa, o contexto, as medições, a tabela dos itens e a observação.
+- **Fuso do relatório:** vem do navegador do autor quando o relatório é criado; no relatório agendado por Flow, é uma opção da ação, com o fuso da instalação como padrão. A capa mostra o fuso ("horários em America/Sao_Paulo, UTC−03:00"), cada hora sai com o deslocamento, e o relatório gerado de novo usa o mesmo fuso (D-031).
+- **Estrutura:** capa (título, autor, data, finalidade e fuso), índice e uma seção por captura, com o mapa, o contexto, as medições, a tabela dos itens e a observação.
 - **Anexos:** os dados completos de cada captura vão dentro do PDF, em GeoJSON, para a evidência não ficar limitada ao que coube na tabela.
 - **Montagem no servidor,** em Node, com uma biblioteca que gera PDF sem navegador (sem Chromium no servidor). O documento oficial sai dos dados guardados, e não do que o navegador enviou.
 
 **Valor como evidência (cadeia de custódia)**
-- **Hash:** cada captura recebe um SHA-256 dos dados e da imagem, calculado no servidor quando ela chega. O PDF lista esses hashes e o do relatório inteiro.
-- **Travamento:** depois de gerado, o relatório não muda. Ajustes geram uma nova versão, e a anterior fica guardada.
-- **Verificação:** uma página recebe o PDF ou o hash e confere com o registro. O PDF traz um QR code que aponta para essa página.
+- **Dois hashes** (D-034):
+  - **hash do conteúdo:** cada captura recebe um SHA-256 dos dados, da imagem e das cópias dos arquivos, calculado no servidor quando ela chega, e o relatório tem o hash do conjunto. O recorte é por subtração: entra tudo o que o documento afirma, menos o bloco de autenticidade, que carrega o próprio hash. Assim um bloco novo nunca fica de fora por esquecimento. O PDF lista esses hashes;
+  - **hash do arquivo:** o SHA-256 dos bytes do PDF final, calculado depois de montado e, quando há assinatura, depois de assinado. Fica guardado no registro, e não no PDF, porque escrevê-lo no arquivo mudaria o arquivo.
+- **Código do relatório:** um código legível e único, como `GEO-EVD-20260924-00017`, para ser citado num processo ou num ofício. É o maior do dia mais um, com nova tentativa quando dois relatórios colidem.
+- **Travamento e ciclo de vida:** depois de gerado, o relatório não muda. O estado é **válido**, **revogado** (com quem, quando e por quê) ou **substituído** (apontando para a versão nova). Um ajuste gera uma nova versão, e a anterior passa a substituída. Revogar e substituir só partem de um relatório válido, a versão nova precisa estar válida, e a trilha nunca é sobrescrita, o que impede ciclos.
+- **Prévia sem autenticidade:** antes de gerar, o usuário vê uma prévia com a marca "PRÉVIA" e sem código, token, hash ou QR. Não é uma marca d'água sobre um documento falso; é um documento que não tem o que falsificar.
+- **Verificação em duas conferências:**
+  1. **O estado, pelo QR.** O QR leva à página de verificação com um token aleatório, e não com o id, para que ninguém descubra relatórios tentando ids. A página mostra o código, a data de geração, o estado, se há assinatura e o hash do arquivo esperado.
+  2. **O arquivo, pelo upload.** A pessoa envia o PDF (só PDF, com tamanho máximo), e o servidor compara o SHA-256 do que recebeu com o hash do arquivo. Se bater: "este arquivo é idêntico ao emitido". Se não: "este arquivo não é o original", com a explicação de que alterar o documento ou salvá-lo de novo, até por "imprimir como PDF", muda os bytes. Sem o QR, a página aceita só o upload e acha o relatório pelo hash do arquivo. Quem preferir pode conferir com `sha256sum`.
 - **Assinatura digital opcional** (PAdES), com um certificado configurado pelo admin. No Brasil, uma assinatura ICP-Brasil dá presunção de autenticidade.
 - **Histórico:** o histórico do Directus registra quem criou o relatório, adicionou capturas e gerou o PDF.
 
 **Limites e armazenamento**
 - Relatórios e capturas ficam em coleções da extensão, com dono e visibilidade, como as visões do módulo. Imagens e PDFs ficam em Arquivos.
+
+**Quem vê o relatório** (D-032)
+- **Relatório é documento.** Quem pode ler o relatório lê tudo o que está nele, como num arquivo exportado. Quem decide é a permissão do Directus na coleção de relatórios, pela regra de ouro. A extensão não refiltra o conteúdo para quem abre, porque isso mudaria a evidência e quebraria o hash.
+- **Compartilhar pede confirmação.** A visibilidade começa em "só o dono". Ao abrir para o papel ou para todos, a confirmação avisa: "quem receber verá todos os dados das capturas, inclusive o que não pode ver no mapa". Um relatório da Maria, da zona sul, aberto para todos mostra a zona sul ao João, da zona norte.
+- **PDF e imagens numa pasta própria.** A política pronta, criada por ação do admin, tira essa pasta do alcance dos papéis comuns. Os arquivos passam pelas mesmas permissões das coleções (V-58), e o download passa pelo endpoint da extensão, que confere se o usuário pode ler aquele relatório. O painel de saúde avisa quando algum papel consegue ler a pasta.
+- **A verificação só confirma.** A página pública mostra o código, a data de geração, o estado, se há assinatura e o hash do arquivo, sem nenhum dado das capturas nem nome de pessoa. Token inexistente e erro interno recebem a mesma resposta, e a página lê só as poucas colunas de que precisa. O PDF enviado para conferência não fica guardado, e a página tem limite de pedidos por IP.
 - Há um máximo de capturas por relatório e de linhas por tabela (por exemplo, 50 e 1.000). Os dados completos vão no anexo.
 
 #### Modelos de relatório
 
 Os modelos montam as seções sozinhos, a partir de parâmetros. **Os cinco fazem parte da extensão.** A implementação começa pelo da cerca virtual, e os outros quatro vêm depois, na ordem do plano de implementação.
 
-1. **Cerca virtual (o primeiro a ser implementado):** o registro de entradas e saídas por área e por veículo, com o tempo de permanência.
-2. **Frota e trajeto:** para cada veículo e período, a distância percorrida, as paradas e o tempo parado, as velocidades média e máxima, as entradas e saídas de cercas, e o mapa do trajeto com as paradas.
+1. **Cerca virtual (o primeiro a ser implementado):** o registro de entradas e saídas por área e por veículo, com o tempo de permanência. Sai da operação cerca virtual, calculada sobre o histórico de posições (D-028), e não depende dos alertas.
+2. **Frota e trajeto:** para cada veículo e período, a distância percorrida, as paradas e o tempo parado (com as paradas prováveis à parte e, se houver campo de ignição, as ociosas), as velocidades média e máxima, as entradas e saídas de cercas, e o mapa do trajeto com as paradas.
 3. **Por região e período:** a contagem por região comparada ao período anterior (variação em %), ranking, mapa colorido e gráfico de tendência.
 4. **Focos:** focos do período classificados em novos, persistentes e extintos em relação ao período anterior.
-5. **Cobertura:** a porcentagem de ocorrências a menos de X km de uma base ou de uma equipe, e quais ficaram de fora.
+5. **Cobertura:** a porcentagem de ocorrências a menos de X km de uma base ou de uma equipe, e quais ficaram de fora. É o entorno das bases encadeado com as ocorrências de dentro e de fora.
 
 #### Como os relatórios se conectam ao resto
 
 - **Flows:** a operação ganha a ação "Gerar relatório", que usa um modelo e aceita agendamento (7.8). O relatório gerado dispara um evento, e um Flow pode enviá-lo por e-mail.
-- **API:** rotas `/geospatial/reports/...` para capturas, geração e verificação.
+- **API:** rotas `/geospatial/reports/...` para capturas, geração, download do PDF (com a permissão do relatório) e verificação (pública).
 - **Permissões:** o relatório agendado usa a permissão escolhida na operação de Flow. A documentação alerta que, ao enviar um PDF, os dados saem do controle de permissões do Directus.
 
 **Ordem da discussão restante:** o 7.5.
@@ -813,3 +963,9 @@ Os modelos montam as seções sozinhos, a partir de parâmetros. **Os cinco faze
 - **Busca semântica com pgvector:** 19 votos no roadmap e nenhuma extensão pronta encontrada; um mantenedor comentou numa discussão antiga que isso poderia ser feito como extensão. Reaproveita a mesma arquitetura (extensão do Postgres + endpoint que respeita permissões).
 - **Validação entre campos:** 25 votos no roadmap; foi o plano B avaliado.
 - **PR no core** com operadores geoespaciais nativos.
+
+## 9. Em aberto
+
+Pontos levantados no questionamento da documentação que ainda precisam de uma análise própria.
+
+- Nenhum no momento.

@@ -5,8 +5,8 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 ## Estado
 
 - Planejamento concluído em 23/09/2026.
-- Próximo passo: questionar a documentação com a skill `grill-with-docs`.
-- Depois: escrever o plano de implementação em fases, em `docs/implementacao/`, e começar a implementar.
+- Questionamento da documentação (skill `grill-with-docs`) concluído em 24/09/2026: decisões D-022 a D-034, fatos V-44 a V-58 e pendências P-12 a P-14.
+- Próximo passo: escrever o plano de implementação em fases, em `docs/implementacao/`, e começar a implementar.
 
 ## Documentação
 
