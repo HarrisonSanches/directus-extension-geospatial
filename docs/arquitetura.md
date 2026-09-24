@@ -237,7 +237,7 @@ Recebem itens ou formas e produzem só formas. Servem de entrada para outra oper
    - O `$NOW` muda o SQL a cada pedido (V-55). Nos filtros do usuário, a extensão o resolve uma vez, no registro da consulta, arredondado ao minuto. Numa permissão com `$NOW`, o resultado continua correto, mas aquele papel fica sem cache.
    - Toda gravação feita pelo Directus muda a versão da coleção. As gravações feitas fora dele são detectadas como no grupo 5 do 7.3 (gatilho no Postgres ou campo de data de atualização), e um tempo de vida curto fica como rede de segurança.
    - O cache fica em memória ou no Redis, quando o Directus usa Redis. No navegador, `Cache-Control: private`.
-5. **Painel de saúde para o admin**, o mesmo do índice (7.6): tempo dos tiles, tamanho da fila, taxa de acerto do cache e consultas lentas, cada uma com o id da consulta.
+5. **Painel de saúde para o admin**, o mesmo do índice (7.6): tempo dos tiles, tamanho da fila, taxa de acerto do cache e consultas lentas, cada uma com o id da consulta. Ele também mostra o inventário do que a extensão criou e os trabalhos em segundo plano (7.8).
 
 #### Renderização
 
@@ -696,7 +696,7 @@ Uma extensão fora do sandbox tem acesso total ao banco. Para quem instala poder
 - **README:** vira a página no Marketplace, com o que a extensão faz, GIFs, os três caminhos de instalação e um início rápido.
 - **Site de documentação**, com uma versão por release:
   - guia do usuário;
-  - guia do admin (instalação, índices, permissões, Redis, CSP, provedores, variáveis de ambiente e tudo o que a extensão acessa);
+  - guia do admin (instalação, índices, permissões, Redis, CSP, provedores, variáveis de ambiente, tudo o que a extensão acessa, os dados pessoais (7.10) e o roteiro de desinstalação (7.8));
   - referências da API (gerada do OpenAPI) e do SDK (gerada dos tipos);
   - a operação de Flow e os relatórios;
   - a matriz de capacidades por banco, gerada a partir dos testes de contrato;

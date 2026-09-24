@@ -143,6 +143,11 @@ Confirmações rápidas antes da implementação:
 - **P-09** O adaptador do Terra Draw funciona com a versão do MapLibre que escolhermos. O README cita v4/5, e o Studio já usa a v6.
 - **P-12** No Oracle, o `_intersects` do Directus usa `sdo_overlapbdyintersect` (V-49). Pela máscara, ele pode não devolver um ponto que está dentro de um polígono. Confirmar no container; se confirmar, a paridade no Oracle compara com o resultado calculado, e não com o filtro nativo.
 - **P-13** Como os horários `timestamp` e `dateTime` chegam ao SQL da extensão em cada banco. No MySQL, o Directus ajusta pelo fuso do processo Node (V-56), e no SQL Server a conexão usa `useUTC: false`. Os testes de contrato precisam cobrir o fuso em cada banco.
+- **P-15** A coleção de trabalhos fica sem registro de atividade e de revisões pela opção da própria coleção, com as gravações de progresso passando pelo `ItemsService` (D-036).
+- **P-16** O filtro de arquivados da página chega ao layout de extensão, para item arquivado não aparecer no mapa (V-03).
+- **P-17** O cancelamento de uma consulta em andamento no SQLite, pelo driver que o Directus usa.
+- **P-18** A imagem oficial do Directus traz a SpatiaLite. Se não trouxer, os testes com SQLite usam uma imagem própria (V-27).
+- **P-19** A versão do Node que o Directus 11.17 exige; no `main`, é a 22 (V-59).
 
 Benchmarks:
 - **P-10** Tabela principal com GiST + BRIN contra tabela auxiliar particionada, num dataset de rastreamento com cerca de 100 milhões de pontos.

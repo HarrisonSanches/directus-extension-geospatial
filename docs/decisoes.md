@@ -132,7 +132,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 ## D-008 — Mudanças no banco e nas permissões só por ação do admin
 
-- **Estado:** aceita em 23/09/2026.
+- **Estado:** aceita em 23/09/2026. Complementada pela D-039 (inventário e remoção).
 - **Onde:** §2, §7.6, §7.8, §7.3 (grupo 5).
 - **Contexto:** o Directus não cria índice espacial, e a extensão precisa de coleções próprias. Ela pode oferecer uma política pronta e gatilhos de detecção.
 - **Decisão:**

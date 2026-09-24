@@ -43,6 +43,8 @@ Toda mudança, de qualquer tamanho, só está pronta quando:
 - [ ] se devolve dado, tem o teste de paridade de permissão com o `/items`;
 - [ ] o contrato mudou primeiro: o OpenAPI, os tipos, o nível da operação em cada banco da matriz e as coleções
       da extensão;
+- [ ] o que a mudança cria no banco ou nas permissões entra no inventário, com como desfazer (D-039), e o que ela
+      passa a guardar tem prazo de retenção e está no mapa do §7.10 (D-038);
 - [ ] o código novo tem pelo menos 90% de cobertura; no motor, 90% de linhas e de ramificações (D-017);
 - [ ] texto novo de interface existe em inglês e em pt-BR, funciona pelo teclado e passa no axe;
 - [ ] a documentação pública mudou junto, se mudou o que o usuário vê ou o que a extensão acessa;

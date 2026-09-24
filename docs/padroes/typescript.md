@@ -66,3 +66,5 @@ packages/extension/src/
 
 - Resultado grande anda em fluxo (o `stream` do Knex, cursores), nunca inteiro na memória.
 - O que roda no Node sobre os itens permitidos tem limite de volume e avisa quando chega nele (D-002).
+- O que demora mais que uma requisição vira um trabalho do executor (D-036), em lotes que podem rodar de novo sem
+  duplicar nada, com o ponto de retomada gravado a cada lote.

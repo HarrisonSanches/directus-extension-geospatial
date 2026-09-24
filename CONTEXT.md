@@ -77,7 +77,7 @@
 | Query permitida | Permitted query | A consulta que o Directus monta com tudo o que um usuário pode ver numa coleção, e em volta da qual a extensão acrescenta a parte espacial. |
 | Matriz de capacidades | Capability matrix | O que cada operação consegue fazer no banco em uso: no banco com índice, no banco sem índice, no servidor com limite ou indisponível. |
 | Disponível com limite | Capped | O estado de uma operação que roda no servidor da extensão, e não no banco, sobre um volume máximo. O resultado avisa quando o limite foi atingido. |
-| Painel de saúde | Health panel | A tela do admin com a matriz de capacidades, a saúde dos índices, os números da operação (tempo dos tiles, fila, cache, consultas lentas) e os avisos de segurança, como a pasta dos relatórios legível por outros papéis. |
+| Painel de saúde | Health panel | A tela do admin com a matriz de capacidades, a saúde dos índices, o inventário do que a extensão criou, os números da operação (tempo dos tiles, fila, cache, consultas lentas) e os avisos de segurança, como a pasta dos relatórios legível por outros papéis. |
 | Saúde do índice | Index health | A checagem, feita em cada coluna de geometria e de data, e no par (objeto, data) das coleções com trajeto, de que existe o índice certo. |
 | Configuração da coleção | Collection settings | O que descreve os dados de uma coleção, feito uma vez pelo admin e herdado por todas as camadas, visões, painéis, relatórios e Flows: campos padrão, trajeto, detecção de mudanças feitas fora do Directus e saúde dos índices. |
 | Ação do admin | Admin action | Uma mudança no banco ou nas permissões (índice, coleção da extensão, política pronta, gatilho) que só acontece por um botão do admin, depois de ele ver o que vai mudar e confirmar. |

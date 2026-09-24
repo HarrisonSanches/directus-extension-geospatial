@@ -101,6 +101,9 @@ const nearby = await client.request(
   allow.
 - **A report is a document.** Its visibility starts at "only me", and sharing it asks for
   confirmation. Report files live in a folder that regular roles can't read.
+- **Personal data stays under your control.** Retention is configurable, a removed report leaves only a
+  minimal record, and the two paths that leave your server (address search and basemap tiles) are
+  documented, each with an alternative that keeps everything inside.
 
 ## Built to protect the database
 
@@ -108,11 +111,13 @@ const nearby = await client.request(
 - **A priority queue.** Tiles on screen come first, then list pages, then counts and analyses.
 - **Timeouts and cancellation end to end.** A tile that scrolled off screen cancels its query in the
   database.
+- **Long jobs that survive a restart.** Index builds, large exports, bulk edits and reports run as
+  background jobs, with progress, cancel and resume.
 - **A cache that can't leak.** It is keyed by the permitted SQL and its parameter values, so users with
   different permissions never share an entry.
 - **Nothing changes without the admin.** Spatial indexes, the extension's collections and
   ready-made policies are created only through admin actions that show exactly what will run, SQL
-  included.
+  included. Everything they create is listed, and one admin action removes it.
 
 ## Architecture at a glance
 

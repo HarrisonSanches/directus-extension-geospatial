@@ -50,6 +50,13 @@ confiança se constrói no repositório.
 - O servidor só faz pedidos para endereços que o admin configurou (provedores de endereço, mapas de fundo), nunca
   para um endereço que veio no pedido do usuário.
 
+## Dados pessoais
+
+- Tudo o que a extensão guarda está no mapa do §7.10, com o prazo de retenção, e todo dado novo que ela passe a
+  guardar entra nele (D-038).
+- O que sai da instalação (a busca de endereço e os tiles do mapa de fundo) fica documentado, junto com a
+  alternativa que mantém tudo dentro: um provedor próprio e o PMTiles.
+
 ## Páginas e rotas públicas
 
 - A página de verificação e as rotas do papel público respondem igual para "não existe" e para erro interno, leem

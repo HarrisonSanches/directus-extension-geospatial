@@ -19,6 +19,8 @@
 - Valores calculados no campo reservado `$geo`; nas formas, nas propriedades do GeoJSON.
 - Horários em ISO 8601 com deslocamento (D-031).
 - Coordenadas sempre em `[longitude, latitude]`, como no GeoJSON.
+- O canal ao vivo é SSE, em `/geospatial/live`, com a autenticação da API. O SDK manda o token no cabeçalho, e a
+  documentação recomenda o cabeçalho, e não o `access_token` na URL, que costuma ficar gravado em log (D-035).
 
 ## Paginação
 
