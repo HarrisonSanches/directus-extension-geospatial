@@ -8,6 +8,7 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - Questionamento da documentação (skill `grill-with-docs`) concluído em 24/09/2026: decisões D-022 a D-034, fatos V-44 a V-58 e pendências P-12 a P-14.
 - Plano de implementação criado em 24/09/2026, com 18 fases (F00 a F17), em [docs/implementacao/](docs/implementacao/README.md).
 - Padrões de desenvolvimento criados em 24/09/2026, em [docs/padroes/](docs/padroes/README.md).
+- Revisão geral em 24/09/2026: decisões D-035 a D-039 (a D-037 substitui a D-018) e fatos V-59 a V-61.
 - Próximo passo: `/to-issues F00`.
 
 ## Documentação

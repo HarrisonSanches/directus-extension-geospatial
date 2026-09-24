@@ -16,6 +16,8 @@
 | Visão | View | Um conjunto salvo de camadas, filtros, mapa de fundo e enquadramento, no módulo. |
 | Ao vivo | Live | Uma camada que recebe as mudanças em tempo real. |
 | Pulso | Tick | O intervalo em que as mudanças ao vivo são juntadas e enviadas de uma vez. |
+| Seguir | Follow | Manter no centro do mapa o item atual ou o objeto acompanhado, a cada passo da navegação ou a cada pulso do ao vivo. Arrastar o mapa desliga. |
+| Rastro | Trail | O trecho recente do trajeto desenhado atrás de um objeto que se move, no ao vivo e no playback. No ao vivo, o padrão são os últimos 30 min. |
 | Janela de tempo | Time window | O intervalo de datas que filtra as camadas que têm campo de data. Pode ser relativa ("últimas 24 h"), resolvida uma vez no registro da consulta, ou absoluta. A captura e o relatório guardam sempre a absoluta. |
 | Hora de recebimento | Received time | A hora em que uma posição chegou ao servidor, que pode ser bem depois da hora da posição. É opcional na configuração da coleção e serve só para mostrar o atraso; as regras usam a hora da posição. |
 | Fuso dos dados | Data time zone | O fuso em que foram gravados os horários de um campo sem fuso (`dateTime`), definido na configuração da coleção. |
@@ -79,6 +81,9 @@
 | Saúde do índice | Index health | A checagem, feita em cada coluna de geometria e de data, e no par (objeto, data) das coleções com trajeto, de que existe o índice certo. |
 | Configuração da coleção | Collection settings | O que descreve os dados de uma coleção, feito uma vez pelo admin e herdado por todas as camadas, visões, painéis, relatórios e Flows: campos padrão, trajeto, detecção de mudanças feitas fora do Directus e saúde dos índices. |
 | Ação do admin | Admin action | Uma mudança no banco ou nas permissões (índice, coleção da extensão, política pronta, gatilho) que só acontece por um botão do admin, depois de ele ver o que vai mudar e confirmar. |
+| Trabalho em segundo plano | Background job | Uma tarefa que demora mais que uma requisição, como criar um índice, exportar, editar ou apagar o resultado inteiro, ou gerar um relatório. Tem progresso e cancelamento, e retoma de onde parou se o Directus reiniciar. |
+| Retenção | Retention | Por quanto tempo a extensão guarda o que ela mesma cria, como capturas soltas, links compartilhados e trabalhos concluídos, antes da limpeza periódica. É configurada na instalação. |
+| Inventário | Inventory | A lista do que a extensão criou no banco e nas permissões (índices, gatilhos, políticas prontas, a pasta dos relatórios), com como desfazer cada item. A ação do admin "Remover o que a extensão criou" parte dela. |
 
 ## Relatórios
 
@@ -89,7 +94,7 @@
 | Hash do conteúdo | Content hash | O SHA-256 de tudo o que o relatório afirma, menos o bloco de autenticidade. Aparece no PDF. |
 | Hash do arquivo | File hash | O SHA-256 dos bytes do PDF final. Fica no registro, e não no PDF, e é com ele que o upload é conferido. |
 | Código do relatório | Report code | O código legível e único do relatório, como GEO-EVD-20260924-00017, para citação. |
-| Estado do relatório | Report status | Válido, revogado (com quem, quando e por quê) ou substituído (apontando para a versão nova). |
+| Estado do relatório | Report status | Válido, revogado (com quem, quando e por quê), substituído (apontando para a versão nova) ou removido (o admin apagou o conteúdo, e ficou só o registro mínimo, com o código, as datas, o hash e o motivo). |
 | Prévia | Preview | A visualização do relatório antes de gerar, com a marca "PRÉVIA" e sem nenhum elemento de autenticidade. |
 | Captura | Capture | O registro de um estado da tela: a imagem do mapa, os dados daquele momento, cópias com hash dos arquivos que ela mostra e o contexto (operação, filtros, janela de tempo, quem e quando). |
 | Modelo de relatório | Report template | Um relatório que monta as seções sozinho a partir de parâmetros: cerca virtual, frota e trajeto, por região e período, focos, cobertura. |

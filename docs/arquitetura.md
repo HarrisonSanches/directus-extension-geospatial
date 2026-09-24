@@ -231,7 +231,8 @@ Recebem itens ou formas e produzem só formas. Servem de entrada para outra oper
    - Um limite por usuário.
    - Opcionalmente, o pool pode apontar para uma réplica de leitura.
 4. **Cache.**
-   - A chave junta o SQL montado pelo Directus, a versão da coleção e o tile. Como o SQL já traz a permissão, quem tem exatamente as mesmas permissões compartilha o cache e quem tem permissões diferentes nunca recebe o dado do outro.
+   - A chave junta o SQL montado pelo Directus, com os valores dos parâmetros, a versão da coleção e o tile. Os valores fazem parte da chave porque o filtro de permissão vai neles: no SQL, a regra da Maria e a do João são o mesmo texto (`regiao = ?`), e só o valor muda. Assim, quem tem exatamente as mesmas permissões compartilha o cache, e quem tem permissões diferentes nunca recebe o dado do outro.
+   - Uma permissão com `$CURRENT_USER` põe o id do usuário nos valores, e o cache daquele papel fica por usuário.
    - O Directus gera o SQL de forma determinística. Se um dia ele variar, o efeito é só perder o cache, nunca vazar dado. Um teste automatizado cobre isso.
    - O `$NOW` muda o SQL a cada pedido (V-55). Nos filtros do usuário, a extensão o resolve uma vez, no registro da consulta, arredondado ao minuto. Numa permissão com `$NOW`, o resultado continua correto, mas aquele papel fica sem cache.
    - Toda gravação feita pelo Directus muda a versão da coleção. As gravações feitas fora dele são detectadas como no grupo 5 do 7.3 (gatilho no Postgres ou campo de data de atualização), e um tempo de vida curto fica como rede de segurança.
@@ -267,7 +268,7 @@ Recebem itens ou formas e produzem só formas. Servem de entrada para outra oper
 - **O mapa a cada passo:**
   - O item atual é desenhado numa camada de destaque, por cima dos tiles, com a geometria que veio na lista. Ele aparece sozinho mesmo dentro de um grupo.
   - A câmera só se move quando o item sai da área central da tela, com um deslize curto. Com a tecla segurada, ela pula sem animação, para não acumular movimentos.
-  - A opção "seguir" mantém o item sempre no centro, o que é útil no trajeto.
+  - A opção "seguir" mantém o item sempre no centro, o que é útil no trajeto e no ao vivo (7.3, grupo 5).
   - O zoom não muda.
 - **Detalhes no painel lateral.** O template de exibição do item, mais os dados da operação:
   - no raio e nos mais próximos, a distância;
@@ -416,7 +417,7 @@ Recebem itens ou formas e produzem só formas. Servem de entrada para outra oper
   - mostra a contagem exata ("isto vai editar 512.340 itens");
   - para apagar acima de um limite, o usuário digita o número para confirmar;
   - a edição reaproveita o drawer de edição em lote do Directus, no modo `stageOnSave`, que devolve as mudanças sem salvar.
-- **Execução:** roda em segundo plano, em lotes, pelo `ItemsService` com a permissão do usuário, e cada lote passa pelas mesmas regras, validações e hooks de uma ação normal. Tem progresso e cancelamento, e o usuário recebe uma notificação do Directus no fim.
+- **Execução:** roda em segundo plano, em lotes, pelo `ItemsService` com a permissão do usuário, e cada lote passa pelas mesmas regras, validações e hooks de uma ação normal. Tem progresso e cancelamento, e o usuário recebe uma notificação do Directus no fim. É um trabalho do executor da extensão (7.8), que retoma de onde parou se o Directus reiniciar.
 - **Permissão:** só aparecem as ações que o usuário pode fazer na coleção.
 
 **Consultas salvas e compartilhamento**
@@ -436,7 +437,7 @@ Recebem itens ou formas e produzem só formas. Servem de entrada para outra oper
 - **Partes:** os itens, por padrão, ou as formas. No GeoPackage, as duas vão juntas, cada uma numa camada.
 - **Colunas:** os campos escolhidos na camada, mais os valores calculados (distância, posição na linha, tempo desde o ponto anterior).
 - **Streaming:** o banco entrega as linhas aos poucos, sem encher a memória do servidor.
-- **Tamanho:** uma exportação pequena baixa na hora. A grande segue o padrão do Directus: roda em segundo plano, o arquivo vai para Arquivos e o usuário recebe uma notificação quando fica pronta ou quando falha.
+- **Tamanho:** uma exportação pequena baixa na hora. A grande segue o padrão do Directus: roda em segundo plano, como um trabalho do executor da extensão (7.8), o arquivo vai para Arquivos e o usuário recebe uma notificação quando fica pronta ou quando falha.
 
 #### Grupo 5: tempo
 
@@ -515,9 +516,15 @@ Recebem itens ou formas e produzem só formas. Servem de entrada para outra oper
 - **Permissão a cada pulso.** O lote sai da query permitida de cada usuário. Uma viatura que entra na zona norte some do mapa da Maria.
 - **Movimento suave.** O deck.gl leva cada objeto da posição antiga até a nova ao longo do pulso.
 
+**Acompanhar um objeto** (D-035)
+- **Seguir.** O objeto fica no centro do mapa a cada pulso. Arrastar o mapa desliga o seguir, e um botão o religa.
+- **Rastro.** Numa coleção com configurações de trajeto, a camada ao vivo desenha atrás de cada objeto o trecho recente, por padrão os últimos 30 min, ajustável na camada. As regras do trajeto valem a cada pulso: o trecho cresce, a lacuna fica aberta enquanto o objeto está sumido ("sem posição há 12 min"), e o ponto suspeito é marcado na hora.
+- **Atalho.** A ação "Acompanhar ao vivo", num item, cria a camada ao vivo filtrada no objeto dele, com o rastro e o seguir ligados. Vale no layout, no módulo e no painel.
+- **Fora do Studio.** O mesmo canal está na API e no SDK (7.8), para o app da equipe em campo ou para o portal que mostra onde está uma entrega.
+
 **Gravações feitas fora do Directus** (por exemplo, o serviço que recebe os GPS gravando direto no banco)
 1. **Pelo Directus:** os hooks da extensão avisam o cache e o tempo real, para tudo o que passa pelo Directus.
-2. **Gatilho no banco (Postgres):** avisa a extensão a cada gravação, venha de onde vier (`LISTEN/NOTIFY`). É criado por ação do admin, com o SQL à vista.
+2. **Gatilho no banco (Postgres):** avisa a extensão a cada gravação, venha de onde vier (`LISTEN/NOTIFY`). É criado por ação do admin, com o SQL à vista. São uma função, criada uma vez, e os gatilhos das tabelas escolhidas, com o prefixo `geospatial_`. Eles não mudam colunas nem dados, e entram no inventário da extensão (7.8, D-039).
 3. **Campo de data de atualização (qualquer banco):** a extensão verifica periodicamente o que mudou desde o último pulso, usando um campo escolhido na configuração da coleção (7.8). O campo precisa ser preenchido por quem grava, na criação e na atualização: o `date-updated` do Directus sozinho não serve, porque só é preenchido nas atualizações feitas pelo próprio Directus (V-57). Não enxerga exclusões, e a extensão sugere um índice no campo.
 
 A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capacidades: o gatilho existe só no Postgres, e nos outros bancos vale o campo de data.
@@ -591,7 +598,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 
 #### Como lidar com as diferenças
 
-- **A matriz varia por banco e por versão.** Mesmo no Postgres, a grade hexagonal exige PostGIS 3.1 ou mais novo.
+- **A matriz varia por banco e por versão,** inclusive a do Directus (D-037). Mesmo no Postgres, a grade hexagonal exige PostGIS 3.1 ou mais novo.
 - **O usuário comum vê cada operação em um de três estados:**
   - disponível;
   - disponível com limite: roda no Node, e quando o limite afeta um resultado, o resultado avisa;
@@ -613,13 +620,14 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus. Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5.
 
 **Quando cada teste roda:**
-- Em todo pull request: PostGIS e SQLite nas duas versões do Directus, mais os testes unitários.
+- Em todo pull request: PostGIS e SQLite na versão mais antiga e na mais nova da faixa do Directus (D-037), mais os testes unitários.
+- Em todo pull request que mexe na interface, também um ponta a ponta curto, que bloqueia o merge: o mapa abre no layout, um tile chega, o clique abre o drawer, e o axe-core não aponta violações. Roda com PostGIS e o Directus mais novo.
 - Toda noite e antes de cada release: a matriz inteira.
 - Um canário roda contra cada nova versão do Directus.
 
 **Fora dos testes que bloqueiam:**
 - Os benchmarks rodam sob demanda, e os números vão para [verificacoes.md](verificacoes.md).
-- A interface tem testes de ponta a ponta (Playwright) com PostGIS, nas três superfícies do Studio: o mapa abre, os tiles chegam e o clique abre o drawer. Esses testes também rodam a verificação de acessibilidade do axe-core.
+- A suíte completa de ponta a ponta (Playwright), com PostGIS, nas três superfícies do Studio: o mapa abre, os tiles chegam e o clique abre o drawer, com a verificação de acessibilidade do axe-core. Roda toda noite e antes de cada release.
 - Antes de cada release, há um teste manual com leitor de tela (NVDA e VoiceOver).
 
 #### Cobertura
@@ -644,9 +652,11 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 
 #### Versões suportadas
 
-- **Directus:** a versão principal atual e a última minor da anterior, hoje v12 e v11.17 (`host: ^11.17.0 || ^12.0.0`). Quando sair o v13, o v11 deixa de ser suportado.
-  - O motivo é que as funções internas usadas na opção A mudam entre versões, e suportar minors antigas multiplicaria os adaptadores. O canário testa cada versão nova.
-  - O Marketplace só oferece a última versão de cada extensão, então todo release precisa valer para as duas versões suportadas; do contrário, quem está no v11 perderia a instalação pelo Marketplace.
+- **Directus** (D-037): a major atual a partir do piso testado, mais a última minor de cada major anterior que continua na política. Hoje, `host: ^11.17.0 || ^12.4.0`; quando sair o v13, `^11.17.0 || ^12.<última minor> || ^13.<piso>`.
+  - O piso é a minor mais antiga que a matriz testa, e a matriz testa o piso e a mais nova. O piso só desce com teste, porque as funções internas usadas pela D-001 podem mudar entre minors. O canário testa cada versão nova.
+  - Uma major anterior fica enquanto a matriz inteira passar nela, e só sai por decisão nova, com o aviso publicado uma minor antes. O v11 e o v12 têm licenças diferentes (V-60, V-61), e muita gente fica no v11 por causa disso.
+  - O que depender de algo novo de uma major mais recente aparece como indisponível nas anteriores, pela matriz de capacidades.
+  - O Marketplace só oferece a última versão de cada extensão, então todo release precisa valer para a faixa inteira; do contrário, quem está numa major anterior perderia a instalação pelo Marketplace.
   - O CLI do SDK ainda gera `host: ^10.10.0`, então o valor é ajustado à mão.
 - **Bancos:** a mesma política do Directus, que é suportar as versões LTS. A mínima de cada banco é a mais antiga que o fabricante ainda suporta na data do release. A matriz de testes roda a mínima e a mais nova, e a lista concreta é revista a cada release.
 - **PostGIS:** a mais antiga que o projeto PostGIS ainda mantém, nunca abaixo da 3.1 (a primeira com a grade hexagonal).
@@ -733,7 +743,7 @@ Fica num servidor próprio do autor, com volume moderado (alguns milhões de pon
   - O Directus nunca cria índice espacial: a opção "Index" do campo cria um B-tree. A extensão detecta quando falta um índice espacial em cada coluna de geometria.
   - Sem o índice, todos os usuários veem um aviso que explica o impacto: cada operação e cada movimento do mapa varrem a tabela inteira, o que pode levar segundos e pesa o banco para todos.
   - O admin tem um botão que mostra o SQL exato (`CREATE INDEX CONCURRENTLY ... USING gist`) e pede confirmação. A confirmação mostra o tamanho da tabela e, quando ela é grande, sugere rodar fora do horário de pico.
-  - A criação roda em segundo plano, fora da requisição HTTP, com barra de progresso (`pg_stat_progress_create_index`).
+  - A criação roda em segundo plano, fora da requisição HTTP, com barra de progresso (`pg_stat_progress_create_index`). É um trabalho do executor da extensão (7.8).
   - Se falhar, a extensão detecta o índice inválido e oferece apagar e tentar de novo.
   - Os tempos reais de criação serão medidos no dataset de demonstração.
 - **BRIN nos campos de data.** Ele guarda o menor e o maior valor de cada bloco da tabela. Com dados que chegam em ordem de tempo (GPS, telemetria), um filtro por período pula quase toda a tabela, e o índice ocupa poucos MB. A extensão o sugere quando a correlação do campo é alta (`pg_stats.correlation`), no mesmo fluxo do GiST.
@@ -769,7 +779,7 @@ O mapa tem vários mapas de fundo, com um seletor, organizado em três grupos:
 | Estado do layout | Presets e bookmarks do Directus |
 | Configuração de cada painel | Opções do painel no dashboard |
 | Arquivos PMTiles, imagens das capturas e PDFs dos relatórios | Arquivos do Directus; os dos relatórios numa pasta própria, fora do alcance dos papéis comuns (7.9) |
-| Visões do módulo, consultas salvas e compartilhadas, configurações do admin, histórico dos índices criados, relatórios e capturas (7.9) | Coleções da própria extensão |
+| Visões do módulo, consultas salvas e compartilhadas, configurações do admin, o inventário do que a extensão criou no banco e nas permissões (D-039), relatórios e capturas (7.9) e trabalhos em segundo plano | Coleções da própria extensão |
 | Registro das consultas por id, progresso dos índices, versão das coleções para o cache, cache da busca de endereço, limites de pedidos, estado das cercas por objeto para os alertas | Memória, ou Redis quando o Directus usa Redis |
 
 - **Coleções do Directus, e não tabelas soltas.** Assim as permissões do Directus decidem quem vê e quem edita cada visão (regra de ouro), as coleções entram no backup e já têm API. Ficam numa pasta própria, ocultas na navegação de conteúdo, e os nomes usam o prefixo `geospatial_` (7.5).
@@ -778,11 +788,22 @@ O mapa tem vários mapas de fundo, com um seletor, organizado em três grupos:
   - As migrações têm uma trava contra duas instâncias rodando ao mesmo tempo.
   - Antes disso, o layout e o painel já funcionam; só o módulo e o compartilhamento de consultas esperam.
 - **Permissões prontas, opcionais.** Cada visão tem dono e visibilidade: só o dono, o papel dele ou todos. A extensão oferece ao admin criar uma política pronta com essas regras e mostra as permissões antes de confirmar.
+- **Inventário e remoção** (D-039). Toda ação do admin que cria algo fica no inventário, com como desfazer, e o painel de saúde o mostra. A ação "Remover o que a extensão criou" desfaz o que estiver lá: por padrão, a função, os gatilhos e as políticas prontas; os índices ficam, com a opção de removê-los, porque ajudam o próprio Directus; as coleções da extensão e a pasta dos relatórios só saem com confirmação digitada. O guia do admin traz o roteiro de desinstalação.
 - **Chaves e segredos em variáveis de ambiente**, nunca no banco. As configurações que não são segredo ficam na coleção de configurações, editáveis pela interface.
 - **Estado temporário em memória ou Redis.**
   - O id de uma consulta é o hash do conteúdo dela. Se o servidor esquecer um id, a interface registra de novo sem o usuário perceber.
   - Com várias instâncias, esse estado vai para o Redis, que o Directus já exige para escalar horizontalmente.
   - Salvar ou compartilhar uma consulta copia o conteúdo dela para a coleção da extensão.
+
+#### Trabalhos em segundo plano (D-036)
+
+O que demora mais que uma requisição roda num executor de trabalhos da própria extensão: a criação de índice (7.6), a exportação grande e as ações sobre o resultado inteiro (7.3, grupo 4), a ação "Resultado inteiro" dos Flows e a geração de relatórios, inclusive os agendados (7.9).
+
+- **Um registro por trabalho,** na coleção `geospatial_jobs`, com o tipo, o dono, o estado (na fila, rodando, concluído, falhou, cancelado ou interrompido), o progresso e o ponto de retomada. A coleção não registra atividade nem revisões, para o progresso não encher o histórico do Directus.
+- **Uma trava com prazo:** a instância que pega o trabalho renova a trava enquanto trabalha. Se ela cair, a trava vence, e outra instância retoma do último ponto salvo. A trava é um `UPDATE` condicional no banco, então funciona em todos os bancos, sem exigir Redis.
+- **Lotes que podem rodar de novo sem duplicar nada,** com o ponto de retomada gravado a cada lote. O que não dá para retomar fica "interrompido", com notificação. É o caso do índice, que fica inválido e é refeito.
+- **A permissão de quem pediu,** conferida de novo em cada lote e na retomada (seção 5).
+- **Progresso, cancelamento e notificação** pela mesma rota e pela mesma tela, para todos os tipos. Os trabalhos usam o pool próprio, com a prioridade mais baixa da fila (7.1).
 
 #### Configuração por coleção (D-027)
 
@@ -796,7 +817,7 @@ O admin configura cada coleção uma vez, numa tela do módulo. Todas as camadas
 | Índices | a saúde dos índices da coleção, com as ações do admin (7.6) |
 
 - **O que continua na camada:** o filtro, o estilo, o agrupamento, a opacidade, a ordem, a opção "ao vivo" e, se preciso, outro símbolo para a origem.
-- **O que é da instalação:** o fuso da instalação, o provedor de endereço, os mapas de fundo e o padrão deles, os limites (seleção, vértices, profundidade da cadeia, volume no Node, máximo de itens na saída do Flow, máximo de arquivos e de tamanho por relatório), os tempos máximos, a fila, o cache e o pulso ao vivo.
+- **O que é da instalação:** o fuso da instalação, o provedor de endereço, os mapas de fundo e o padrão deles, os limites (seleção, vértices, profundidade da cadeia, volume no Node, máximo de itens na saída do Flow, máximo de arquivos e de tamanho por relatório), a retenção (7.10), os tempos máximos, a fila, o cache e o pulso ao vivo.
 - **Ajuste na análise:** uma análise pode mudar os valores do trajeto para uma pergunta específica, como "só paradas de pelo menos 15 min". O ajuste fica na consulta registrada, e o resultado e o relatório mostram os critérios usados.
 - **Sem configuração,** a coleção usa os padrões. O trajeto só aparece depois que o admin escolhe o objeto; até lá, o admin vê o motivo e o usuário comum não vê a operação, como na matriz de capacidades (7.4).
 - **Onde fica guardada:** na coleção de configurações da extensão. Só o admin edita.
@@ -822,6 +843,10 @@ O admin configura cada coleção uma vez, numa tela do módulo. Todas as camadas
    - As formas só saem pela consulta registrada. Quem integra por aqui já conhece a geometria que mandou.
 2. **Consulta registrada, para o Studio, os dashboards e o compartilhamento.** `POST /geospatial/queries` registra a consulta e devolve o id, que os tiles, as três partes do resultado e a exportação usam. Cada parte tem a sua rota, e o mapa, a lista e o resumo carregam em paralelo (D-022).
 
+**O que a API não cobre**
+- **GraphQL:** a extensão expõe a API REST, e o SDK por cima dela. O GraphQL do Directus não ganha as operações espaciais.
+- **Versionamento de conteúdo:** as operações leem a versão principal dos itens, como o `/items` sem o parâmetro `version`.
+
 **Rotas**
 
 | Rota | O que faz |
@@ -833,11 +858,13 @@ O admin configura cada coleção uma vez, numa tela do módulo. Todas as camadas
 | `GET /geospatial/queries/:id/shapes` | As formas, em GeoJSON e por cursor |
 | `GET /geospatial/queries/:id/summary` | O resumo: total rápido ou exato (7.1) e medidas |
 | `GET /geospatial/tiles/:z/:x/:y.mvt?q=id1,id2` | Um tile com várias camadas |
+| `GET /geospatial/live?q=id1,id2` | O canal ao vivo, por SSE, com várias camadas (D-035) |
 | `GET /geospatial/queries/:id/export` | Exportação (grupo 4 do 7.3) |
 | `POST /geospatial/measure` | Medições entre itens ou formas |
 | `GET /geospatial/geocode` | Busca de endereço, pelo endpoint |
 | `/geospatial/reports/...` | Relatórios: capturas, geração e verificação (7.9) |
 | `/geospatial/admin/...` | Saúde, índices, coleções da extensão e "detectar de novo", só admin |
+| `/geospatial/jobs/...` | Os trabalhos em segundo plano de quem pede: progresso e cancelamento (D-036) |
 
 O prefixo `/geospatial` vem do nome do pacote (7.5). As rotas de relatório estão no 7.9.
 
@@ -865,6 +892,7 @@ O prefixo `/geospatial` vem do nome do pacote (7.5). As rotas de relatório est�
 - **Partes do resultado:** na consulta registrada, um comando para cada parte (itens, formas e resumo).
 - **Erros e capacidades:** erros tipados com os códigos da API, e `geoCapabilities()` para checar antes de chamar.
 - **Mapas externos:** um ajudante monta a URL dos tiles.
+- **Tempo real:** `geoLive()`, um iterador sobre o canal ao vivo, com o token no cabeçalho (D-035).
 
 #### Flows: a quarta superfície
 
@@ -898,7 +926,7 @@ O usuário monta o relatório aos poucos, registrando estados da tela, e no fim 
 1. O usuário monta a visualização (camadas, operação, filtros, janela de tempo) e clica em "Adicionar ao relatório".
 2. A extensão registra uma **captura** desse estado no relatório em andamento. O usuário pode ter mais de um relatório em andamento e escolhe em qual a captura entra.
 3. Num painel do relatório, ele vê as capturas em miniatura, reordena arrastando, dá título e observação a cada uma e apaga as que não quer.
-4. "Gerar relatório" monta o PDF no servidor. O arquivo vai para Arquivos, e o usuário recebe uma notificação quando fica pronto.
+4. "Gerar relatório" monta o PDF no servidor, como um trabalho em segundo plano (7.8). O arquivo vai para Arquivos, e o usuário recebe uma notificação quando fica pronto.
 
 **O que cada captura guarda**
 - **A imagem do mapa como estava,** em resolução de impressão, com legenda, escala, norte e atribuição. É capturada no navegador, porque é o que o usuário viu.
@@ -922,7 +950,7 @@ O usuário monta o relatório aos poucos, registrando estados da tela, e no fim 
   - **hash do conteúdo:** cada captura recebe um SHA-256 dos dados, da imagem e das cópias dos arquivos, calculado no servidor quando ela chega, e o relatório tem o hash do conjunto. O recorte é por subtração: entra tudo o que o documento afirma, menos o bloco de autenticidade, que carrega o próprio hash. Assim um bloco novo nunca fica de fora por esquecimento. O PDF lista esses hashes;
   - **hash do arquivo:** o SHA-256 dos bytes do PDF final, calculado depois de montado e, quando há assinatura, depois de assinado. Fica guardado no registro, e não no PDF, porque escrevê-lo no arquivo mudaria o arquivo.
 - **Código do relatório:** um código legível e único, como `GEO-EVD-20260924-00017`, para ser citado num processo ou num ofício. É o maior do dia mais um, com nova tentativa quando dois relatórios colidem.
-- **Travamento e ciclo de vida:** depois de gerado, o relatório não muda. O estado é **válido**, **revogado** (com quem, quando e por quê) ou **substituído** (apontando para a versão nova). Um ajuste gera uma nova versão, e a anterior passa a substituída. Revogar e substituir só partem de um relatório válido, a versão nova precisa estar válida, e a trilha nunca é sobrescrita, o que impede ciclos.
+- **Travamento e ciclo de vida:** depois de gerado, o relatório não muda. O estado é **válido**, **revogado** (com quem, quando e por quê) , **substituído** (apontando para a versão nova) ou **removido**, quando o admin apaga o conteúdo e fica só o registro mínimo (7.10). Um ajuste gera uma nova versão, e a anterior passa a substituída. Revogar e substituir só partem de um relatório válido, a versão nova precisa estar válida, e a trilha nunca é sobrescrita, o que impede ciclos.
 - **Prévia sem autenticidade:** antes de gerar, o usuário vê uma prévia com a marca "PRÉVIA" e sem código, token, hash ou QR. Não é uma marca d'água sobre um documento falso; é um documento que não tem o que falsificar.
 - **Verificação em duas conferências:**
   1. **O estado, pelo QR.** O QR leva à página de verificação com um token aleatório, e não com o id, para que ninguém descubra relatórios tentando ids. A página mostra o código, a data de geração, o estado, se há assinatura e o hash do arquivo esperado.
@@ -956,13 +984,38 @@ Os modelos montam as seções sozinhos, a partir de parâmetros. **Os cinco faze
 - **API:** rotas `/geospatial/reports/...` para capturas, geração, download do PDF (com a permissão do relatório) e verificação (pública).
 - **Permissões:** o relatório agendado usa a permissão escolhida na operação de Flow. A documentação alerta que, ao enviar um PDF, os dados saem do controle de permissões do Directus.
 
-**Ordem da discussão restante:** o 7.5.
+### 7.10 Dados pessoais
+
+Placa, posição, trajeto e ocorrência são dado pessoal (LGPD, GDPR). Quem controla os dados é quem opera a instalação, e a extensão não decide base legal. O que ela faz é deixar à vista tudo o que guarda e tudo o que sai, e oferecer como apagar (D-038).
+
+**O que a extensão guarda**
+
+| O quê | Onde | Por quanto tempo |
+|---|---|---|
+| Consultas registradas, cache e estado dos alertas de cerca | Memória ou Redis | Temporário: expira sozinho |
+| Visões e consultas salvas | Coleções da extensão | Até o dono apagar |
+| Links compartilhados | Coleção da extensão | Sem vencimento, com a opção de vencer |
+| Capturas que não entraram num relatório gerado, com as cópias de arquivos | Coleção da extensão e a pasta dos relatórios | 90 dias, ajustável |
+| Relatórios gerados, com as capturas, o PDF e as cópias de arquivos | Coleções da extensão e a pasta dos relatórios | Até o admin remover |
+| Trabalhos concluídos | Coleção da extensão | 30 dias, ajustável |
+
+- A limpeza periódica é um trabalho do executor (7.8).
+- Os logs não levam dado de item, geometria nem token.
+
+**O que sai da instalação**
+- **A busca de endereço** manda ao provedor o texto buscado, ou a coordenada, na busca reversa (7.3, grupo 3). Com um provedor próprio, nada sai.
+- **O mapa de fundo** pede ao servidor de mapas os tiles da área vista, com o IP de quem olha (7.7). Com o PMTiles, nada sai.
+
+**Remover um relatório**
+- Só o admin remove um relatório gerado. As capturas, o PDF e as cópias de arquivos são apagados, e fica um registro mínimo, com o código, as datas, o hash e o motivo.
+- O relatório passa ao estado "removido", e a página de verificação responde "relatório removido", em vez de "não existe". A cadeia de custódia continua explicável, sem guardar dado pessoal.
 
 ## 8. Guardado para depois
 
 - **Busca semântica com pgvector:** 19 votos no roadmap e nenhuma extensão pronta encontrada; um mantenedor comentou numa discussão antiga que isso poderia ser feito como extensão. Reaproveita a mesma arquitetura (extensão do Postgres + endpoint que respeita permissões).
 - **Validação entre campos:** 25 votos no roadmap; foi o plano B avaliado.
 - **PR no core** com operadores geoespaciais nativos.
+- **Métricas para ferramentas de monitoramento** (Prometheus, OpenTelemetry): os números do painel de saúde expostos fora do Studio.
 
 ## 9. Em aberto
 

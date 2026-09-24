@@ -34,7 +34,8 @@ GitHub Actions desde a F00, crescendo com as fases:
 | Build sem código do `@directus/api`, e o aviso de licenças de terceiros gerado | F02 | A cada push |
 | Mutação no módulo de permissões; canário | F02 | Toda noite; a cada versão nova do Directus |
 | Peso do arquivo inicial de extensões (`size-limit`) | F04 | A cada push |
-| Ponta a ponta com Playwright e axe | F04 | Em pull request que toca a interface, sem bloquear; toda noite |
+| Ponta a ponta curto: o mapa abre, o tile chega, o drawer abre, o axe passa | F04 | Em pull request que toca a interface, bloqueando o merge |
+| Ponta a ponta completo, com Playwright e axe | F04 | Toda noite e antes da release |
 | Matriz inteira de bancos | F15 | Toda noite e antes da release |
 | Publicação no npm com provenance, e o SBOM | F16 | Na release |
 
@@ -51,6 +52,6 @@ mínimo, e a noite, o resto.
 
 - Versionamento semântico com Changesets, como no Directus (V-59). Cada pull request que muda o que o usuário vê
   leva um changeset, e a release gera o CHANGELOG e as versões dos dois pacotes: a extensão e o SDK.
-- O `host` do pacote acompanha a D-018, e todo release precisa valer para as duas majors suportadas, porque o
-  Marketplace só oferece a última versão (V-34).
+- O `host` do pacote segue a D-037, e todo release precisa valer para a faixa inteira, porque o Marketplace só
+  oferece a última versão (V-34).
 - A primeira publicação é a da F16, com a extensão completa.

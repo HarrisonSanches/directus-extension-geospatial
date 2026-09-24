@@ -83,8 +83,8 @@ flowchart LR
   time order. Each time shows the observed interval and a separate estimate.
 - **Evidence reports.** Capture the screen as you work, generate a PDF on the server, and let anyone
   verify it: the QR code opens a page where the PDF is uploaded and checked byte by byte.
-- **Integrate from anywhere.** An `/items`-compatible API, an OpenAPI contract and a typed SDK in the
-  style of the official one.
+- **Integrate from anywhere.** An `/items`-compatible API, a live channel over Server-Sent Events, an
+  OpenAPI contract and a typed SDK in the style of the official one.
 
 ```ts
 const nearby = await client.request(
@@ -108,8 +108,8 @@ const nearby = await client.request(
 - **A priority queue.** Tiles on screen come first, then list pages, then counts and analyses.
 - **Timeouts and cancellation end to end.** A tile that scrolled off screen cancels its query in the
   database.
-- **A cache that can't leak.** It is keyed by the permitted SQL, so users with different permissions
-  never share an entry.
+- **A cache that can't leak.** It is keyed by the permitted SQL and its parameter values, so users with
+  different permissions never share an entry.
 - **Nothing changes without the admin.** Spatial indexes, the extension's collections and
   ready-made policies are created only through admin actions that show exactly what will run, SQL
   included.
@@ -144,7 +144,7 @@ Full detail, with the reasoning behind each choice, in [`docs/arquitetura.md`](d
 
 ## Status
 
-- [x] Architecture designed and documented (decisions D-001 to D-034)
+- [x] Architecture designed and documented (decisions D-001 to D-039)
 - [x] Directus internals verified in the source code (version 12.4.1)
 - [x] Design reviewed against the glossary and the decisions
 - [x] Implementation plan, in phases

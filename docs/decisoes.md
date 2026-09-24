@@ -99,7 +99,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 ## D-006 — Proteção do banco e cache pela query compilada
 
-- **Estado:** aceita em 23/09/2026.
+- **Estado:** aceita em 23/09/2026; esclarecida em 24/09/2026 (os valores dos parâmetros na chave).
 - **Onde:** §7.1 · V-24 · P-08.
 - **Contexto:** tiles e análises podem sobrecarregar o banco e travar o próprio Directus.
 - **Decisão:**
@@ -107,12 +107,13 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Uma fila com prioridade e limite por usuário.
   - Um tempo máximo por tipo de consulta; o tile que estoura aparece hachurado.
   - Cancelamento de ponta a ponta, até o Postgres.
-  - Chave de cache formada pelo SQL compilado pelo Directus, a versão da coleção e o tile.
+  - Chave de cache formada pelo SQL compilado pelo Directus, com os valores dos parâmetros, a versão da coleção e o tile. Os valores entram porque o filtro de permissão vai neles: a regra da Maria e a do João são o mesmo texto no SQL (`regiao = ?`), e só o valor muda.
 - **Alternativas descartadas:**
   - Usar o pool do Directus.
   - Cache por usuário: desperdiça espaço.
   - Cache sem a permissão na chave: vaza dados.
-- **Consequências:** quem tem exatamente as mesmas permissões compartilha o cache e os pulsos de tempo real. O SQL ser determinístico vira teste automatizado.
+  - Chave só com o texto do SQL: papéis com permissões diferentes teriam a mesma chave, porque a permissão fica nos valores.
+- **Consequências:** quem tem exatamente as mesmas permissões compartilha o cache e os pulsos de tempo real. O SQL ser determinístico vira teste automatizado. Uma permissão com `$CURRENT_USER` põe o id do usuário nos valores, e o cache daquele papel fica por usuário.
 
 ## D-007 — Metros com filtro em dois estágios e suporte a qualquer SRID
 
@@ -219,7 +220,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Três formas de detectar mudanças: os hooks do Directus, um gatilho `LISTEN/NOTIFY` no Postgres (criado por ação do admin) e um campo de data de atualização nos outros bancos.
   - A mesma detecção invalida o cache.
 - **Alternativa descartada:** o WebSocket do Directus. Vem desligado por padrão, relê cada evento para cada inscrito e não enxerga gravações feitas fora do Directus.
-- **Consequências:** o gatilho existe só no Postgres (entra na matriz de capacidades), e o campo de data não enxerga exclusões.
+- **Consequências:** o gatilho existe só no Postgres (entra na matriz de capacidades), e o campo de data não enxerga exclusões. O mesmo canal serve à API e ao SDK (D-035).
 
 ## D-015 — Dados da extensão em coleções do Directus
 
@@ -268,7 +269,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 ## D-018 — Versões: a major atual e a última minor da anterior
 
-- **Estado:** aceita em 23/09/2026.
+- **Estado:** aceita em 23/09/2026. Substituída pela D-037 em 24/09/2026.
 - **Onde:** §7.5 · V-29, V-34, V-35.
 - **Decisão:**
   - Directus v12 e v11.17 (`host: ^11.17.0 || ^12.0.0`). O v11 sai quando o v13 chegar.
@@ -282,8 +283,8 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 ## D-019 — Nome, prefixos e licença
 
-- **Estado:** aceita em 23/09/2026. Porta de mão única.
-- **Onde:** §7.5.
+- **Estado:** aceita em 23/09/2026. Porta de mão única. Esclarecida em 24/09/2026 (a licença do núcleo do Directus).
+- **Onde:** §7.5 · V-60.
 - **Decisão:**
   - Pacote `directus-extension-geospatial`, sem escopo, que aparece como "Geospatial" no Marketplace.
   - Prefixos `/geospatial` na API e `geospatial_` nas coleções.
@@ -296,6 +297,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Os prefixos são contrato público.
   - A licença MIT é a mesma das extensões da Directus Labs.
   - Uma versão paga no futuro seria um pacote separado.
+  - O núcleo do Directus, inclusive o `@directus/api`, tem licença própria, a MSCL-1.0-GPL (V-60). A extensão continua MIT porque usa os internos do Directus que já está rodando e nunca os embute no pacote, o que a CI confere.
 
 ## D-020 — Um pacote fora do sandbox, com três caminhos de instalação
 
@@ -527,7 +529,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 ## D-034 — Verificação do arquivo pelo upload, com dois hashes e ciclo de vida
 
-- **Estado:** aceita em 24/09/2026. Complementa a D-021.
+- **Estado:** aceita em 24/09/2026. Complementa a D-021. O ciclo de vida ganha o estado "removido" pela D-038.
 - **Onde:** §7.9.
 - **Contexto:** a verificação conferia o registro e o QR, mas não o arquivo em si. O QR não pode carregar o hash do próprio PDF em que está impresso, porque escrevê-lo no arquivo muda o arquivo. As ideias vieram em parte de um relatório de acessos que o autor já fez: prévia sem autenticidade, token aleatório no QR, código legível, hash por subtração, ciclo de vida e rota pública sem vazamento.
 - **Decisão:**
@@ -541,3 +543,89 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - O id do relatório no QR: permitiria descobrir relatórios tentando ids.
   - Prévia com marca d'água sobre um documento com QR e hash de verdade: poderia ser apresentada como oficial.
 - **Consequências:** um PDF salvo de novo, mesmo sem alteração visível, não confere, e a página explica o motivo.
+
+## D-035 — Acompanhar um objeto ao vivo, com o canal ao vivo na API
+
+- **Estado:** aceita em 24/09/2026. Detalha a D-014 e a D-016.
+- **Onde:** §7.2, §7.3 (grupo 5), §7.8 (API e SDK) · V-12.
+- **Contexto:** o tempo real mandava as posições novas ao mapa, e as configurações de trajeto valiam para a camada ao vivo, mas faltavam três coisas para rastrear um objeto: o "seguir" só existia no playback e na navegação pelo teclado; nada dizia como a linha do trajeto cresce a cada pulso; e o canal ao vivo não estava na API, então um app de fora não conseguia acompanhar um objeto em tempo real.
+- **Decisão:**
+  - O "seguir" vale também na camada ao vivo: o objeto fica no centro a cada pulso. Arrastar o mapa desliga o seguir, e um botão o religa.
+  - Numa coleção com configurações de trajeto, a camada ao vivo desenha o rastro de cada objeto, por padrão os últimos 30 min, ajustável na camada. As regras do trajeto valem a cada pulso: o trecho cresce, a lacuna fica aberta enquanto o objeto está sumido ("sem posição há 12 min"), e o ponto suspeito é marcado na hora.
+  - A ação "Acompanhar ao vivo", num item, cria a camada ao vivo filtrada no objeto dele, com o rastro e o seguir ligados.
+  - O canal ao vivo entra na API, em `GET /geospatial/live?q=id1,id2`, por SSE e no contrato OpenAPI, e no SDK, como o iterador `geoLive()`. Há limite de conexões por usuário e, no papel público, por IP. O SDK manda o token no cabeçalho. O `access_token` na URL (V-12) também funciona, mas a documentação recomenda o cabeçalho, porque a URL costuma ficar gravada em log.
+- **Alternativas descartadas:**
+  - Uma tela própria de rastreamento: duplicaria o mapa, quando rastrear é uma camada.
+  - O canal só no Studio: quem integra teria de pedir a posição a cada segundo pela rota de itens, multiplicando as consultas.
+  - WebSocket: descartado na D-014.
+- **Consequências:** a rota `/live` e o formato das mensagens entram no contrato público (D-016). A permissão é reaplicada a cada pulso também para quem integra, como no Studio.
+
+## D-036 — Trabalhos em segundo plano num executor só, com retomada
+
+- **Estado:** aceita em 24/09/2026.
+- **Onde:** §7.3 (grupo 4), §7.6, §7.8 (trabalhos em segundo plano), §7.9 · V-30, V-53.
+- **Contexto:** a criação de índice, a exportação grande, as ações sobre o resultado inteiro, o "Resultado inteiro" do Flow e a geração de relatórios, inclusive os agendados, rodam em segundo plano, e cada um estava descrito à parte. Nenhum dizia o que acontece se o Directus reiniciar no meio, ou se duas instâncias pegarem o mesmo trabalho.
+- **Decisão:**
+  - Um executor de trabalhos da extensão. Cada trabalho é um registro na coleção `geospatial_jobs`, com o tipo, o dono, o estado (na fila, rodando, concluído, falhou, cancelado ou interrompido), o progresso e o ponto de retomada.
+  - Uma trava com prazo decide quem roda: a instância renova a trava enquanto trabalha e, se cair, outra retoma do último ponto salvo. A trava é um `UPDATE` condicional no próprio banco, o que funciona em todos os bancos, sem exigir Redis.
+  - O trabalho anda em lotes que podem rodar de novo sem duplicar nada, com o ponto de retomada gravado a cada lote. O que não dá para retomar fica "interrompido", com notificação, como o índice criado com `CONCURRENTLY`, que fica inválido e é refeito.
+  - Cada lote roda com a permissão de quem pediu, conferida de novo na retomada (D-001).
+  - Progresso, cancelamento e notificação pela mesma rota e pela mesma tela, para todos os tipos. Os trabalhos usam o pool próprio, com a prioridade mais baixa da fila (D-006).
+  - A coleção não registra atividade nem revisões, para o progresso não encher o histórico do Directus.
+- **Alternativas descartadas:**
+  - Cada funcionalidade com o próprio segundo plano: cinco formas de recuperar, e o reinício continuaria sem dono.
+  - BullMQ, a fila sobre Redis: exigiria o Redis mesmo com uma instância só, e ele só é obrigatório com várias (D-015, V-30).
+  - pg-boss, a fila sobre o Postgres: não serve aos outros bancos.
+  - Flows agendados como executor: sem progresso nem retomada, e o registro dos Flows gravaria cada execução inteira (V-53).
+- **Consequências:** a coleção `geospatial_jobs` entra nas coleções da extensão (D-015). Um reinício nunca deixa um trabalho pela metade em silêncio: ele é retomado ou fica "interrompido", com aviso. O executor nasce na F06, com a criação de índice.
+
+## D-037 — Versões: a major atual a partir do piso testado, e a última minor das majors anteriores
+
+- **Estado:** aceita em 24/09/2026. Substitui a D-018.
+- **Onde:** §7.4 (testes), §7.5 · V-29, V-34, V-35, V-60, V-61.
+- **Contexto:** a D-018 prometia todo o 12 (`^12.0.0`), mas a matriz testava só a última minor, e os internos usados pela D-001 podem mudar entre minors. Ela também tirava o 11 quando o 13 chegasse. Só que o 11 e o 12 têm licenças diferentes (V-60, V-61), e muita gente fica no 11 por causa disso.
+- **Decisão:**
+  - A faixa é a major atual a partir do piso testado, mais a última minor de cada major anterior que continua na política. Hoje, `^11.17.0 || ^12.4.0`; quando sair o 13, `^11.17.0 || ^12.<última minor> || ^13.<piso>`.
+  - O piso é a minor mais antiga que a matriz testa, e a matriz testa o piso e a mais nova, na última correção de cada minor. O piso só desce com teste, e o canário testa cada minor nova assim que ela sai.
+  - Uma major anterior fica enquanto a matriz inteira passar nela. Tirá-la exige uma decisão nova e o aviso de descontinuação publicado numa minor antes, e a última versão compatível continua instalável pelo npm e pela imagem Docker.
+  - O que depender de algo novo de uma major mais recente aparece como indisponível nas anteriores, com o motivo. A matriz de capacidades passa a considerar também a versão do Directus.
+  - Na CI, o pull request roda a versão mais antiga e a mais nova da faixa, e a noite roda a faixa inteira.
+  - Como na D-018: os bancos seguem a política LTS (a mínima é a mais antiga que o fabricante ainda suporta, e a matriz testa a mínima e a mais nova); o PostGIS é uma versão ainda mantida pelo projeto, nunca abaixo da 3.1; e o navegador precisa de WebGL2.
+- **Alternativas descartadas:**
+  - Manter `^12.0.0` sem testar o 12.0: promete o que ninguém conferiu.
+  - Testar todas as minors: a matriz cresce todo mês, e cada minor antiga pede um caso no adaptador.
+  - Tirar o 11 quando o 13 chegar, como na D-018: cortaria quem ficou no 11 por causa da licença.
+  - Uma linha separada da extensão para o 11: o Marketplace só mostra a última versão de cada extensão (V-34), e duas linhas dobram o trabalho de cada correção.
+- **Consequências:** todo release precisa valer para a faixa inteira, porque o Marketplace só oferece a última versão. O 11 parou de ganhar minors, e a última é a 11.17 (V-35), então o adaptador dele quase não muda: o custo de mantê-lo é a matriz, mais as alternativas para o que for novo.
+
+## D-038 — Dados pessoais: retenção configurável, remoção com registro mínimo e o que sai da instalação à vista
+
+- **Estado:** aceita em 24/09/2026. Acrescenta o estado "removido" ao ciclo de vida da D-034.
+- **Onde:** §7.8, §7.9, §7.10.
+- **Contexto:** placa, posição, trajeto e ocorrência são dado pessoal (LGPD, GDPR), e o desenho não tratava disso. A extensão cria lugares onde o dado fica guardado (capturas, relatórios, links compartilhados, consultas registradas, trabalhos e cache), e dois caminhos mandam dado para fora da instalação: a busca de endereço, que manda ao provedor o texto buscado ou a coordenada, e o mapa de fundo, que pede os tiles da área vista, com o IP de quem olha.
+- **Decisão:**
+  - A arquitetura mapeia o que a extensão guarda, onde, por quanto tempo e como apagar, e os caminhos que saem da instalação. Quem controla os dados é quem opera a instalação; a extensão não decide base legal.
+  - Retenção configurável na instalação, com a limpeza periódica feita pelo executor de trabalhos (D-036). Os padrões: a captura que não entrou num relatório gerado, 90 dias; o link compartilhado, sem vencimento, com a opção de vencer; o trabalho concluído, 30 dias. As cópias de arquivos de uma captura descartada saem junto com ela.
+  - O relatório gerado só sai por ação do admin. As capturas, o PDF e as cópias de arquivos são apagados, e fica um registro mínimo, com o código, as datas, o hash e o motivo. O relatório passa ao estado "removido", e a página de verificação responde "relatório removido".
+  - O guia do admin traz o mapa do que é guardado, e recomenda um provedor de endereço próprio e o PMTiles onde o dado não pode sair da rede.
+- **Alternativas descartadas:**
+  - Deixar tudo com quem opera: a extensão cria esses lugares, e ninguém apaga o que não sabe que existe.
+  - Anonimizar sozinho depois de um prazo: mudaria a evidência e quebraria o hash.
+  - Apagar o relatório sem deixar registro: a verificação de um PDF que ainda circula responderia "não existe", como se ele fosse falso.
+- **Consequências:** o ciclo de vida do relatório ganha o estado "removido". A retenção e a limpeza nascem na F06, a remoção do relatório vem na F13, e o capítulo do guia, na F16.
+
+## D-039 — Inventário do que a extensão cria, e uma ação para remover
+
+- **Estado:** aceita em 24/09/2026. Complementa a D-008.
+- **Onde:** §7.3 (grupo 5), §7.8 (armazenamento) · V-25.
+- **Contexto:** a extensão cria objetos fora das próprias coleções: a função e os gatilhos do `LISTEN/NOTIFY` e os índices nas tabelas do usuário, as políticas prontas e a pasta dos relatórios, além das coleções `geospatial_*`. Desinstalada, os gatilhos continuam disparando a cada gravação sem ninguém escutando, e as políticas continuam dando permissões. E nada listava o que tinha sido criado.
+- **Decisão:**
+  - Toda ação do admin que cria algo grava um registro no inventário da extensão, com o objeto, o SQL ou as permissões aplicadas e como desfazer. O inventário generaliza o histórico dos índices criados, e o painel de saúde o mostra.
+  - A ação "Remover o que a extensão criou" mostra a lista e o que vai rodar. Por padrão, remove a função, os gatilhos e as políticas prontas. Os índices ficam, porque ajudam o próprio Directus (V-25) e custam caro para recriar, com a opção de removê-los. As coleções da extensão e a pasta dos relatórios só saem com confirmação digitada, porque guardam visões, relatórios e evidência.
+  - O guia do admin traz o roteiro de desinstalação (rodar a ação antes de remover a extensão) e o SQL para quem já desinstalou sem rodá-la.
+  - Os objetos criados no banco levam o prefixo `geospatial_`.
+- **Alternativas descartadas:**
+  - Só documentar o SQL de remoção: depende de o admin achar e rodar à mão, e nada diz o que foi criado naquela instalação.
+  - Apagar tudo sozinho na desinstalação: depois de desinstalada, a extensão não roda mais código, e apagar relatório sem pedir destrói evidência.
+  - Remover os índices por padrão: tiraria desempenho do próprio Directus.
+- **Consequências:** o inventário e a ação nascem na F06, com a primeira ação do admin, e cada ação das fases seguintes entra neles. O roteiro de desinstalação vai para o guia na F16.
