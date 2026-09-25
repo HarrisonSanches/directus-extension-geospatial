@@ -2,9 +2,14 @@
 
 ## Contrato primeiro
 
-- O documento OpenAPI 3.1 em `packages/contract/` é a fonte da verdade (D-016). Rota nova ou mudada começa por ele.
+- O documento OpenAPI 3.1, em `packages/contract/openapi.yaml`, é a fonte da verdade (D-016). Rota nova ou mudada
+  começa por ele. O pacote `directus-geospatial-contract` é privado: a extensão e o SDK o usam no workspace, e o
+  build de cada um embute o que precisa.
 - Dele saem:
-  - os tipos TypeScript (`openapi-typescript`), usados pelo motor e pelo SDK;
+  - os tipos TypeScript, pelo `@hey-api/openapi-ts`, só com os tipos, e não pelo `openapi-typescript`, que não aceita
+    o TypeScript 6 do lint (V-107). Ficam em `src/generated/`, no Git, gerados pelo
+    `pnpm --filter directus-geospatial-contract generate`, e nunca editados à mão: um teste gera de novo e reprova
+    quando o arquivo fica para trás do documento. São usados pelo motor e pelo SDK;
   - a validação da entrada (Ajv, pelo JSON Schema do próprio documento), feita antes de tocar o banco;
   - a referência da API no site de documentação.
 - O documento passa pelo lint (Redocly CLI) na CI e é servido em `GET /geospatial/openapi.json`.
@@ -31,7 +36,8 @@
 
 ## Compatibilidade
 
-- A versão da API sai em `/geospatial/capabilities`.
+- A versão da API sai em `/geospatial/capabilities`: é o `info.version` do documento, que um teste mantém igual à
+  constante `apiVersion` do contrato. A rota recusa o pedido sem sessão, e só o admin vê o banco (D-042).
 - Mudança que quebra cliente só em versão major, com o aviso de descontinuação publicado antes, numa minor.
 - Acrescentar um campo na resposta não quebra; tirar um campo, ou mudar o sentido dele, quebra.
 

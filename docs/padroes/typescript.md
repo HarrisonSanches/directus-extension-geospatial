@@ -6,13 +6,18 @@
   - **nas ferramentas** (build, lint, testes, testcontainers), o Node 24, o LTS ativo, fixado em `.node-version`.
     Passa para o 26 quando ele virar LTS, em 28/10/2026 (V-79);
   - **no código da extensão,** o Node 22, porque ela roda dentro do Node do Directus, e as imagens oficiais do
-    11.17 e do 12 usam o 22 (V-80). O `engines` da extensão pede `>=22`, e o `@types/node` fica na 22, para o
-    TypeScript acusar a API que não existe lá; a suíte de integração, rodando nas imagens do Directus, pega o
-    resto. Muda quando a imagem do Directus mudar.
+    11.17 e do 12 usam o 22 (V-80). O `engines` da extensão pede `>=22`, e o `@types/node` fica na 22, pelo
+    catálogo `node22`, para o TypeScript acusar a API que não existe lá; a suíte de integração, rodando nas imagens
+    do Directus, pega o resto. Muda quando a imagem do Directus mudar.
 - **TypeScript 7, estrito,** com `noUncheckedIndexedAccess`. `any` não entra: o que chega de fora é `unknown` até
   ser validado. A configuração base fica no `tsconfig.base.json`, que os pacotes herdam, e o `tsc` confere também
   os `.d.ts` das dependências, sem o `skipLibCheck`. Quando um pacote usa nos tipos uma dependência que não declara,
-  o `packageExtensions` do `pnpm-workspace.yaml` declara por ele (V-101).
+  o `packageExtensions` do `pnpm-workspace.yaml` declara por ele (V-101). A exceção é o pacote da extensão: os
+  `.d.ts` do `@directus/types` importam sete pares opcionais, e ele usa o `skipLibCheck`, como o `@directus/tsconfig`
+  e o template de extensão do Directus. O código dele continua conferido contra esses tipos, e o lint estrito recusa
+  o tipo que não resolve (V-108).
+- **Código gerado não passa pelo lint:** os tipos do contrato seguem o estilo do gerador, e um teste os mantém em
+  dia com o documento. Eles passam pelo Prettier e pelo `tsc`.
 - **Dois TypeScript lado a lado, até a P-25:** o 7.0 não traz a API que o lint usa (V-90), e o catálogo tem dois
   apelidos, como recomenda o anúncio do 7 (V-94). O `tsconfig` serve aos dois, e o `tsc` 7 manda quando eles
   discordam:
@@ -61,6 +66,7 @@
 ```
 packages/extension/src/
   internals/    o único lugar que importa do @directus/api, com um adaptador por versão (D-001)
+  capabilities/ a matriz de capacidades: a detecção do ambiente e o que cada um vê (D-002, D-042)
   db/           a interface do adaptador e um adaptador por banco (D-002)
   operations/   uma pasta por operação: entrada, partes do resultado, nível em cada banco e SQL
   query/        a consulta registrada: registro, id, partes e cursor

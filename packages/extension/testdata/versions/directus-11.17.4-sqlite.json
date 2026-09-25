@@ -1,0 +1,6 @@
+{
+	"source": "directus/directus:11.17.4, sqlite_version() through the sqlite3 module of the image, which fails to load mod_spatialite",
+	"capturedOn": "2026-09-25",
+	"databaseVersion": "3.44.2",
+	"spatialVersion": null
+}

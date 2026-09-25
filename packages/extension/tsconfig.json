@@ -1,0 +1,13 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["node"],
+		"noEmit": true,
+		// The declarations of @directus/types import seven packages that it declares as optional peers, and the
+		// extension uses none of them but pino. Like @directus/tsconfig and the extension template of Directus, this
+		// package does not check inside third-party declarations; its own code is still checked against them, and the
+		// strict lint refuses any type from them that does not resolve.
+		"skipLibCheck": true
+	},
+	"include": ["src"]
+}

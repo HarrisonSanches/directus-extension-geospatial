@@ -1,0 +1,6 @@
+{
+	"source": "postgis/postgis:18-3.6-alpine, current_setting('server_version') and the extversion of postgis",
+	"capturedOn": "2026-09-25",
+	"databaseVersion": "18.6",
+	"spatialVersion": "3.6.4"
+}

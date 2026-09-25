@@ -5,7 +5,8 @@ import { createNodeResolver, importX } from 'eslint-plugin-import-x';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-	{ ignores: ['**/dist/', '**/coverage/'] },
+	// The generated types follow the style of their generator, and a test keeps them in step with openapi.yaml.
+	{ ignores: ['**/dist/', '**/coverage/', 'packages/contract/src/generated/'] },
 
 	// A comment that turns a rule off hides the problem instead of fixing it. ESLint ignores every inline
 	// configuration and reports each one as a warning, and the lint runs with --max-warnings 0.

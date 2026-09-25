@@ -1,0 +1,6 @@
+{
+	"source": "debian:trixie-slim with sqlite3 and libsqlite3-mod-spatialite, sqlite_version() and spatialite_version()",
+	"capturedOn": "2026-09-25",
+	"databaseVersion": "3.46.1",
+	"spatialVersion": "5.1.0"
+}

@@ -7,22 +7,38 @@ catalog:
   '@commitlint/lint': 21.2.3
   '@commitlint/load': 21.2.3
   '@commitlint/types': 21.2.3
+  '@directus/errors': 2.5.1
+  '@directus/extensions-sdk': 18.0.4
+  # The version the extensions SDK depends on, so both read the same types.
+  '@directus/types': 16.2.0
   '@eslint/js': 10.0.1
+  '@hey-api/openapi-ts': 0.99.0
   '@types/node': 24.13.6
   # TypeScript runs side by side (V-90): this alias is the TypeScript 7 behind tsc, and the typescript name below
   # serves the 6.0 API that typescript-eslint loads, until typescript-eslint supports TypeScript 7 (P-25).
   '@typescript/native': npm:typescript@7.0.2
+  '@vitest/coverage-v8': 5.0.1
   eslint: 10.11.0
   eslint-config-prettier: 10.1.8
   eslint-plugin-import-x: 4.17.1
   husky: 9.1.7
   jiti: 2.7.0
+  # The exact version Directus uses and @directus/types names as its peer.
+  knex: 3.1.0
   knip: 6.37.0
+  # The exact version @directus/types names as its optional peer, for the type of the logger.
+  pino: 9.7.0
   prettier: 3.9.8
   typescript: npm:@typescript/typescript6@6.0.2
   typescript-eslint: 8.70.1
   vite: 8.3.0
   vitest: 5.0.1
+  yaml: 2.9.1
+
+catalogs:
+  # The code of the extension runs in the Node of the Directus images, the 22 (V-80), so its types come from that line.
+  node22:
+    '@types/node': 22.20.4
 
 # pnpm add only accepts versions from the catalog, so the repository keeps one version of each dependency.
 catalogMode: strict
@@ -33,6 +49,15 @@ allowBuilds:
   # Its postinstall only downloads the native binding when the package manager skipped the optional dependency for
   # the platform, and pnpm installs it.
   unrs-resolver: false
+  # The same: with the platform package installed, it only swaps the command shim for the native binary.
+  esbuild: false
+  # It only switches the library to Vue 2, and the version it ships is the one for Vue 3.
+  vue-demi: false
+
+# The extensions SDK of Directus 18.0.4 ships Vite 8 with @vitejs/plugin-vue 6.0.1, which accepts Vite only up to 7.
+# The plugin declares Vite 8 from 6.0.5 on, in the same 6.0 line.
+overrides:
+  '@directus/extensions-sdk>@vitejs/plugin-vue': 6.0.9
 
 # Dependencies that these packages use in their type declarations and do not declare. pnpm then resolves them from
 # its hidden hoisting folder, where typescript is the TypeScript 7 package, which has no API, and type-fest is missing.
