@@ -1,0 +1,23 @@
+{
+	"name": "directus-extension-geospatial-monorepo",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"prepare": "husky",
+		"test": "vitest run",
+		"typecheck": "tsc"
+	},
+	"devDependencies": {
+		"@commitlint/cli": "catalog:",
+		"@commitlint/config-conventional": "catalog:",
+		"@commitlint/lint": "catalog:",
+		"@commitlint/load": "catalog:",
+		"@commitlint/types": "catalog:",
+		"@types/node": "catalog:",
+		"husky": "catalog:",
+		"typescript": "catalog:",
+		"vite": "catalog:",
+		"vitest": "catalog:"
+	},
+	"packageManager": "pnpm@12.5.1"
+}

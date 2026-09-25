@@ -96,7 +96,7 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
   - escopo em minúsculas com hífen (`scope-case: kebab-case`);
   - linha em branco antes do corpo e dos rodapés como erro, e não como aviso;
   - uma regra local que recusa os assuntos vagos da lista acima (V-67).
-- **Hook `commit-msg` local,** com o husky, instalado pelo `prepare` no `pnpm install` (P-20). Uma mensagem fora do
+- **Hook `commit-msg` local,** com o husky, instalado pelo `prepare` no `pnpm install` (V-88). Uma mensagem fora do
   padrão nem vira commit. O hook se pula com `--no-verify`, e por isso a conferência da CI existe.
 - **O título do pull request na CI,** pelo mesmo commitlint, bloqueando o merge. É a conferência que mais importa,
   porque no merge por squash o título vira o commit do `develop` (V-64, D-041). O próprio commitlint lê o título,

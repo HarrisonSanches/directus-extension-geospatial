@@ -24,10 +24,10 @@ confiança se constrói no repositório.
   conferência na CI garante que o build os deixou de fora.
 - **Cadeia de suprimentos:**
   - lockfile versionado, e instalação com o lockfile congelado na CI;
-  - scripts de instalação das dependências desligados, com a lista explícita das que podem rodar
-    (`onlyBuiltDependencies`), como no Directus (V-59);
-  - versão recém-publicada só entra depois de alguns dias (`minimumReleaseAge`, no pnpm e no Renovate), para dar
-    tempo de um pacote comprometido ser descoberto;
+  - scripts de instalação das dependências desligados, com cada exceção decidida no `allowBuilds`; a instalação
+    falha quando aparece um script que ninguém revisou (`strictDepBuilds`, V-85);
+  - versão recém-publicada só entra depois de 3 dias (`minimumReleaseAge` de 4320 minutos, no pnpm e no
+    Renovate), para dar tempo de um pacote comprometido ser descoberto;
   - `pnpm audit` e OSV-Scanner na CI;
   - o Dependabot alerts ligado, para a vulnerabilidade nova aparecer mesmo sem push (V-75);
   - os workflows do GitHub Actions passam pelo zizmor (V-74).

@@ -40,6 +40,8 @@ Toda mudança, de qualquer tamanho, só está pronta quando:
 - [ ] tem testes no nível certo ([`testes.md`](testes.md)), escritos antes do código na regra de domínio;
 - [ ] `pnpm check` passa: formatação, lint, tipos, Knip, testes unitários e de integração no PostGIS e no SQLite,
       no Directus 11.17 e no 12;
+- [ ] nenhum erro nem aviso do TypeScript, do lint ou do editor, e nenhum comentário que desliga uma regra
+      (`@ts-ignore`, `@ts-expect-error`, `eslint-disable` e parecidos);
 - [ ] se devolve dado, tem o teste de paridade de permissão com o `/items`;
 - [ ] o contrato mudou primeiro: o OpenAPI, os tipos, o nível da operação em cada banco da matriz e as coleções
       da extensão;
@@ -62,6 +64,7 @@ Os nomes são estes, e a F00 os cria.
 | `pnpm install` | Instala as dependências; na CI, com o lockfile congelado |
 | `pnpm dev` | Sobe o ambiente de desenvolvimento (Directus 12, PostGIS e Redis), com a extensão em modo watch |
 | `pnpm test` | Testes unitários, em segundos |
+| `pnpm typecheck` | Os tipos, com o `tsc` do TypeScript 7 |
 | `pnpm test:integration` | Directus e bancos de verdade em containers: PostGIS e SQLite, no 11.17 e no 12 |
 | `pnpm test:e2e` | Playwright com axe, no Studio de verdade |
 | `pnpm check` | Formatação, lint, tipos, Knip, `test` e `test:integration`: o que a CI roda no pull request, menos as análises que só existem nela (cobertura do diff, SonarQube Cloud e zizmor) |

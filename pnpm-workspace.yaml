@@ -1,0 +1,25 @@
+packages:
+  - packages/*
+
+catalog:
+  '@commitlint/cli': 21.2.3
+  '@commitlint/config-conventional': 21.2.3
+  '@commitlint/lint': 21.2.3
+  '@commitlint/load': 21.2.3
+  '@commitlint/types': 21.2.3
+  '@types/node': 24.13.6
+  husky: 9.1.7
+  typescript: 7.0.2
+  vite: 8.3.0
+  vitest: 5.0.1
+
+# pnpm add only accepts versions from the catalog, so the repository keeps one version of each dependency.
+catalogMode: strict
+
+# Dependency build scripts are denied by default, and strictDepBuilds (on by default) fails the install when a
+# package with one is missing here. Each entry is a reviewed decision: true runs its scripts, false skips them.
+allowBuilds: {}
+
+# A version published less than 3 days ago (4320 minutes) is not installed, giving the registry and the community
+# time to find and pull a compromised release.
+minimumReleaseAge: 4320
