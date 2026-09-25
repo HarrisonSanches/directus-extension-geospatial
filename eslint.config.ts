@@ -25,8 +25,14 @@ export default defineConfig(
 	{
 		plugins: { 'import-x': importX },
 		settings: {
+			// The files whose imports the plugin follows, and without which no-cycle sees no TypeScript file.
+			'import-x/extensions': ['.ts', '.mts', '.cts', '.js', '.mjs', '.cjs'],
 			// The code imports ./module.js, and the file on disk is ./module.ts.
-			'import-x/resolver-next': [createNodeResolver({ extensionAlias: { '.js': ['.ts', '.js'] } })],
+			'import-x/resolver-next': [
+				createNodeResolver({
+					extensionAlias: { '.js': ['.ts', '.js'], '.mjs': ['.mts', '.mjs'], '.cjs': ['.cts', '.cjs'] },
+				}),
+			],
 		},
 		rules: {
 			'import-x/no-cycle': 'error',
