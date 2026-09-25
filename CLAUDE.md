@@ -12,7 +12,8 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - Ferramentas de qualidade e segurança escolhidas em 25/09/2026: decisão D-040 (o repositório abre no fim da F00), achado A-001 e fatos V-66 a V-77.
 - Plano de implementação movido em 25/09/2026 para o repositório privado `directus-extension-geospatial-plan`.
 - F00 quebrada em 13 issues em 25/09/2026, no repositório do plano, com o Node 24 nas ferramentas e o pnpm mantido (V-79 a V-82).
-- Próximo passo: `/implement-issue F00-01`.
+- Fluxo de ramos com o `develop` em 25/09/2026 (D-041), e coautoria do agente nos commits do produto.
+- Próximo passo: `/implement-issue F00-01`, no ramo `chore/f00-01-toolchain-and-commit-standard`.
 
 ## Documentação
 
@@ -46,7 +47,8 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 
 - **Princípios** em [arquitetura §2](docs/arquitetura.md#2-princípios). A regra de ouro das permissões é a D-001, e uma porta de mão única nunca muda sem uma decisão nova.
 - **Git:**
-  - nunca adicione Claude ou qualquer IA como coautor; sem linha `Co-Authored-By`, em nenhum commit;
+  - nos commits do produto em que o agente trabalhou, a última linha é a coautoria dele, `Co-Authored-By: <modelo> <noreply@anthropic.com>`, com o nome do modelo da sessão, e ela vai também no fim da descrição do pull request, que vira o commit do `develop` no squash; no repositório do plano, sem coautoria;
+  - ramos (D-041): cada issue num ramo a partir do `develop` atualizado, criado **antes da primeira edição**, com o nome no padrão de mercado de [docs/padroes/git-e-entrega.md](docs/padroes/git-e-entrega.md) (`<tipo>/<id>-<descrição>`); o pull request volta para o `develop` com squash, e o `develop` vai para o `main` no fim de cada fase;
   - mensagens em inglês, no padrão Conventional Commits, com as regras de [docs/padroes/git-e-entrega.md](docs/padroes/git-e-entrega.md);
   - commit e push só quando o mantenedor pedir.
 - **Comandos no ambiente** só com confirmação, dizendo o que o comando faz e como desfazer: instalar algo no sistema, Docker fora dos testes, bancos fora dos containers de teste, publicar no npm, push.

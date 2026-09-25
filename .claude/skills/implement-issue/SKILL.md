@@ -10,7 +10,7 @@ Issue pedida: **$ARGUMENTS** (ex.: `F00-03`). O arquivo é `../directus-extensio
 
 O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
-**Não faça commit, não crie branch, não dê push, a menos que o mantenedor peça.** Se ele pedir um commit: mensagem em inglês, no padrão Conventional Commits, e **nunca** com linha de coautoria (`Co-Authored-By`) de Claude ou de qualquer IA.
+**Não faça commit, não crie branch, não dê push, a menos que o mantenedor peça.** Se ele pedir um commit: mensagem em inglês, no padrão de `docs/padroes/git-e-entrega.md`, terminando com a linha de coautoria do agente, `Co-Authored-By: <modelo> <noreply@anthropic.com>`, com o nome do modelo desta sessão.
 
 ## Ler antes (uma vez)
 
@@ -22,6 +22,10 @@ O plano fica num repositório privado, clonado ao lado deste em `../directus-ext
 
 ## Antes de editar
 
+- **Ramo primeiro.** Confira em que ramo o repositório está (`git branch --show-current`). Se não for o ramo desta issue, **pare antes de qualquer edição**:
+  - recomende o nome no padrão de mercado de `docs/padroes/git-e-entrega.md` (Conventional Branch, `<tipo>/<id>-<descrição>`, como `feat/f02-03-radius-order`);
+  - passe ao mantenedor o comando pronto para ele criar o ramo a partir do `develop` atualizado: `git switch develop && git pull && git switch -c <ramo>`;
+  - espere ele confirmar que o ramo existe. Nunca edite no `develop` nem no `main`.
 - **Já está feita?** Se todos os critérios de aceite já valem no repositório, reporte com ✅ em cada um e pare.
 - **Pré-requisitos:** as issues de "bloqueada por" estão feitas no repositório? Se não, **pare e pergunte**. Não conserte issue anterior por conta própria.
 - **Contradição** entre issue, fase, arquitetura, decisão ou código: **pare e pergunte**. Não improvise design. Uma porta de mão única nunca muda sem uma decisão nova.
@@ -73,6 +77,6 @@ Não existe guia didático em arquivo. A documentação pública (README, site) 
 4. **O que aprender aqui:** os conceitos novos em três ou quatro linhas.
 5. **Decisões tomadas fora da issue**, se houve, e por quê.
 6. **Sugestões** para a issue, a fase ou os padrões, sem editar por conta própria.
-7. **Mensagem de commit sugerida,** no padrão de `docs/padroes/git-e-entrega.md` e sem linha de coautoria, e o texto do pull request: o título no mesmo padrão e a descrição terminando em `Refs: <issue>`. Se o plano mudou (o estado da issue, um achado), também a mensagem do commit no repositório do plano, separada.
+7. **Mensagem de commit sugerida,** no padrão de `docs/padroes/git-e-entrega.md`, terminando com a linha de coautoria do agente, e o texto do pull request: o título no mesmo padrão e a descrição terminando nos rodapés `Refs: <issue>` e `Co-Authored-By:`. Se o plano mudou (o estado da issue, um achado), também a mensagem do commit no repositório do plano, separada e sem coautoria.
 
 **Não avance para a próxima issue.** Espere o mantenedor pedir.

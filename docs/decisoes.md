@@ -632,7 +632,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 ## D-040 — Repositório aberto no fim da F00, antes da publicação
 
-- **Estado:** aceita em 25/09/2026.
+- **Estado:** aceita em 25/09/2026. Complementada pela D-041: a proteção vale para o `develop` e para o `main`.
 - **Onde:** plano de implementação (F00, F16 e portões) · V-66, V-70, V-72, V-75, V-76, V-77 · A-001.
 - **Contexto:** o plano mantinha o repositório privado até a F16, para abrir junto com a publicação no npm. Num repositório privado de conta pessoal no plano Free, o `main` não tem proteção nem CI obrigatória (V-66), não existem CodeQL, secret scanning nem Scorecard (V-75, V-76), o SonarQube Cloud e o Codecov têm limites (V-70, V-72), e os minutos do Actions são uma cota que a matriz de testes consome rápido (V-77). O projeto também vai para o portfólio público do autor, e o processo (decisões, verificações e pull requests com CI) é parte do que ele mostra.
 - **Decisão:**
@@ -647,3 +647,20 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - O desenvolvimento acontece em público, e o `CONTRIBUTING.md` diz o que se aceita de fora enquanto a extensão não fica pronta.
   - O critério da F00 que pede o pull request bloqueado na CI é conferido depois da abertura, no fim da própria fase.
   - Abrir não se desfaz: o que ficou público pode ter sido copiado. Por isso o `gitleaks` roda sobre o histórico inteiro antes.
+
+## D-041 — Ramos com o `develop`: as issues voltam para ele, e ele vai para o `main` no fim de cada fase
+
+- **Estado:** aceita em 25/09/2026. Muda o fluxo de ramos do `git-e-entrega.md`, que era baseado no tronco.
+- **Onde:** `docs/padroes/git-e-entrega.md` · V-64 · V-72 · V-83 · P-22 · P-23.
+- **Contexto:** o padrão previa o desenvolvimento no tronco: cada issue num ramo curto, com pull request direto para o `main`. O mantenedor preferiu um ramo de integração, o `develop`, criado em 25/09/2026, para as issues se juntarem nele antes de chegar ao `main`.
+- **Decisão:**
+  - Cada issue nasce num ramo a partir do `develop` atualizado, antes da primeira edição, com o nome no padrão Conventional Branch (V-83), e volta para o `develop` por pull request, com squash. O `develop` fica com um commit por issue.
+  - O `develop` vai para o `main` no fim de cada fase, por um pull request com merge commit, e o `main` recebe a tag da fase (por exemplo, `f00-done`). É o único merge commit do projeto, porque o squash e o rebase fariam o `develop` e o `main` divergirem.
+  - Os dois ramos são protegidos desde a abertura (D-040), sem push direto nem forçado.
+- **Alternativa descartada:** o tronco só com o `main`, que era o padrão. É mais simples, mas o `main` receberia cada issue assim que ela entrasse, sem um ponto de fechamento por fase.
+- **Consequências:**
+  - O `develop` passa a ser o ramo padrão do GitHub, para os pull requests nascerem apontando para ele.
+  - O SonarQube Cloud gratuito só analisa o pull request cujo destino é o branch principal do projeto (V-72), então o branch principal dele passa a ser o `develop` (P-22).
+  - O tipo de merge fica fixado por ramo, só squash no `develop` e só merge commit no `main`, pelos rulesets depois da abertura (P-23). Até lá, vale a disciplina.
+  - A CI roda nos pushes e nos pull requests dos dois ramos, a noite roda no `develop`, e o Renovate abre os pull requests contra o `develop`.
+  - Na F16, a publicação decide como o Changesets anda entre os dois ramos, inclusive a volta do `main` para o `develop` depois do commit de versão.

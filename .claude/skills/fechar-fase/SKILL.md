@@ -10,7 +10,7 @@ Fase: **$ARGUMENTS**, ou a que está "em andamento" no índice `../directus-exte
 
 O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
-**Não faça commit, tag nem push.** Sugira; o mantenedor executa. Qualquer mensagem sugerida segue o padrão de `docs/padroes/git-e-entrega.md` e **nunca** tem linha de coautoria de Claude ou de qualquer IA.
+**Não faça commit, tag nem push.** Sugira; o mantenedor executa. Qualquer mensagem sugerida segue o padrão de `docs/padroes/git-e-entrega.md`: a do produto termina com a linha de coautoria do agente, e a do repositório do plano não tem coautoria.
 
 ## 1. Conferir, e parar se algo faltar
 
@@ -47,5 +47,6 @@ Pelo detalhamento progressivo, a fase seguinte à próxima ganha agora os passos
 
 - O que a fase entregou, em cinco linhas, e os números.
 - Os conceitos centrais da fase, explicados passo a passo na conversa, de forma didática e breve.
-- Sugestão das mensagens de commit do fechamento, uma para cada repositório que mudou (o do plano e o do produto), e, se ele quiser, de tag no produto (por exemplo, `f00-done`).
+- Sugestão das mensagens de commit do fechamento, uma para cada repositório que mudou (o do plano e o do produto).
+- A promoção da fase (D-041): o pull request do `develop` para o `main`, com merge commit, com o título no padrão de commit (por exemplo, `chore: promote F00 to main`), e a tag da fase no `main` (por exemplo, `f00-done`). O mantenedor abre, faz o merge e cria a tag.
 - O próximo comando: `/to-issues <próxima fase>`.
