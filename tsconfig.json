@@ -1,11 +1,7 @@
 {
+	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"target": "es2024",
-		"module": "nodenext",
 		"types": ["node"],
-		"strict": true,
-		"noUncheckedIndexedAccess": true,
-		"verbatimModuleSyntax": true,
 		"noEmit": true
 	},
 	"include": ["*.ts"]

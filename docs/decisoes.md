@@ -369,12 +369,12 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 - **Estado:** aceita em 23/09/2026. Detalha a D-016.
 - **Onde:** §7.8 (API e SDK) · [CONTEXT.md](../CONTEXT.md).
-- **Contexto:** o SDK usava `withinRadius()` e `countByPolygon()`, mas o termo canônico de "contagem por região" é *count by region*. A antiga "área desenhada" passou a receber qualquer forma, com as opções da D-023, e o nome não a descrevia mais.
+- **Contexto:** o SDK usava `withinRadius()` e `countByPolygon()`, mas o termo canônico de "contagem por região" é _count by region_. A antiga "área desenhada" passou a receber qualquer forma, com as opções da D-023, e o nome não a descrevia mais.
 - **Decisão:**
   - O id de cada operação na API é o termo canônico do glossário em camelCase, e o comando do SDK é o mesmo id com o prefixo `geo`: `radius` e `geoRadius()`, `byArea` e `geoByArea()`, `countByRegion` e `geoCountByRegion()`.
-  - A operação de área se chama "Por área" (*By area*). "Área desenhada" fica como o nome da forma que o usuário desenha.
+  - A operação de área se chama "Por área" (_By area_). "Área desenhada" fica como o nome da forma que o usuário desenha.
 - **Alternativas descartadas:**
-  - "Área" (*Area*): brigaria com a medida (a área de um polígono) e com expressões como "área visível".
+  - "Área" (_Area_): brigaria com a medida (a área de um polígono) e com expressões como "área visível".
   - Nomes livres no SDK, como `withinRadius()`: cada superfície acabaria com um vocabulário próprio.
   - Comandos sem prefixo: nomes genéricos como `center()` e `measure()` colidiriam com funções do código de quem usa e de outras extensões.
 - **Consequências:** um termo novo no glossário define também o nome público da operação, e renomear depois é mudança incompatível (D-016).

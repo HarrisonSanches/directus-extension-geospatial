@@ -1,7 +1,7 @@
 ---
 name: to-issues
 description: Quebra uma fase do plano do directus-extension-geospatial em issues pequenas, uma por pull request, salvas em issues/fNN.md, no repositório do plano. Use quando uma fase for começar, ou quando o mantenedor pedir para quebrar uma fase em tarefas.
-argument-hint: "<fase, ex.: F00>"
+argument-hint: '<fase, ex.: F00>'
 ---
 
 # Quebrar uma fase em issues
@@ -58,9 +58,9 @@ No topo vai a tabela de estado; depois, uma seção por issue, no modelo abaixo.
 
 Fase: [F00](../fases/f00-fundacao.md). Implementar uma por vez com `/implement-issue F00-01`.
 
-| Issue | Título | Tipo | Bloqueada por | Estado |
-|---|---|---|---|---|
-| F00-01 | ... | HITL | — | a fazer |
+| Issue  | Título | Tipo | Bloqueada por | Estado  |
+| ------ | ------ | ---- | ------------- | ------- |
+| F00-01 | ...    | HITL | —             | a fazer |
 
 ---
 
@@ -69,22 +69,28 @@ Fase: [F00](../fases/f00-fundacao.md). Implementar uma por vez com `/implement-i
 **Tipo:** HITL | AFK · **Bloqueada por:** — | F00-0x
 
 ### O que construir
+
 O comportamento de ponta a ponta que passa a existir, em poucas linhas. Não é lista de arquivos.
 
 ### Critérios de aceite
+
 - [ ] Verificável por comando ou teste, sem interpretação.
 - [ ] ...
 
 ### Testes
+
 Quais camadas de `docs/padroes/testes.md` esta issue exige, em quais bancos da matriz, e o que cada teste prova. Se a issue devolve dados, inclua a paridade de permissão com o `/items`.
 
 ### Toca em
+
 D-0xx · V-xx · P-xx · §seção da arquitetura.
 
 ### Conceitos novos
+
 Os conceitos que a explicação na conversa, na entrega, precisa cobrir.
 
 ### Perguntar antes
+
 Comandos no ambiente que exigem confirmação do mantenedor, ou "nada".
 ```
 

@@ -8,6 +8,10 @@
   para parecer e se comportar como o Studio (V-04).
 - O navegador só fala com o endpoint da extensão e com a API do Directus. A exceção são os mapas de fundo; a busca
   de endereço passa pelo endpoint (D-013).
+- O lint dos `.vue` é o `eslint-plugin-vue` no `flat/recommended`, como no Directus (V-98), e entra com o primeiro
+  componente, na F04. Os atributos do `<template>` seguem a ordem do guia de estilo do Vue (`vue/attributes-order`
+  no padrão, V-102): primeiro o que decide se o elemento existe e se repete (`v-if`, `v-for`), depois os dados, e os
+  eventos por último. A regra entra como erro, e não como o aviso do `recommended`.
 
 ## Onde fica a lógica
 
@@ -41,7 +45,7 @@
 ## Acessibilidade
 
 - Meta: WCAG 2.2 nível AA (§7.3, grupo 6).
-- A lista é a alternativa acessível do mapa, no padrão *listbox* do WAI-ARIA, com a região ao vivo para o resumo.
+- A lista é a alternativa acessível do mapa, no padrão _listbox_ do WAI-ARIA, com a região ao vivo para o resumo.
 - Toda operação pode ser feita sem desenhar.
 - Foco sempre visível e controlado nos drawers e popups; seleção e destaque nunca só por cor; o "reduzir movimento"
   respeitado; alvos de toque de pelo menos 44 × 44 px.
