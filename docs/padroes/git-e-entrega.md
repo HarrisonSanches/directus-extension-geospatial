@@ -55,11 +55,11 @@ módulo (`tiles`, `cache`, `queue`, `live`, `reports`, `internals`), o pacote (`
 - `BREAKING CHANGE: <o que quebra e como migrar>`, junto com o `!` no cabeçalho (`fix(contract)!: ...`), quando
   a mudança quebra cliente. Isso só acontece em versão major, com o aviso de descontinuação antes
   ([`api-e-contrato.md`](api-e-contrato.md));
-- `Co-Authored-By: <modelo> <noreply@anthropic.com>`, na última linha, quando um agente de IA trabalhou no
-  commit. O `develop` recebe o commit montado pelo squash, e não os do ramo, então a linha vai também no fim da
-  descrição do pull request. Na caixa do squash, o GitHub acrescenta um bloco `---------` com o `Co-authored-by`
-  dos commits do ramo (V-92), e quem faz o merge apaga esse bloco, para os rodapés da descrição ficarem no último
-  parágrafo.
+- `Co-Authored-By: <modelo> <noreply@anthropic.com>`, na última linha, quando um agente de IA trabalhou na
+  mudança: no fim da descrição do pull request, que vira o commit do `develop` no squash, e nos commits feitos
+  direto no `develop`. Os commits do ramo de uma issue não levam a linha. Com ela, o GitHub acrescenta na caixa do
+  squash um bloco `---------` com o `Co-authored-by` desses commits (V-92), e alguém teria de apagá-lo à mão para
+  os rodapés da descrição ficarem no último parágrafo.
 
 **O tipo não decide a versão.** Quem decide é o changeset do pull request (veja Versões). O tipo e o `!` servem a
 quem lê o histórico e a quem procura uma mudança.

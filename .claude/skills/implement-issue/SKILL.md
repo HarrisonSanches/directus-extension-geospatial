@@ -10,7 +10,7 @@ Issue pedida: **$ARGUMENTS** (ex.: `F00-03`). O arquivo é `../directus-extensio
 
 O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
-**Git pelas regras do `CLAUDE.md`:** você cria o ramo da issue, faz os commits, dá push no ramo e abre o pull request para o `develop`. O merge é do mantenedor, e o `main` do produto nunca é tocado. As mensagens seguem `docs/padroes/git-e-entrega.md` e terminam com a linha de coautoria do agente, `Co-Authored-By: <modelo> <noreply@anthropic.com>`, com o nome do modelo desta sessão.
+**Git pelas regras do `CLAUDE.md`:** você cria o ramo da issue, faz os commits, dá push no ramo e abre o pull request para o `develop`. O merge é do mantenedor, e o `main` do produto nunca é tocado. As mensagens seguem `docs/padroes/git-e-entrega.md`. Os commits do ramo não levam a linha de coautoria: ela vai só no fim da descrição do pull request, `Co-Authored-By: <modelo> <noreply@anthropic.com>`, com o nome do modelo desta sessão (V-92).
 
 ## Ler antes (uma vez)
 
@@ -77,6 +77,6 @@ Não existe guia didático em arquivo. A documentação pública (README, site) 
 4. **O que aprender aqui:** os conceitos novos em três ou quatro linhas.
 5. **Decisões tomadas fora da issue**, se houve, e por quê.
 6. **Sugestões** para a issue, a fase ou os padrões, sem editar por conta própria.
-7. **O versionamento feito:** os commits no ramo, no padrão de `docs/padroes/git-e-entrega.md` e com a linha de coautoria do agente; o push, depois de ler o diff inteiro; e o pull request para o `develop`, com o título no mesmo padrão e a descrição terminando nos rodapés `Refs: <issue>` e `Co-Authored-By:`. Dê o link dele. Se o plano mudou (o estado da issue, um achado), também o commit e o push no repositório do plano, sem coautoria.
+7. **O versionamento feito:** os commits no ramo, no padrão de `docs/padroes/git-e-entrega.md` e sem a linha de coautoria; o push, depois de ler o diff inteiro; e o pull request para o `develop`, com o título no mesmo padrão e a descrição terminando nos rodapés `Refs: <issue>` e `Co-Authored-By:`. Dê o link dele. Se o plano mudou (o estado da issue, um achado), também o commit e o push no repositório do plano, sem coautoria.
 
 **Não avance para a próxima issue nem faça o merge.** Espere o mantenedor revisar e pedir.
