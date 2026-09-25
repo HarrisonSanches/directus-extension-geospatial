@@ -2,13 +2,20 @@
 
 ## Base
 
-- **Node 22**, a versão do Directus (V-59), fixada em `.node-version` e em `engines`. Muda quando o Directus
-  mudar.
+- **Dois Nodes, cada um no seu papel:**
+  - **nas ferramentas** (build, lint, testes, testcontainers), o Node 24, o LTS ativo, fixado em `.node-version`.
+    Passa para o 26 quando ele virar LTS, em 28/10/2026 (V-79);
+  - **no código da extensão,** o Node 22, porque ela roda dentro do Node do Directus, e as imagens oficiais do
+    11.17 e do 12 usam o 22 (V-80). O `engines` da extensão pede `>=22`, e o `@types/node` fica na 22, para o
+    TypeScript acusar a API que não existe lá; a suíte de integração, rodando nas imagens do Directus, pega o
+    resto. Muda quando a imagem do Directus mudar.
 - **TypeScript estrito,** com `noUncheckedIndexedAccess`. `any` não entra: o que chega de fora é `unknown` até ser
   validado.
 - **Só ESM.**
 - **pnpm 10,** com workspaces e catálogos em modo estrito, como no Directus: cada dependência tem uma versão só no
-  repositório inteiro, declarada no `pnpm-workspace.yaml`.
+  repositório inteiro, declarada no `pnpm-workspace.yaml`. O pnpm, e não o Bun: o Bun tem as mesmas proteções, mas
+  o dependency graph do GitHub não lê o `bun.lock`, e sem ele o Dependabot alerts não vê as dependências indiretas
+  (V-81, V-82).
 - **Formatação e lint:** Prettier, e ESLint com `typescript-eslint` (com as regras que usam os tipos),
   `eslint-plugin-vue`, `eslint-plugin-import-x` e `eslint-config-prettier`, a mesma combinação do Directus (V-59). O
   lint cuida do estilo e da direção das camadas, e a revisão, do resto.

@@ -11,7 +11,8 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - Revisão geral em 24/09/2026: decisões D-035 a D-039 (a D-037 substitui a D-018) e fatos V-59 a V-61.
 - Ferramentas de qualidade e segurança escolhidas em 25/09/2026: decisão D-040 (o repositório abre no fim da F00), achado A-001 e fatos V-66 a V-77.
 - Plano de implementação movido em 25/09/2026 para o repositório privado `directus-extension-geospatial-plan`.
-- Próximo passo: `/to-issues F00`.
+- F00 quebrada em 13 issues em 25/09/2026, no repositório do plano, com o Node 24 nas ferramentas e o pnpm mantido (V-79 a V-82).
+- Próximo passo: `/implement-issue F00-01`.
 
 ## Documentação
 
