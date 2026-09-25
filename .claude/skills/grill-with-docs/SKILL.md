@@ -9,7 +9,7 @@ Faça as perguntas uma de cada vez e espere a resposta de cada uma antes de cont
 
 Se uma pergunta puder ser respondida explorando o repositório, explore em vez de perguntar. Se ela depender de como uma ferramenta de terceiros funciona (Directus, PostGIS, MapLibre, os bancos), confira no código-fonte ou na documentação oficial. O clone do Directus pode ser feito numa pasta temporária.
 
-**Não faça commit nem push.**
+**O commit e o push das mudanças nos docs seguem as regras do `CLAUDE.md`.**
 
 ---
 

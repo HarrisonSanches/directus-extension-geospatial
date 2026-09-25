@@ -1,6 +1,7 @@
 # Git e entrega
 
-**Commits e pushes são sempre do mantenedor.** Agentes sugerem a mensagem; não executam.
+**O agente faz o commit, cria o ramo, dá o push e abre o pull request para o `develop`,** dentro das regras do
+`CLAUDE.md`. **O merge e tudo o que chega ao `main` são do mantenedor.**
 
 ## Mensagens de commit
 

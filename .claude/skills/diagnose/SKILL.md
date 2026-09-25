@@ -9,7 +9,7 @@ Uma disciplina para bugs difíceis. Pule fases somente quando explicitamente jus
 
 Ao explorar o codebase, use o glossário de domínio do projeto para ter um modelo mental claro dos módulos relevantes.
 
-**Não faça commit, não crie branches.**
+**Commits e ramos seguem as regras do `CLAUDE.md`:** a correção vai no ramo de uma issue, nunca direto no `develop` nem no `main`.
 
 ---
 

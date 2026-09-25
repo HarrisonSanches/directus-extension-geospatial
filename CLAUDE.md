@@ -33,7 +33,7 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 
 ## Como trabalhar neste projeto
 
-- **O mantenedor** é quem conduz o trabalho com o agente: aprova, decide e faz commit e push. É o nome usado nas skills e nos docs.
+- **O mantenedor** é quem conduz o trabalho com o agente: aprova, decide, revisa os pull requests e faz o merge. É o nome usado nas skills e nos docs.
 - Preferências pessoais de quem trabalha no projeto ficam no `CLAUDE.local.md`, que não vai para o Git.
 - **O plano** mora num repositório privado, clonado ao lado deste, na mesma pasta. O Claude Code chega nele pelo `permissions.additionalDirectories` do `.claude/settings.local.json`, e as mudanças no plano viram commits lá, separados dos do produto.
 - Um passo de cada vez, uma decisão por vez, sempre com uma recomendação.
@@ -50,6 +50,9 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   - nos commits do produto em que o agente trabalhou, a última linha é a coautoria dele, `Co-Authored-By: <modelo> <noreply@anthropic.com>`, com o nome do modelo da sessão, e ela vai também no fim da descrição do pull request, que vira o commit do `develop` no squash; no repositório do plano, sem coautoria;
   - ramos (D-041): cada issue num ramo a partir do `develop` atualizado, criado **antes da primeira edição**, com o nome no padrão de mercado de [docs/padroes/git-e-entrega.md](docs/padroes/git-e-entrega.md) (`<tipo>/<id>-<descrição>`); o pull request volta para o `develop` com squash, e o `develop` vai para o `main` no fim de cada fase;
   - mensagens em inglês, no padrão Conventional Commits, com as regras de [docs/padroes/git-e-entrega.md](docs/padroes/git-e-entrega.md);
-  - commit e push só quando o mantenedor pedir.
-- **Comandos no ambiente** só com confirmação, dizendo o que o comando faz e como desfazer: instalar algo no sistema, Docker fora dos testes, bancos fora dos containers de teste, publicar no npm, push.
+  - **o que o agente faz sozinho:** commit nos dois repositórios; criar o ramo de cada issue; push no ramo da issue, no `develop` do produto e no `main` do plano; abrir o pull request para o `develop`. O código de uma issue entra no `develop` só pelo pull request; o push direto no `develop` é para mudança de docs e de processo;
+  - **o que fica com o mantenedor:** o merge dos pull requests no `develop`, depois da revisão, e tudo o que vai para o `main` do produto. O agente nunca toca o `main` do produto: nem push, nem pull request, nem tag;
+  - nunca push forçado nem reescrita de histórico (V-78);
+  - antes de cada push, o agente lê o diff inteiro, procurando segredo, dado pessoal e arquivo que não devia ir.
+- **Comandos no ambiente** só com confirmação, dizendo o que o comando faz e como desfazer: instalar algo no sistema, Docker fora dos testes, bancos fora dos containers de teste, publicar no npm.
 - **Skills** do projeto em `.claude/skills`.

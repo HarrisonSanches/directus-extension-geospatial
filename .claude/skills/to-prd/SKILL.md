@@ -5,7 +5,7 @@ description: Transforma o contexto da conversa numa especificação de funcional
 
 Transforme o contexto da conversa numa especificação e salve no repositório. Use só quando a fase for complexa demais para ir direto do arquivo da fase para as issues. Na maioria das fases, o arquivo da fase já basta.
 
-Não entreviste o usuário: sintetize o que você já sabe. **Não faça commit nem push.**
+Não entreviste o usuário: sintetize o que você já sabe. O commit e o push da especificação, no repositório do plano, seguem as regras do `CLAUDE.md`.
 
 ## Processo
 
