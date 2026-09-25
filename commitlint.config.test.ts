@@ -1,14 +1,21 @@
 import lint from '@commitlint/lint';
 import load from '@commitlint/load';
-import type { LintOptions } from '@commitlint/types';
+import type { LintOptions, QualifiedConfig } from '@commitlint/types';
 import { describe, expect, it } from 'vitest';
 
 // Loads the repository config and lints with the options the commitlint CLI builds, so each case sees what the
 // commit-msg hook sees.
 const config = await load({}, { cwd: import.meta.dirname });
 
+// The preset types its parser options as unknown; like the CLI, pass them on only when they are an object.
+function parserOptsOf(parserPreset: QualifiedConfig['parserPreset']): LintOptions['parserOpts'] {
+	const parserOpts = parserPreset?.parserOpts;
+
+	return typeof parserOpts === 'object' && parserOpts !== null ? parserOpts : undefined;
+}
+
 const options: LintOptions = {
-	parserOpts: (config.parserPreset?.parserOpts ?? {}) as LintOptions['parserOpts'],
+	parserOpts: parserOptsOf(config.parserPreset),
 	plugins: config.plugins,
 	ignores: config.ignores ?? [],
 	defaultIgnores: config.defaultIgnores !== false,

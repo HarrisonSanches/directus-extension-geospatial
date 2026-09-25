@@ -7,7 +7,9 @@ catalog:
   '@commitlint/lint': 21.2.3
   '@commitlint/load': 21.2.3
   '@commitlint/types': 21.2.3
+  '@types/node': 24.13.6
   husky: 9.1.7
+  typescript: 7.0.2
   vite: 8.3.0
   vitest: 5.0.1
 

@@ -4,7 +4,8 @@
 	"type": "module",
 	"scripts": {
 		"prepare": "husky",
-		"test": "vitest run"
+		"test": "vitest run",
+		"typecheck": "tsc"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "catalog:",
@@ -12,7 +13,9 @@
 		"@commitlint/lint": "catalog:",
 		"@commitlint/load": "catalog:",
 		"@commitlint/types": "catalog:",
+		"@types/node": "catalog:",
 		"husky": "catalog:",
+		"typescript": "catalog:",
 		"vite": "catalog:",
 		"vitest": "catalog:"
 	},
