@@ -23,3 +23,10 @@ allowBuilds: {}
 # A version published less than 3 days ago (4320 minutes) is not installed, giving the registry and the community
 # time to find and pull a compromised release.
 minimumReleaseAge: 4320
+
+# pnpm does not switch itself to the packageManager version: switching records pnpm in a first lockfile document,
+# and the GitHub dependency graph reads only that one (V-93). engines.pnpm refuses any other pnpm instead.
+pmOnFail: ignore
+
+# Refuses a pnpm outside engines.pnpm, and any dependency that does not support the Node version in use.
+engineStrict: true

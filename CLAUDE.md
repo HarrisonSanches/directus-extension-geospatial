@@ -13,10 +13,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - Plano de implementação movido em 25/09/2026 para o repositório privado `directus-extension-geospatial-plan`.
 - F00 quebrada em 13 issues em 25/09/2026, no repositório do plano, com o Node 24 nas ferramentas e o pnpm mantido (V-79 a V-82).
 - Fluxo de ramos com o `develop` em 25/09/2026 (D-041), e coautoria do agente nos commits do produto.
-- F00-01 implementada em 25/09/2026: o pnpm passou para o 12, sem o Corepack, o TypeScript 7 entrou na raiz, e a
-  P-20 virou fato (V-84 a V-91, P-24, P-25).
-- Próximo passo: a revisão e o merge do pull request da F00-01, a conferência da P-21 e da P-24 no `develop`, e
-  depois `/implement-issue F00-02`.
+- F00-01 no `develop` em 25/09/2026: o pnpm passou para o 12, sem o Corepack, o TypeScript 7 entrou na raiz, e as
+  P-20, P-21 e P-24 viraram fato (V-84 a V-93, P-25). O lockfile ficou num documento só, para o GitHub ler as
+  dependências.
+- Próximo passo: o merge da correção do lockfile, a conferência do SBOM no `develop`, e depois
+  `/implement-issue F00-02`.
 
 ## Documentação
 
