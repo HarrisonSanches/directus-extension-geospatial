@@ -26,6 +26,7 @@ confiança se constrói no repositório.
   - lockfile versionado, e instalação com o lockfile congelado na CI;
   - scripts de instalação das dependências desligados, com cada exceção decidida no `allowBuilds`; a instalação
     falha quando aparece um script que ninguém revisou (`strictDepBuilds`, V-85);
+  - dependência que não roda no Node em uso não instala (`engineStrict`, V-93);
   - versão recém-publicada só entra depois de 3 dias (`minimumReleaseAge` de 4320 minutos, no pnpm e no
     Renovate), para dar tempo de um pacote comprometido ser descoberto;
   - `pnpm audit` e OSV-Scanner na CI;

@@ -12,13 +12,15 @@
 - **TypeScript 7, estrito,** com `noUncheckedIndexedAccess`. `any` não entra: o que chega de fora é `unknown` até
   ser validado. O 7.0 não traz a API que o lint usa (V-90), e a F00-02 decide como o lint lê os tipos.
 - **Só ESM.**
-- **pnpm 12,** fixado no `packageManager`. O próprio pnpm lê essa versão e baixa a certa, sem o Corepack, que o
-  Node deixou de trazer no 25 (V-84, V-85, V-87).
+- **pnpm 12,** fixado no `packageManager`, que a CI e o Renovate leem. O pnpm não troca de versão sozinho
+  (`pmOnFail: ignore`), porque a troca grava o próprio pnpm num primeiro documento do lockfile, e o dependency
+  graph do GitHub só lê esse (V-93). No lugar dela, o `engines.pnpm` com o `engineStrict` recusa outra versão e
+  diz qual usar. O Corepack não entra: o Node deixou de trazê-lo no 25 (V-84, V-85, V-87).
 - **Workspaces e catálogos em modo estrito,** como no Directus: cada dependência tem uma versão só no repositório
   inteiro, declarada no `pnpm-workspace.yaml`, e o `pnpm add` recusa a versão que foge do catálogo.
 - **O pnpm, e não o Bun:** o Bun tem as mesmas proteções, mas o dependency graph do GitHub não lê o `bun.lock`, e
-  sem ele o Dependabot alerts não vê as dependências indiretas (V-81, V-82). O lockfile do pnpm 12 tem dois
-  documentos, e a leitura dele pelo GitHub ainda está em conferência (V-86, P-24).
+  sem ele o Dependabot alerts não vê as dependências indiretas (V-81, V-82). O lockfile fica num documento só, o
+  formato que o GitHub lê (V-86, V-93).
 - **Formatação e lint:** Prettier, e ESLint com `typescript-eslint` (com as regras que usam os tipos),
   `eslint-plugin-vue`, `eslint-plugin-import-x` e `eslint-config-prettier`, a mesma combinação do Directus (V-59). O
   lint cuida do estilo e da direção das camadas, e a revisão, do resto.
