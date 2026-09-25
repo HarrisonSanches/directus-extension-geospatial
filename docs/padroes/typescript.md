@@ -10,7 +10,16 @@
     TypeScript acusar a API que não existe lá; a suíte de integração, rodando nas imagens do Directus, pega o
     resto. Muda quando a imagem do Directus mudar.
 - **TypeScript 7, estrito,** com `noUncheckedIndexedAccess`. `any` não entra: o que chega de fora é `unknown` até
-  ser validado. O 7.0 não traz a API que o lint usa (V-90), e a F00-02 decide como o lint lê os tipos.
+  ser validado. A configuração base fica no `tsconfig.base.json`, que os pacotes herdam, e o `tsc` confere também
+  os `.d.ts` das dependências, sem o `skipLibCheck`. Quando um pacote usa nos tipos uma dependência que não declara,
+  o `packageExtensions` do `pnpm-workspace.yaml` declara por ele (V-101).
+- **Dois TypeScript lado a lado, até a P-25:** o 7.0 não traz a API que o lint usa (V-90), e o catálogo tem dois
+  apelidos, como recomenda o anúncio do 7 (V-94). O `tsconfig` serve aos dois, e o `tsc` 7 manda quando eles
+  discordam:
+  - o `@typescript/native` é o TypeScript 7, dono do `tsc`, que decide os tipos no `pnpm typecheck`;
+  - o `typescript` é o pacote da API do 6.0, que o `typescript-eslint` e o commitlint carregam, e o VS Code usa o
+    6.0 embutido;
+  - quando o `typescript-eslint` aceitar o 7, o `typescript` passa para o 7, e o apelido sai.
 - **Só ESM.**
 - **pnpm 12,** fixado no `packageManager`, que a CI e o Renovate leem. O pnpm não troca de versão sozinho
   (`pmOnFail: ignore`), porque a troca grava o próprio pnpm num primeiro documento do lockfile, e o dependency
@@ -21,11 +30,29 @@
 - **O pnpm, e não o Bun:** o Bun tem as mesmas proteções, mas o dependency graph do GitHub não lê o `bun.lock`, e
   sem ele o Dependabot alerts não vê as dependências indiretas (V-81, V-82). O lockfile fica num documento só, o
   formato que o GitHub lê (V-86, V-93).
-- **Formatação e lint:** Prettier, e ESLint com `typescript-eslint` (com as regras que usam os tipos),
-  `eslint-plugin-vue`, `eslint-plugin-import-x` e `eslint-config-prettier`, a mesma combinação do Directus (V-59). O
-  lint cuida do estilo e da direção das camadas, e a revisão, do resto.
-- **Código morto:** o Knip, no `pnpm check`, recusa arquivo, export e dependência sem uso (V-69), com o compilador
-  do Vue ligado para enxergar os `.vue`.
+- **Formatação:** Prettier, com a configuração do Directus (V-98): 120 colunas, aspas simples e tab, que vem do
+  `.editorconfig`, com o YAML em espaços. O tab deixa cada pessoa escolher a largura no editor e no GitHub (V-99). O
+  Markdown também é formatado, sem mexer na quebra das linhas (`proseWrap: preserve`, o padrão do Prettier). O
+  `pnpm format` corrige tudo, e o `pnpm check` só confere.
+- **Lint:** ESLint com o `typescript-eslint` no `strictTypeChecked` e no `stylisticTypeChecked`, com as regras que
+  usam os tipos, e o `eslint-plugin-import-x`, o `eslint-plugin-vue` (a partir da F04) e o `eslint-config-prettier`,
+  a combinação do Directus (V-59), no nível estrito (V-96). O lint cuida do estilo e da direção das camadas, e a
+  revisão, do resto. O `pnpm lint --fix` corrige o que tem correção automática.
+  - **Nenhum comentário desliga regra:** o `noInlineConfig` faz o ESLint ignorar todo `eslint-disable` e avisar,
+    e o lint roda com `--max-warnings 0`, então qualquer aviso reprova. O `ban-ts-comment` recusa `@ts-ignore`,
+    `@ts-expect-error` e `@ts-nocheck`, e o `no-warning-comments` recusa `prettier-ignore` e os comentários que
+    tiram código da cobertura (`v8 ignore`, `c8 ignore`, `istanbul ignore`).
+  - **O `x!` também não entra** (`no-non-null-assertion`): ele cala o compilador como um `@ts-ignore`.
+  - **A ordem dos imports é a do Directus** (V-98): primeiro o Node, depois os pacotes e por fim os arquivos do
+    projeto, em ordem alfabética dentro de cada grupo e sem linha em branco entre eles, com os nomes dentro das
+    chaves também em ordem.
+  - **As chaves de objeto e os campos de tipo ficam na ordem do significado,** sem regra: o GeoJSON começa pelo
+    `type`, e uma entrada lê "centro, raio, unidade".
+  - O log é pelo `logger` do Directus (`no-console`), e ternário não se aninha (`no-nested-ternary`).
+  - As regras de linha em branco do Directus não entram: estão obsoletas no ESLint (V-96), e a formatação é do
+    Prettier.
+- **Código morto:** o Knip, no `pnpm check`, recusa arquivo, export e dependência sem uso (V-69, V-100), com o
+  compilador do Vue ligado para enxergar os `.vue`, a partir da F04.
 - **As regras do Sonar** vêm do SonarQube Cloud (V-72), e não do `eslint-plugin-sonarjs`, cuja licença real não é
   de código aberto (V-73).
 

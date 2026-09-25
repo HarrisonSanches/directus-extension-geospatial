@@ -15,7 +15,9 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - Fluxo de ramos com o `develop` em 25/09/2026 (D-041), e coautoria do agente nos commits do produto.
 - F00-01 feita em 25/09/2026: o pnpm passou para o 12, sem o Corepack, o TypeScript 7 entrou na raiz, e as P-20,
   P-21 e P-24 viraram fato (V-84 a V-93, P-25). O lockfile ficou num documento só, e o GitHub lê as dependências.
-- Próximo passo: `/implement-issue F00-02`, que começa pela escolha do lint (ESLint lado a lado ou Oxlint).
+- F00-02 feita em 25/09/2026: o `pnpm check` confere formatação, lint, tipos, Knip e testes. O lint é o ESLint, com
+  a API do TypeScript 6 lado a lado até a P-25, no nível estrito, e nenhum comentário desliga regra (V-94 a V-102).
+- Próximo passo: `/implement-issue F00-03`, que começa pela decisão do recorte dos pacotes.
 
 ## Documentação
 
