@@ -9,8 +9,8 @@
     11.17 e do 12 usam o 22 (V-80). O `engines` da extensão pede `>=22`, e o `@types/node` fica na 22, para o
     TypeScript acusar a API que não existe lá; a suíte de integração, rodando nas imagens do Directus, pega o
     resto. Muda quando a imagem do Directus mudar.
-- **TypeScript estrito,** com `noUncheckedIndexedAccess`. `any` não entra: o que chega de fora é `unknown` até ser
-  validado.
+- **TypeScript 7, estrito,** com `noUncheckedIndexedAccess`. `any` não entra: o que chega de fora é `unknown` até
+  ser validado. O 7.0 não traz a API que o lint usa (V-90), e a F00-02 decide como o lint lê os tipos.
 - **Só ESM.**
 - **pnpm 12,** fixado no `packageManager`. O próprio pnpm lê essa versão e baixa a certa, sem o Corepack, que o
   Node deixou de trazer no 25 (V-84, V-85, V-87).
