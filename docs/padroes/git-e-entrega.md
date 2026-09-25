@@ -116,6 +116,8 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
 - Merge por squash, com a mensagem no padrão Conventional Commits, para o `main` ficar com um commit por issue.
 - O `main` é protegido desde a abertura do repositório, no fim da F00 (D-040): sem push direto, e com a
   integração contínua e o título do pull request obrigatórios.
+- **O `main` nunca recebe push forçado.** No GitHub, o histórico reescrito continua visível pelo hash e na página
+  Activity (V-78); o que entrou no `main` se corrige com um commit novo, ou com `revert`.
 
 ## Integração contínua
 
