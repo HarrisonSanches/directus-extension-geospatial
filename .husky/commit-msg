@@ -1,0 +1,2 @@
+# husky puts node_modules/.bin first on the PATH, so this runs the commitlint of the lockfile.
+commitlint --edit "$1"
