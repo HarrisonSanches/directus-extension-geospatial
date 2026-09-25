@@ -7,17 +7,20 @@ export default defineEndpoint({
 	id: 'geospatial',
 	handler: (router, context) => {
 		router.get('/capabilities', (req, res, next) => {
-			readCapabilities(context, req.accountability).then((capabilities) => {
-				if (capabilities === 'forbidden') {
-					next(new ForbiddenError());
+			// Any error, from the detection or from sending the response, goes to the error handler of Directus.
+			readCapabilities(context, req.accountability)
+				.then((capabilities) => {
+					if (capabilities === 'forbidden') {
+						next(new ForbiddenError());
 
-					return;
-				}
+						return;
+					}
 
-				const body: CapabilitiesResponse = { data: capabilities };
+					const body: CapabilitiesResponse = { data: capabilities };
 
-				res.json(body);
-			}, next);
+					res.json(body);
+				})
+				.catch(next);
 		});
 	},
 });
