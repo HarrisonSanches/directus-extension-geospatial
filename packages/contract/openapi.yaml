@@ -1,0 +1,121 @@
+openapi: 3.1.0
+info:
+  title: Geospatial
+  version: 0.1.0
+  summary: The API of the Geospatial extension for Directus.
+  license:
+    name: MIT
+    identifier: MIT
+paths:
+  /geospatial/capabilities:
+    get:
+      operationId: capabilities
+      summary: What the extension can do in this environment
+      description: >-
+        The versions of the API, the extension and Directus, and the capability matrix: the level of each operation
+        in the database in use. Only admins see the database and its spatial extension. Anonymous requests are
+        refused.
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: The capabilities.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Capabilities'
+        '403':
+          description: The request has no authenticated user (code FORBIDDEN).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: A Directus access token. The session cookie of the Studio also works.
+  schemas:
+    Capabilities:
+      type: object
+      required: [api, extension, directus, operations]
+      properties:
+        api:
+          $ref: '#/components/schemas/Version'
+        extension:
+          $ref: '#/components/schemas/Version'
+        directus:
+          $ref: '#/components/schemas/Version'
+        database:
+          $ref: '#/components/schemas/Database'
+        spatial:
+          description: Only for admins. Null when the database has no spatial extension.
+          oneOf:
+            - $ref: '#/components/schemas/Spatial'
+            - type: 'null'
+        operations:
+          description: The level of each operation, by its id. Empty until the first operation exists.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/OperationCapability'
+    Version:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: string
+    Database:
+      description: Only for admins.
+      type: object
+      required: [client, version]
+      properties:
+        client:
+          description: The database client, with the names Directus uses, or unknown when the extension does not recognize it.
+          type: string
+          enum: [mysql, postgres, cockroachdb, sqlite, oracle, mssql, redshift, unknown]
+        version:
+          description: The version as major.minor, or null when the extension cannot read it for this client yet.
+          type: [string, 'null']
+    Spatial:
+      type: object
+      required: [name, version]
+      properties:
+        name:
+          type: string
+          enum: [postgis, spatialite]
+        version:
+          type: string
+    OperationCapability:
+      type: object
+      required: [level]
+      properties:
+        level:
+          description: >-
+            indexed and unindexed run in the database, with or without a spatial index; capped runs in the server of
+            the extension, on a maximum volume; unavailable does not run.
+          type: string
+          enum: [indexed, unindexed, capped, unavailable]
+    Errors:
+      description: The error format of Directus.
+      type: object
+      required: [errors]
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            required: [message, extensions]
+            properties:
+              message:
+                type: string
+              extensions:
+                type: object
+                required: [code]
+                properties:
+                  code:
+                    type: string
