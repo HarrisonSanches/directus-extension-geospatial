@@ -6,13 +6,15 @@ argument-hint: "<fase, ex.: F00>"
 
 # Fechar uma fase
 
-Fase: **$ARGUMENTS**, ou a que está "em andamento" no índice `docs/implementacao/README.md`.
+Fase: **$ARGUMENTS**, ou a que está "em andamento" no índice `../directus-extension-geospatial-plan/README.md`.
+
+O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
 **Não faça commit, tag nem push.** Sugira; o mantenedor executa. Qualquer mensagem sugerida segue o padrão de `docs/padroes/git-e-entrega.md` e **nunca** tem linha de coautoria de Claude ou de qualquer IA.
 
 ## 1. Conferir, e parar se algo faltar
 
-- **Issues:** todas as de `docs/implementacao/issues/fNN.md` estão "feitas"? Se alguma estiver aberta, pare e diga qual.
+- **Issues:** todas as de `../directus-extension-geospatial-plan/issues/fNN.md` estão "feitas"? Se alguma estiver aberta, pare e diga qual.
 - **Critério de saída da fase:** confira cada item do arquivo da fase de verdade, rodando o comando ou o teste, sem confiar na caixa marcada. Reporte ✅ ❌ ⏸️.
 - **Ensaios de falha da fase:** estão passando, e já automatizados quando `docs/padroes/testes.md` diz que deveriam estar.
 - **"Pronto quer dizer"** (`docs/padroes/README.md`) vale para o conjunto:
@@ -29,12 +31,12 @@ Se houver ❌, **não feche**. Liste o que falta e pergunte se isso vira issue n
 ## 2. Registrar
 
 1. **Arquivo da fase:** estado "concluída" no cabeçalho e um bloco final `## Como terminou`, com até 10 linhas: o que ficou diferente do planejado (com os achados) e o que a próxima fase precisa saber.
-2. **`docs/implementacao/historico.md`:** uma entrada no topo, no modelo do arquivo, com até 15 linhas:
+2. **`../directus-extension-geospatial-plan/historico.md`:** uma entrada no topo, no modelo do arquivo, com até 15 linhas:
    - o que foi entregue;
    - o critério de saída e os ensaios;
    - as **medições, com números e unidades** (tempos de tile, benchmarks, tempo de criação de índice);
    - achados, decisões e commits.
-3. **Índice** `docs/implementacao/README.md`: estado da fase "concluída", a próxima "em andamento" e a seção "Estado atual". Atualize também a seção "Estado" do `CLAUDE.md`.
+3. **Índice** `../directus-extension-geospatial-plan/README.md`: estado da fase "concluída", a próxima "em andamento" e a seção "Estado atual". Atualize também a seção "Estado" do `CLAUDE.md`.
 4. **Arquitetura e decisões:** se a fase mostrou que algo nelas deixou de ser verdade, aponte o trecho ao mantenedor, sem editar sem a aprovação dele.
 
 ## 3. Preparar a próxima
@@ -45,5 +47,5 @@ Pelo detalhamento progressivo, a fase seguinte à próxima ganha agora os passos
 
 - O que a fase entregou, em cinco linhas, e os números.
 - Os conceitos centrais da fase, explicados passo a passo na conversa, de forma didática e breve.
-- Sugestão de mensagem de commit do fechamento e, se ele quiser, de tag (por exemplo, `f00-done`).
+- Sugestão das mensagens de commit do fechamento, uma para cada repositório que mudou (o do plano e o do produto), e, se ele quiser, de tag no produto (por exemplo, `f00-done`).
 - O próximo comando: `/to-issues <próxima fase>`.

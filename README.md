@@ -161,7 +161,8 @@ Full detail, with the reasoning behind each choice, in [`docs/arquitetura.md`](d
 ## Documentation
 
 The design documents are currently in Portuguese. English user, admin, API and SDK documentation
-will ship with the first release.
+will ship with the first release. The phase-by-phase implementation plan is kept by the maintainer in a
+private repository, and the Status above follows it.
 
 | Document | Contents |
 |---|---|
@@ -169,7 +170,6 @@ will ship with the first release.
 | [`docs/arquitetura.md`](docs/arquitetura.md) | The full architecture |
 | [`docs/decisoes.md`](docs/decisoes.md) | Every decision, with the reason and the alternatives ruled out |
 | [`docs/verificacoes.md`](docs/verificacoes.md) | Facts verified in the source code of Directus, PostGIS and the other tools, and pending checks |
-| [`docs/implementacao/`](docs/implementacao/README.md) | The implementation plan, phase by phase |
 
 ## Author
 

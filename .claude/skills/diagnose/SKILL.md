@@ -135,6 +135,6 @@ Obrigatório antes de declarar concluído:
 - **Comando no ambiente** para reproduzir (Docker fora dos testes, banco fora dos containers de teste, instalar algo): só com confirmação do mantenedor.
 - **Onde vai parar o que o bug ensinou:**
   - um comportamento de ferramenta de terceiros que surpreendeu vira um fato em `docs/verificacoes.md` (`V-xx`);
-  - se o bug contrariou o plano ou a arquitetura, entra como achado em `docs/implementacao/achados.md`;
+  - se o bug contrariou o plano ou a arquitetura, entra como achado em `../directus-extension-geospatial-plan/achados.md`, no repositório do plano;
   - a explicação do bug e da correção vai na conversa, junto com o teste de regressão que reproduz o bug antigo.
 - **Explique ao mantenedor, passo a passo,** as hipóteses, qual se confirmou e por quê.

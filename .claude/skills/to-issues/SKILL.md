@@ -1,19 +1,21 @@
 ---
 name: to-issues
-description: Quebra uma fase do plano do directus-extension-geospatial em issues pequenas, uma por pull request, salvas em docs/implementacao/issues/fNN.md. Use quando uma fase for começar, ou quando o mantenedor pedir para quebrar uma fase em tarefas.
+description: Quebra uma fase do plano do directus-extension-geospatial em issues pequenas, uma por pull request, salvas em issues/fNN.md, no repositório do plano. Use quando uma fase for começar, ou quando o mantenedor pedir para quebrar uma fase em tarefas.
 argument-hint: "<fase, ex.: F00>"
 ---
 
 # Quebrar uma fase em issues
 
-Fase pedida: **$ARGUMENTS**. Se nada vier, use a fase marcada como "em andamento", ou a próxima "a fazer", no índice `docs/implementacao/README.md`.
+Fase pedida: **$ARGUMENTS**. Se nada vier, use a fase marcada como "em andamento", ou a próxima "a fazer", no índice `../directus-extension-geospatial-plan/README.md`.
+
+O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
 **Não faça commit, não publique em rastreador de issues nenhum.** Só gere arquivos.
 
 ## 1. Ler, nesta ordem
 
 1. `CLAUDE.md` e `CONTEXT.md`: regras e vocabulário. Os títulos e textos das issues usam os termos do glossário.
-2. O arquivo da fase em `docs/implementacao/fases/`.
+2. O arquivo da fase em `../directus-extension-geospatial-plan/fases/`.
 3. As decisões e verificações que a fase cita em "Toca em", e as **portas de mão única** no topo de `docs/decisoes.md`.
 4. `docs/padroes/README.md` ("Pronto quer dizer") e `docs/padroes/testes.md`.
 5. O estado real do repositório: o que já existe e o que a fase anterior deixou.
@@ -47,7 +49,7 @@ Itere até ele aprovar.
 
 ## 4. Salvar
 
-Arquivo `docs/implementacao/issues/fNN.md` (por exemplo, `f00.md`). Se ele já existir, acrescente sem apagar o que foi feito. Os identificadores são `F00-01`, `F00-02` e assim por diante, e nunca são renumerados.
+Arquivo `../directus-extension-geospatial-plan/issues/fNN.md` (por exemplo, `f00.md`). Se ele já existir, acrescente sem apagar o que foi feito. Os identificadores são `F00-01`, `F00-02` e assim por diante, e nunca são renumerados.
 
 No topo vai a tabela de estado; depois, uma seção por issue, no modelo abaixo.
 
@@ -86,8 +88,8 @@ Os conceitos que a explicação na conversa, na entrega, precisa cobrir.
 Comandos no ambiente que exigem confirmação do mantenedor, ou "nada".
 ```
 
-Por fim, a seção "Passos" do arquivo da fase ganha uma linha apontando para o arquivo de issues. Os passos em si não são copiados.
+Por fim, a seção "Passos" do arquivo da fase ganha uma linha apontando para o arquivo de issues. Os passos em si não são copiados. Depois, sugira ao mantenedor a mensagem do commit no repositório do plano.
 
 ## 5. Se o mantenedor quiser as issues no GitHub
 
-Não publique. Gere os comandos `gh issue create --title ... --body-file ...` para ele rodar, um por issue, e diga que ele pode colar o número da issue do GitHub na tabela depois.
+Não publique. Gere os comandos `gh issue create --repo HarrisonSanches/directus-extension-geospatial-plan --title ... --body-file ...` para ele rodar, um por issue, e diga que ele pode colar o número da issue do GitHub na tabela depois. As issues do plano ficam no repositório do plano; as do produto são da comunidade.

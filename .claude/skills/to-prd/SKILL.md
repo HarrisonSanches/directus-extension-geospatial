@@ -1,6 +1,6 @@
 ---
 name: to-prd
-description: Transforma o contexto da conversa numa especificação de funcionalidade para uma fase complexa do directus-extension-geospatial, salva em docs/implementacao/specs/. Use quando uma fase precisar de especificação antes de virar issues, como o motor de tiles com agrupamento, a matriz de capacidades por banco ou o relatório de evidências.
+description: Transforma o contexto da conversa numa especificação de funcionalidade para uma fase complexa do directus-extension-geospatial, salva em specs/, no repositório do plano. Use quando uma fase precisar de especificação antes de virar issues, como o motor de tiles com agrupamento, a matriz de capacidades por banco ou o relatório de evidências.
 ---
 
 Transforme o contexto da conversa numa especificação e salve no repositório. Use só quando a fase for complexa demais para ir direto do arquivo da fase para as issues. Na maioria das fases, o arquivo da fase já basta.
@@ -28,7 +28,7 @@ Confirme com o usuário se esses módulos batem com o que ele espera, e pergunte
 
 ### 3. Escreva o PRD e salve no repositório
 
-Use o modelo abaixo. Salve em `docs/implementacao/specs/fNN-<tema>.md` e aponte para ele na seção "Passos" do arquivo da fase. Depois, a skill `to-issues` quebra a especificação em issues.
+Use o modelo abaixo. Salve em `../directus-extension-geospatial-plan/specs/fNN-<tema>.md` e aponte para ele na seção "Passos" do arquivo da fase. O plano fica num repositório privado, clonado ao lado deste; se a pasta não existir, pare e avise o mantenedor. Depois, a skill `to-issues` quebra a especificação em issues.
 
 **Não publique em nenhum rastreador de issues.**
 

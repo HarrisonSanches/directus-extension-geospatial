@@ -1,12 +1,14 @@
 ---
 name: implement-issue
-description: Implementa uma issue do directus-extension-geospatial (ex.: F00-03) a partir de docs/implementacao/issues/, com testes primeiro, explicação passo a passo na conversa e os critérios de aceite conferidos um a um. Use quando o mantenedor pedir para implementar uma issue.
+description: Implementa uma issue do directus-extension-geospatial (ex.: F00-03) a partir das issues do repositório do plano, com testes primeiro, explicação passo a passo na conversa e os critérios de aceite conferidos um a um. Use quando o mantenedor pedir para implementar uma issue.
 argument-hint: "<issue, ex.: F00-03>"
 ---
 
 # Implementar uma issue
 
-Issue pedida: **$ARGUMENTS** (ex.: `F00-03`). O arquivo é `docs/implementacao/issues/fNN.md`, com o número da fase da própria issue.
+Issue pedida: **$ARGUMENTS** (ex.: `F00-03`). O arquivo é `../directus-extension-geospatial-plan/issues/fNN.md`, com o número da fase da própria issue.
+
+O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
 **Não faça commit, não crie branch, não dê push, a menos que o mantenedor peça.** Se ele pedir um commit: mensagem em inglês, no padrão Conventional Commits, e **nunca** com linha de coautoria (`Co-Authored-By`) de Claude ou de qualquer IA.
 
@@ -59,7 +61,7 @@ Não existe guia didático em arquivo. A documentação pública (README, site) 
 ## Registrar
 
 - Estado da issue na tabela: "feita" só com todos os critérios ✅ e a lista "Pronto quer dizer" de `docs/padroes/README.md` valendo.
-- Surpresa, inviabilidade ou mudança no que a issue pedia viram uma entrada em `docs/implementacao/achados.md`. Se a mudança alterar o plano, pergunte antes ao mantenedor e edite a fase junto com o achado.
+- Surpresa, inviabilidade ou mudança no que a issue pedia viram uma entrada em `../directus-extension-geospatial-plan/achados.md`. Se a mudança alterar o plano, pergunte antes ao mantenedor e edite a fase junto com o achado.
 - Decisão nova: pergunte ao mantenedor. Se ele aprovar, ela vira uma `D-0xx` em `docs/decisoes.md`.
 - Não mexa em `historico.md`: ele é atualizado no fechamento da fase (skill `fechar-fase`).
 
@@ -71,6 +73,6 @@ Não existe guia didático em arquivo. A documentação pública (README, site) 
 4. **O que aprender aqui:** os conceitos novos em três ou quatro linhas.
 5. **Decisões tomadas fora da issue**, se houve, e por quê.
 6. **Sugestões** para a issue, a fase ou os padrões, sem editar por conta própria.
-7. **Mensagem de commit sugerida,** no padrão de `docs/padroes/git-e-entrega.md` e sem linha de coautoria, e o texto do pull request: o título no mesmo padrão e a descrição terminando em `Refs: <issue>`.
+7. **Mensagem de commit sugerida,** no padrão de `docs/padroes/git-e-entrega.md` e sem linha de coautoria, e o texto do pull request: o título no mesmo padrão e a descrição terminando em `Refs: <issue>`. Se o plano mudou (o estado da issue, um achado), também a mensagem do commit no repositório do plano, separada.
 
 **Não avance para a próxima issue.** Espere o mantenedor pedir.

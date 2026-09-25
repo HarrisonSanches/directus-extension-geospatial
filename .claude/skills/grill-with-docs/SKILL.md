@@ -21,7 +21,7 @@ Se uma pergunta puder ser respondida explorando o repositório, explore em vez d
 | `docs/arquitetura.md` | O desenho |
 | `docs/decisoes.md` | As decisões `D-0xx`. É o registro de decisões do projeto; **não crie `docs/adr/`**. As portas de mão única ficam no topo |
 | `docs/verificacoes.md` | Fatos verificados em ferramentas de terceiros (`V-xx`) e pendências (`P-xx`) |
-| `docs/implementacao/` | O plano por fases, os achados e o histórico, quando existir |
+| `../directus-extension-geospatial-plan/` | O plano por fases, os achados e o histórico, num repositório privado clonado ao lado deste |
 
 - Um termo resolvido vai para o `CONTEXT.md` na hora, nos dois idiomas.
 - Uma decisão que passa no teste dos três critérios abaixo vira uma `D-0xx` nova em `docs/decisoes.md`, com a numeração continuada. As seções da arquitetura que ela muda são ajustadas junto.
