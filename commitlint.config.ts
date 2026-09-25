@@ -5,11 +5,12 @@ const vagueSubjects = ['update files', 'fix bug', 'changes', 'wip', 'review', 'm
 
 // commitlint has no rule that refuses a list of subjects (V-67), so this local one does.
 const subjectVague: SyncRule<string[]> = ({ subject }, when = 'never', subjects = []) => {
-	const isVague = subjects.includes((subject ?? '').trim().toLowerCase());
+	const text = subject ?? '';
+	const isVague = subjects.includes(text.trim().toLowerCase());
 
 	return [
 		when === 'never' ? !isVague : isVague,
-		`subject must say what changes for someone reading the history, not "${subject}"`,
+		`subject must say what changes for someone reading the history, not "${text}"`,
 	];
 };
 
