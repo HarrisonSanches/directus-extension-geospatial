@@ -41,7 +41,7 @@ módulo (`tiles`, `cache`, `queue`, `live`, `reports`, `internals`), o pacote (`
 - começa em minúscula e não termina com ponto;
 - o cabeçalho inteiro tem até 72 caracteres;
 - diz o que muda para quem lê o histórico. Não valem `update files`, `fix bug`, `changes`, `wip`, `review` nem
-  `misc`.
+  `misc`, e uma regra local do commitlint recusa esses assuntos (V-67).
 
 **Corpo,** depois de uma linha em branco, quando o assunto não basta:
 - explica o porquê e o que muda no comportamento, e não a lista de arquivos, que o diff já mostra;
@@ -87,19 +87,22 @@ Refs: F05-02
 
 ### Como o padrão é garantido
 
-Nasce na F00:
-- **commitlint** com a `@commitlint/config-conventional` (V-63) e três ajustes do projeto:
+Nasce na primeira issue da F00, para todo commit de código já nascer no padrão:
+- **commitlint** com a `@commitlint/config-conventional` (V-63) e quatro ajustes do projeto:
   - cabeçalho de até 72 caracteres, e não 100;
   - escopo em minúsculas com hífen (`scope-case: kebab-case`);
-  - linha em branco antes do corpo e dos rodapés como erro, e não como aviso.
+  - linha em branco antes do corpo e dos rodapés como erro, e não como aviso;
+  - uma regra local que recusa os assuntos vagos da lista acima (V-67).
 - **Hook `commit-msg` local,** com o husky, instalado pelo `prepare` no `pnpm install` (P-20). Uma mensagem fora do
-  padrão nem vira commit.
+  padrão nem vira commit. O hook se pula com `--no-verify`, e por isso a conferência da CI existe.
 - **O título do pull request na CI,** pelo mesmo commitlint, bloqueando o merge. É a conferência que mais importa,
   porque no merge por squash o título vira o commit do `main` (V-64). O próprio commitlint lê o título, sem
-  action de terceiros.
+  action de terceiros. O bloqueio depende do `main` protegido, que no plano Free só existe em repositório público
+  (V-66): até a abertura, no fim da F00 (D-040), a falha aparece no pull request, mas não impede o merge.
 - **O squash no GitHub** configurado para usar o título e a descrição do pull request (V-64). O título vira o
   cabeçalho do commit, e a descrição vira o corpo e os rodapés; o modelo do pull request termina com
-  `Refs: Fxx-yy`.
+  `Refs: Fxx-yy`. Por isso a descrição traz só o porquê e os rodapés, e nunca uma lista de conferência, que iria
+  para o histórico do `main`.
 
 ## Ramos e pull requests
 
@@ -108,9 +111,11 @@ Nasce na F00:
   do pull request segue o padrão de commit (`feat(radius): order items by distance`), porque vira o commit do
   `main`, e o identificador vai no rodapé `Refs: F02-03` da descrição.
 - Pull request mesmo trabalhando sozinho: é onde a integração contínua roda e onde fica o registro da mudança. O
-  modelo do pull request traz a lista "Pronto quer dizer" do [`README.md`](README.md).
+  modelo do pull request pede o porquê e o `Refs:`; a lista "Pronto quer dizer" do [`README.md`](README.md) é
+  conferida pela CI e pela revisão, e não entra na descrição.
 - Merge por squash, com a mensagem no padrão Conventional Commits, para o `main` ficar com um commit por issue.
-- O `main` é protegido: sem push direto, e com a integração contínua obrigatória.
+- O `main` é protegido desde a abertura do repositório, no fim da F00 (D-040): sem push direto, e com a
+  integração contínua e o título do pull request obrigatórios.
 
 ## Integração contínua
 
@@ -118,12 +123,16 @@ GitHub Actions desde a F00, crescendo com as fases:
 
 | Etapa | Entra na | Roda |
 |---|---|---|
-| Formatação, lint, tipos, unitários, cobertura do código novo | F00 | A cada push |
-| `gitleaks`, `pnpm audit`, OSV-Scanner | F00 | A cada push |
-| Título do pull request no padrão de commit (commitlint) | F00 | Em pull request, bloqueando o merge |
+| Formatação, lint (com o `no-cycle` do `import-x`), tipos, Knip e unitários | F00 | A cada push |
+| Cobertura: a do diff pelo Codecov, e a catraca da total pelo Vitest | F00 | A cada push |
+| Análise do SonarQube Cloud, com o quality gate no pull request | F00 | A cada push |
+| `gitleaks`, `pnpm audit`, OSV-Scanner e o zizmor nos workflows | F00 | A cada push |
+| Título do pull request no padrão de commit (commitlint) | F00 | Em pull request, bloqueando o merge desde a abertura |
 | Integração no PostGIS (a versão mínima) e no SQLite, no Directus 11.17 e no 12, um job por combinação | F00 | A cada push |
 | O PostGIS na versão mais nova | F00 | Toda noite |
+| CodeQL, secret scanning e Scorecard | F00, na abertura | Pelo GitHub, e o Scorecard num workflow a cada push no `main` |
 | Paridade de permissão, contrato da API, lint do OpenAPI | F02 | A cada push |
+| As camadas do motor no lint (zonas do `import-x`) | F02 | A cada push |
 | Build sem código do `@directus/api`, e o aviso de licenças de terceiros gerado | F02 | A cada push |
 | Mutação no módulo de permissões; canário | F02 | Toda noite; a cada versão nova do Directus |
 | Peso do arquivo inicial de extensões (`size-limit`) | F04 | A cada push |
@@ -132,8 +141,9 @@ GitHub Actions desde a F00, crescendo com as fases:
 | Matriz inteira de bancos | F15 | Toda noite e antes da release |
 | Publicação no npm com provenance, e o SBOM | F16 | Na release |
 
-Enquanto o repositório for privado, os minutos das Actions são limitados; por isso o pull request roda o conjunto
-mínimo, e a noite, o resto.
+Até a abertura, os minutos das Actions são uma cota (V-77), e o Codecov aceita 250 envios por mês (V-70); por
+isso o pull request roda o conjunto mínimo, com a cobertura num envio só, e a noite, o resto. Depois da abertura,
+os runners padrão são grátis, e a divisão entre pull request e noite fica pelo tempo de espera.
 
 ## Revisão
 

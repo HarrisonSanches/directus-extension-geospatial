@@ -70,11 +70,13 @@ com o rastro do Playwright guardado para investigar.
 
 ## Cobertura e qualidade dos testes
 
-- **Código novo ou alterado:** pelo menos 90% em todo pull request, medido sobre o diff (D-017). A cobertura total
-  é uma catraca: pode subir, nunca cair. A ferramenta que mede sobre o diff é decisão da F00.
+- **Código novo ou alterado:** pelo menos 90% em todo pull request, medido sobre o diff pela cobertura do patch do
+  Codecov (D-017, V-70). A cobertura total é uma catraca: pode subir, nunca cair, pelos limites do Vitest que sobem
+  sozinhos (`thresholds.autoUpdate`, V-71). O SonarQube Cloud também mostra a cobertura no pull request, mas o gate
+  dele no plano gratuito é de 80% (V-72), e quem decide os 90% é o Codecov.
 - **Motor** (internos, adaptadores, operações, tiles, consulta registrada): 90% de linhas e de ramificações.
-- **Somada entre os bancos:** os relatórios de todos os bancos são somados, e um pull request que mexe num
-  adaptador roda também o contrato daquele banco.
+- **Somada entre os bancos:** os relatórios de todos os bancos são somados e vão ao Codecov num envio só por push,
+  e um pull request que mexe num adaptador roda também o contrato daquele banco.
 - **Interface:** a lógica (composables, stores, cálculos, estado das ferramentas) fica em módulos testáveis, com
   90%. A camada fina que desenha no WebGL fica com o ponta a ponta, sem meta de linhas.
 - **Mutação:** 90% no módulo de permissões, toda noite. É o que mede se os testes testam, e não só executam.

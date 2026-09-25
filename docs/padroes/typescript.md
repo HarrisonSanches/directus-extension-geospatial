@@ -10,8 +10,12 @@
 - **pnpm 10,** com workspaces e catálogos em modo estrito, como no Directus: cada dependência tem uma versão só no
   repositório inteiro, declarada no `pnpm-workspace.yaml`.
 - **Formatação e lint:** Prettier, e ESLint com `typescript-eslint` (com as regras que usam os tipos),
-  `eslint-plugin-vue` e `eslint-config-prettier`, a mesma combinação do Directus (V-59). O lint cuida do estilo, e
-  a revisão, do resto.
+  `eslint-plugin-vue`, `eslint-plugin-import-x` e `eslint-config-prettier`, a mesma combinação do Directus (V-59). O
+  lint cuida do estilo e da direção das camadas, e a revisão, do resto.
+- **Código morto:** o Knip, no `pnpm check`, recusa arquivo, export e dependência sem uso (V-69), com o compilador
+  do Vue ligado para enxergar os `.vue`.
+- **As regras do Sonar** vêm do SonarQube Cloud (V-72), e não do `eslint-plugin-sonarjs`, cuja licença real não é
+  de código aberto (V-73).
 
 ## Organização do motor
 
@@ -29,7 +33,9 @@ packages/extension/src/
 É o ponto de partida; a F02 confirma.
 
 - **A dependência anda num sentido só:** rotas → operações → adaptadores → internos. Nada importa uma rota, e nada
-  fora de `internals/` importa o `@directus/api`, o que uma regra `no-restricted-imports` do ESLint garante.
+  fora de `internals/` importa o `@directus/api`. O lint garante as duas coisas: as zonas do `no-restricted-paths`
+  do `import-x` para a direção das camadas, com o `no-cycle` contra ciclos (V-68), e uma regra
+  `no-restricted-imports` para o `@directus/api`.
 - **Uma operação é um módulo profundo:** a interface é pequena (entrada validada, partes do resultado, nível em
   cada banco), e a implementação rica fica atrás dela.
 - **Exportações nomeadas.** `export default` só onde o Directus exige, no registro das superfícies.

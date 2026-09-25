@@ -7,7 +7,8 @@ confiança se constrói no repositório.
 
 - **Nunca no repositório nem no banco:** chaves e segredos só em variáveis de ambiente (§7.8). O `.env` fica no
   `.gitignore`, com um `.env.example` sem valores.
-- `gitleaks` na integração contínua e, antes de tornar o repositório público, sobre o histórico inteiro.
+- `gitleaks` na integração contínua e, antes da abertura do repositório no fim da F00 (D-040), sobre o histórico
+  inteiro. Depois da abertura, o secret scanning do GitHub também vigia o repositório (V-75).
 - Segredo nunca em log, mensagem de erro, URL ou resposta da API.
 
 ## Dependências
@@ -27,7 +28,9 @@ confiança se constrói no repositório.
     (`onlyBuiltDependencies`), como no Directus (V-59);
   - versão recém-publicada só entra depois de alguns dias (`minimumReleaseAge`, no pnpm e no Renovate), para dar
     tempo de um pacote comprometido ser descoberto;
-  - `pnpm audit` e OSV-Scanner na CI.
+  - `pnpm audit` e OSV-Scanner na CI;
+  - o Dependabot alerts ligado, para a vulnerabilidade nova aparecer mesmo sem push (V-75);
+  - os workflows do GitHub Actions passam pelo zizmor (V-74).
 - Atualizações pelo Renovate, agrupadas, com a integração contínua como filtro. As tags do Directus também, e o
   canário roda nelas.
 
@@ -49,6 +52,8 @@ confiança se constrói no repositório.
 - Nada de recurso de fora no navegador sem necessidade: sem CDN, dentro da CSP padrão do Directus (V-33).
 - O servidor só faz pedidos para endereços que o admin configurou (provedores de endereço, mapas de fundo), nunca
   para um endereço que veio no pedido do usuário.
+- Desde a abertura do repositório, o CodeQL analisa o código, e o OpenSSF Scorecard mede as práticas de segurança
+  do repositório, com o badge no README (V-75, V-76).
 
 ## Dados pessoais
 

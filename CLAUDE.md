@@ -9,6 +9,7 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - Plano de implementação criado em 24/09/2026, com 18 fases (F00 a F17), em [docs/implementacao/](docs/implementacao/README.md).
 - Padrões de desenvolvimento criados em 24/09/2026, em [docs/padroes/](docs/padroes/README.md).
 - Revisão geral em 24/09/2026: decisões D-035 a D-039 (a D-037 substitui a D-018) e fatos V-59 a V-61.
+- Ferramentas de qualidade e segurança escolhidas em 25/09/2026: decisão D-040 (o repositório abre no fim da F00), achado A-001 e fatos V-66 a V-77.
 - Próximo passo: `/to-issues F00`.
 
 ## Documentação

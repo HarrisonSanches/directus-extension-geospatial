@@ -629,3 +629,21 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Apagar tudo sozinho na desinstalação: depois de desinstalada, a extensão não roda mais código, e apagar relatório sem pedir destrói evidência.
   - Remover os índices por padrão: tiraria desempenho do próprio Directus.
 - **Consequências:** o inventário e a ação nascem na F06, com a primeira ação do admin, e cada ação das fases seguintes entra neles. O roteiro de desinstalação vai para o guia na F16.
+
+## D-040 — Repositório aberto no fim da F00, antes da publicação
+
+- **Estado:** aceita em 25/09/2026.
+- **Onde:** plano de implementação (F00, F16 e portões) · V-66, V-70, V-72, V-75, V-76, V-77 · A-001.
+- **Contexto:** o plano mantinha o repositório privado até a F16, para abrir junto com a publicação no npm. Num repositório privado de conta pessoal no plano Free, o `main` não tem proteção nem CI obrigatória (V-66), não existem CodeQL, secret scanning nem Scorecard (V-75, V-76), o SonarQube Cloud e o Codecov têm limites (V-70, V-72), e os minutos do Actions são uma cota que a matriz de testes consome rápido (V-77). O projeto também vai para o portfólio público do autor, e o processo (decisões, verificações e pull requests com CI) é parte do que ele mostra.
+- **Decisão:**
+  - O repositório fica público no fim da F00, depois do portão de abertura do índice do plano.
+  - Na abertura, o `main` ganha a proteção (sem push direto, com a CI e o título do pull request obrigatórios), e ligam-se o CodeQL, o secret scanning e o Scorecard.
+  - A publicação no npm e no Marketplace continua na F16, com a extensão completa (princípio 1). Até lá, o README diz o estado real do projeto.
+- **Alternativas descartadas:**
+  - Abrir só na F16: o `main` ficaria sem proteção e o repositório sem as ferramentas de segurança durante todo o desenvolvimento, e a CI disputaria minutos.
+  - Assinar o GitHub Pro: resolveria só a proteção do `main`, porque CodeQL e secret scanning em repositório privado exigem uma organização paga (V-75).
+  - Abrir antes da F00: o portão de abertura e a CI ainda não existem.
+- **Consequências:**
+  - O desenvolvimento acontece em público, e o `CONTRIBUTING.md` diz o que se aceita de fora enquanto a extensão não fica pronta.
+  - O critério da F00 que pede o pull request bloqueado na CI é conferido depois da abertura, no fim da própria fase.
+  - Abrir não se desfaz: o que ficou público pode ter sido copiado. Por isso o `gitleaks` roda sobre o histórico inteiro antes.
