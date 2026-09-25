@@ -41,7 +41,7 @@
 ## Acessibilidade
 
 - Meta: WCAG 2.2 nível AA (§7.3, grupo 6).
-- A lista é a alternativa acessível do mapa, no padrão *listbox* do WAI-ARIA, com a região ao vivo para o resumo.
+- A lista é a alternativa acessível do mapa, no padrão _listbox_ do WAI-ARIA, com a região ao vivo para o resumo.
 - Toda operação pode ser feita sem desenhar.
 - Foco sempre visível e controlado nos drawers e popups; seleção e destaque nunca só por cor; o "reduzir movimento"
   respeitado; alvos de toque de pelo menos 44 × 44 px.

@@ -7,15 +7,15 @@ A referência de mercado mais próxima é o próprio repositório do Directus (V
 ferramentas do host, para o código dela ler como o dele e para uma mudança no Directus aparecer nos nossos
 testes ao mesmo tempo, e não depois.
 
-| Arquivo | Trata de |
-|---|---|
-| [`testes.md`](testes.md) | A estratégia de testes, a mais importante daqui |
-| [`typescript.md`](typescript.md) | TypeScript e Node: organização, erros, tempo, cancelamento, configuração e logs |
-| [`banco-e-sql.md`](banco-e-sql.md) | A query permitida, o SQL espacial, os índices, a matriz e as coleções da extensão |
-| [`api-e-contrato.md`](api-e-contrato.md) | O contrato OpenAPI, os erros, a paginação, a compatibilidade e o SDK |
-| [`frontend.md`](frontend.md) | Vue no Studio, o mapa, o tema, a tradução e a acessibilidade |
-| [`seguranca-e-dependencias.md`](seguranca-e-dependencias.md) | Segredos, cadeia de suprimentos, publicação, páginas públicas e a demo |
-| [`git-e-entrega.md`](git-e-entrega.md) | Commits, ramos, integração contínua, revisão e versões |
+| Arquivo                                                      | Trata de                                                                          |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| [`testes.md`](testes.md)                                     | A estratégia de testes, a mais importante daqui                                   |
+| [`typescript.md`](typescript.md)                             | TypeScript e Node: organização, erros, tempo, cancelamento, configuração e logs   |
+| [`banco-e-sql.md`](banco-e-sql.md)                           | A query permitida, o SQL espacial, os índices, a matriz e as coleções da extensão |
+| [`api-e-contrato.md`](api-e-contrato.md)                     | O contrato OpenAPI, os erros, a paginação, a compatibilidade e o SDK              |
+| [`frontend.md`](frontend.md)                                 | Vue no Studio, o mapa, o tema, a tradução e a acessibilidade                      |
+| [`seguranca-e-dependencias.md`](seguranca-e-dependencias.md) | Segredos, cadeia de suprimentos, publicação, páginas públicas e a demo            |
+| [`git-e-entrega.md`](git-e-entrega.md)                       | Commits, ramos, integração contínua, revisão e versões                            |
 
 ## Princípios
 
@@ -59,13 +59,13 @@ Nenhuma fase do plano termina sem esta lista valendo para tudo o que ela entrego
 
 Os nomes são estes, e a F00 os cria.
 
-| Comando | Faz |
-|---|---|
-| `pnpm install` | Instala as dependências; na CI, com o lockfile congelado |
-| `pnpm dev` | Sobe o ambiente de desenvolvimento (Directus 12, PostGIS e Redis), com a extensão em modo watch |
-| `pnpm test` | Testes unitários, em segundos |
-| `pnpm typecheck` | Os tipos, com o `tsc` do TypeScript 7 |
-| `pnpm test:integration` | Directus e bancos de verdade em containers: PostGIS e SQLite, no 11.17 e no 12 |
-| `pnpm test:e2e` | Playwright com axe, no Studio de verdade |
-| `pnpm check` | Formatação, lint, tipos, Knip, `test` e `test:integration`: o que a CI roda no pull request, menos as análises que só existem nela (cobertura do diff, SonarQube Cloud e zizmor) |
-| `pnpm vitest run <arquivo> -t "<nome>"` | Um teste só: o ciclo do TDD |
+| Comando                                 | Faz                                                                                                                                                                              |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install`                          | Instala as dependências; na CI, com o lockfile congelado                                                                                                                         |
+| `pnpm dev`                              | Sobe o ambiente de desenvolvimento (Directus 12, PostGIS e Redis), com a extensão em modo watch                                                                                  |
+| `pnpm test`                             | Testes unitários, em segundos                                                                                                                                                    |
+| `pnpm typecheck`                        | Os tipos, com o `tsc` do TypeScript 7                                                                                                                                            |
+| `pnpm test:integration`                 | Directus e bancos de verdade em containers: PostGIS e SQLite, no 11.17 e no 12                                                                                                   |
+| `pnpm test:e2e`                         | Playwright com axe, no Studio de verdade                                                                                                                                         |
+| `pnpm check`                            | Formatação, lint, tipos, Knip, `test` e `test:integration`: o que a CI roda no pull request, menos as análises que só existem nela (cobertura do diff, SonarQube Cloud e zizmor) |
+| `pnpm vitest run <arquivo> -t "<nome>"` | Um teste só: o ciclo do TDD                                                                                                                                                      |

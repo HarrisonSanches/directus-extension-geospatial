@@ -1,7 +1,7 @@
 ---
 name: fechar-fase
 description: Fecha uma fase do plano do directus-extension-geospatial. Confere o critério de saída e as issues, escreve o "Como terminou" e a entrada do histórico, atualiza o índice e detalha a próxima fase. Use quando todas as issues de uma fase estiverem feitas, ou quando o mantenedor pedir para fechar a fase.
-argument-hint: "<fase, ex.: F00>"
+argument-hint: '<fase, ex.: F00>'
 ---
 
 # Fechar uma fase

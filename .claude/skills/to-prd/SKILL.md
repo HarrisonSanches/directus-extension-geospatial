@@ -12,6 +12,7 @@ Não entreviste o usuário: sintetize o que você já sabe. O commit e o push da
 ### 1. Explore o repositório
 
 Entenda o estado atual do repositório, se ainda não o fez.
+
 - Use o vocabulário do `CONTEXT.md` em toda a especificação.
 - Respeite as decisões de `docs/decisoes.md`: as portas de mão única do topo não mudam sem uma decisão nova.
 - Parta do desenho em `docs/arquitetura.md` e dos fatos em `docs/verificacoes.md`.
@@ -51,6 +52,7 @@ Uma lista numerada LONGA de histórias de usuário, cada uma neste formato:
 > Como um `<ator>`, quero `<funcionalidade>`, para que `<benefício>`.
 
 Exemplo:
+
 1. Como uma operadora com papel restrito à zona sul, quero ver no raio só as ocorrências que posso ler, para que o mapa nunca me mostre dados de outra região.
 
 A lista deve ser extensa e cobrir todos os aspectos da funcionalidade. Atores comuns: operador, operador com papel restrito, admin, desenvolvedor que integra pela API ou pelo SDK, autor de Flow e leitor de um relatório.

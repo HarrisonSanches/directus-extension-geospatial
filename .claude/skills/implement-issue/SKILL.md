@@ -47,6 +47,7 @@ O plano fica num repositório privado, clonado ao lado deste em `../directus-ext
 ## Explicar na conversa (parte da entrega, não opcional)
 
 Ao entregar, explique passo a passo, de forma didática e breve:
+
 - o que foi feito;
 - os conceitos novos da issue, do zero;
 - como o código funciona, com links para arquivo e linha;

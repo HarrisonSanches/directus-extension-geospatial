@@ -5,16 +5,16 @@ sem um teste que a quebraria se ela deixasse de ser verdade. A primeira dessas p
 
 ## As camadas
 
-| Camada | Pega | Ferramentas | Roda |
-|---|---|---|---|
-| **Unitário** | Regra de domínio, cálculo, formato, montagem de SQL | Vitest, `it.each`, fast-check, arquivos dourados | A cada mudança, em segundos |
-| **Integração** | O motor contra o Directus e o banco de verdade | Vitest, testcontainers, `@directus/sdk` para montar os dados | A cada push |
-| **Paridade de permissão** | Resultado diferente do que o `/items` daria ao mesmo papel | A suíte de integração, com os papéis de teste | A cada push |
-| **Contrato por banco** | Banco que faz diferente do que a matriz declara | A mesma suíte, em cada banco da matriz | PostGIS e SQLite a cada push; todos à noite |
-| **Contrato da API** | Rota respondendo fora do OpenAPI | Resposta validada contra o documento, nos testes de integração | A cada push |
-| **Ponta a ponta** | O Studio montado: o mapa abre, os tiles chegam, o clique abre o drawer | Playwright com `@axe-core/playwright` | O curto, em pull request que toca a interface, bloqueando o merge; o completo, à noite e antes da release |
-| **Mutação** | Teste que executa o código sem testar nada | StrykerJS com o executor do Vitest, no módulo de permissões | Toda noite |
-| **Medição** | Regressão de desempenho | k6 nos tiles, `EXPLAIN ANALYZE` no SQL, `bench` do Vitest no que é JavaScript | Sob demanda; os números vão para `verificacoes.md` e para o histórico |
+| Camada                    | Pega                                                                   | Ferramentas                                                                   | Roda                                                                                                      |
+| ------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Unitário**              | Regra de domínio, cálculo, formato, montagem de SQL                    | Vitest, `it.each`, fast-check, arquivos dourados                              | A cada mudança, em segundos                                                                               |
+| **Integração**            | O motor contra o Directus e o banco de verdade                         | Vitest, testcontainers, `@directus/sdk` para montar os dados                  | A cada push                                                                                               |
+| **Paridade de permissão** | Resultado diferente do que o `/items` daria ao mesmo papel             | A suíte de integração, com os papéis de teste                                 | A cada push                                                                                               |
+| **Contrato por banco**    | Banco que faz diferente do que a matriz declara                        | A mesma suíte, em cada banco da matriz                                        | PostGIS e SQLite a cada push; todos à noite                                                               |
+| **Contrato da API**       | Rota respondendo fora do OpenAPI                                       | Resposta validada contra o documento, nos testes de integração                | A cada push                                                                                               |
+| **Ponta a ponta**         | O Studio montado: o mapa abre, os tiles chegam, o clique abre o drawer | Playwright com `@axe-core/playwright`                                         | O curto, em pull request que toca a interface, bloqueando o merge; o completo, à noite e antes da release |
+| **Mutação**               | Teste que executa o código sem testar nada                             | StrykerJS com o executor do Vitest, no módulo de permissões                   | Toda noite                                                                                                |
+| **Medição**               | Regressão de desempenho                                                | k6 nos tiles, `EXPLAIN ANALYZE` no SQL, `bench` do Vitest no que é JavaScript | Sob demanda; os números vão para `verificacoes.md` e para o histórico                                     |
 
 Quanto mais baixa a camada, mais testes: muitos unitários, bons de integração, poucos e valiosos de ponta a
 ponta.
@@ -32,12 +32,14 @@ entre dialetos, que é exatamente onde o risco mora.
 
 **Os dados de teste entram pela API do Directus,** com o `@directus/sdk`: o esquema, os papéis, as políticas e os
 itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. Os papéis de sempre:
+
 - **Maria, Operador Zona Sul:** só `regiao = sul`;
 - um papel com **duas políticas**, para o OU entre elas (V-22);
 - o **público** e o **admin**.
 
 **Paridade de permissão em tudo que devolve dado.** O teste chama a extensão como a Maria e compara com o
 gabarito:
+
 - quando um filtro nativo faz a mesma pergunta (por área com "toca" é o `_intersects`), os ids precisam ser
   idênticos aos do `/items`;
 - quando não faz (raio, mais próximos), o gabarito é calculado: os itens permitidos pelo `/items`, filtrados ou
@@ -91,11 +93,11 @@ teste.
 
 ## Quando cada teste roda
 
-| Quando | O que roda |
-|---|---|
-| A cada push e pull request | Unitários; integração, paridade e contrato no PostGIS (a versão mínima) e no SQLite, na versão mais antiga e na mais nova da faixa do Directus (hoje, 11.17 e 12.4, D-037); contrato da API; cobertura do código novo |
-| Pull request que mexe num adaptador | Mais o contrato daquele banco |
-| Pull request que mexe na interface | Mais o ponta a ponta curto, que bloqueia o merge: o mapa abre no layout, um tile chega, o clique abre o drawer e o axe passa (§7.4) |
-| Toda noite | A faixa inteira do Directus; o PostGIS na versão mais nova; a partir da F15, a matriz inteira de bancos, a mínima e a mais nova de cada; o ponta a ponta completo; a mutação |
-| Antes de cada release | Tudo o que roda à noite, mais o teste manual com leitor de tela (NVDA e VoiceOver) |
-| Canário | A suíte de integração contra cada versão nova do Directus, assim que ela sai |
+| Quando                              | O que roda                                                                                                                                                                                                            |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A cada push e pull request          | Unitários; integração, paridade e contrato no PostGIS (a versão mínima) e no SQLite, na versão mais antiga e na mais nova da faixa do Directus (hoje, 11.17 e 12.4, D-037); contrato da API; cobertura do código novo |
+| Pull request que mexe num adaptador | Mais o contrato daquele banco                                                                                                                                                                                         |
+| Pull request que mexe na interface  | Mais o ponta a ponta curto, que bloqueia o merge: o mapa abre no layout, um tile chega, o clique abre o drawer e o axe passa (§7.4)                                                                                   |
+| Toda noite                          | A faixa inteira do Directus; o PostGIS na versão mais nova; a partir da F15, a matriz inteira de bancos, a mínima e a mais nova de cada; o ponta a ponta completo; a mutação                                          |
+| Antes de cada release               | Tudo o que roda à noite, mais o teste manual com leitor de tela (NVDA e VoiceOver)                                                                                                                                    |
+| Canário                             | A suíte de integração contra cada versão nova do Directus, assim que ela sai                                                                                                                                          |

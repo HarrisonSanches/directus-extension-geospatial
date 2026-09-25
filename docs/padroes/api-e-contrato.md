@@ -37,7 +37,7 @@
 
 ## SDK
 
-- O pacote `directus-geospatial-sdk`, com o `@directus/sdk` como dependência de par (*peer*).
+- O pacote `directus-geospatial-sdk`, com o `@directus/sdk` como dependência de par (_peer_).
 - Um comando por rota, no estilo do SDK oficial, usado em `client.request(...)`, com o prefixo `geo` (D-024).
 - Os tipos saem do contrato, e os campos se completam pelo esquema do usuário.
 - A paginação é um iterador (`for await`); os erros são tipados, com os códigos da API; e o `geoCapabilities()`

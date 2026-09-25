@@ -18,25 +18,26 @@ conferido pelo commitlint (V-63):
 
 **Tipo,** em minúsculas, um destes:
 
-| Tipo | Quando |
-|---|---|
-| `feat` | Algo novo para quem usa a extensão, a API ou o SDK |
-| `fix` | Correção de um comportamento errado |
-| `perf` | Mais rápido ou mais leve, sem mudar o comportamento |
-| `refactor` | Mudança no código sem mudar o comportamento |
-| `test` | Só testes |
-| `docs` | Só documentação: `docs/`, README, comentários |
-| `build` | Build, empacotamento e dependências |
-| `ci` | Integração contínua |
-| `style` | Só formatação |
-| `revert` | Desfaz um commit anterior |
-| `chore` | Manutenção que não cabe em nenhum outro; se outro tipo servir, use o outro |
+| Tipo       | Quando                                                                     |
+| ---------- | -------------------------------------------------------------------------- |
+| `feat`     | Algo novo para quem usa a extensão, a API ou o SDK                         |
+| `fix`      | Correção de um comportamento errado                                        |
+| `perf`     | Mais rápido ou mais leve, sem mudar o comportamento                        |
+| `refactor` | Mudança no código sem mudar o comportamento                                |
+| `test`     | Só testes                                                                  |
+| `docs`     | Só documentação: `docs/`, README, comentários                              |
+| `build`    | Build, empacotamento e dependências                                        |
+| `ci`       | Integração contínua                                                        |
+| `style`    | Só formatação                                                              |
+| `revert`   | Desfaz um commit anterior                                                  |
+| `chore`    | Manutenção que não cabe em nenhum outro; se outro tipo servir, use o outro |
 
 **Escopo,** opcional, em minúsculas com hífen: a parte do projeto que muda. Pode ser a operação (`radius`), o
 módulo (`tiles`, `cache`, `queue`, `live`, `reports`, `internals`), o pacote (`sdk`, `contract`) ou o banco
 (`postgis`, `sqlite`). Um commit que mexe em muita coisa fica sem escopo.
 
 **Assunto:**
+
 - no imperativo, completando a frase "If applied, this commit will…": `add`, `fix`, `remove`, e não `added` nem
   `adds`;
 - começa em minúscula e não termina com ponto;
@@ -45,11 +46,13 @@ módulo (`tiles`, `cache`, `queue`, `live`, `reports`, `internals`), o pacote (`
   `misc`, e uma regra local do commitlint recusa esses assuntos (V-67).
 
 **Corpo,** depois de uma linha em branco, quando o assunto não basta:
+
 - explica o porquê e o que muda no comportamento, e não a lista de arquivos, que o diff já mostra;
 - linhas de até 100 caracteres, o limite do lint; o ideal é quebrar perto de 72;
 - vira lista com hífen quando são várias mudanças.
 
 **Rodapés,** depois de outra linha em branco, no formato `Token: valor`:
+
 - `Refs: F02-03`, com o identificador da issue do plano;
 - `Closes #12`, quando houver issue no GitHub;
 - `BREAKING CHANGE: <o que quebra e como migrar>`, junto com o `!` no cabeçalho (`fix(contract)!: ...`), quando
@@ -93,6 +96,7 @@ Refs: F05-02
 ### Como o padrão é garantido
 
 Nasce na primeira issue da F00, para todo commit de código já nascer no padrão:
+
 - **commitlint** com a `@commitlint/config-conventional` (V-63) e quatro ajustes do projeto:
   - cabeçalho de até 72 caracteres, e não 100;
   - escopo em minúsculas com hífen (`scope-case: kebab-case`);
@@ -117,15 +121,16 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
   segue o [Conventional Branch 1.1.0](https://conventionalbranch.org/) (V-83): `<tipo>/<id>-<descrição>`, em
   minúsculas, com hífen entre as palavras e sem hífen repetido, no começo ou no fim.
 
-  | Tipo | Quando |
-  |---|---|
-  | `feat/` | A issue entrega comportamento novo; é a maioria |
-  | `fix/` | Corrige um comportamento errado |
-  | `chore/` | Tarefa sem código do produto: ferramentas, CI, documentação |
-  | `hotfix/` | Correção urgente sobre o `main`, depois da primeira publicação |
-  | `release/` | Preparação de uma versão, da F16 em diante |
+  | Tipo       | Quando                                                         |
+  | ---------- | -------------------------------------------------------------- |
+  | `feat/`    | A issue entrega comportamento novo; é a maioria                |
+  | `fix/`     | Corrige um comportamento errado                                |
+  | `chore/`   | Tarefa sem código do produto: ferramentas, CI, documentação    |
+  | `hotfix/`  | Correção urgente sobre o `main`, depois da primeira publicação |
+  | `release/` | Preparação de uma versão, da F16 em diante                     |
 
   Exemplos: `feat/f02-03-radius-order`, `chore/f00-01-toolchain-and-commit-standard`.
+
 - O título do pull request segue o padrão de commit (`feat(radius): order items by distance`), porque vira o
   commit do `develop`, e o identificador vai no rodapé `Refs: F02-03` da descrição.
 - Pull request mesmo trabalhando sozinho: é onde a integração contínua roda e onde fica o registro da mudança. O
@@ -144,25 +149,25 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
 
 GitHub Actions desde a F00, crescendo com as fases:
 
-| Etapa | Entra na | Roda |
-|---|---|---|
-| Formatação, lint (com o `no-cycle` do `import-x`), tipos, Knip e unitários | F00 | A cada push |
-| Cobertura: a do diff pelo Codecov, e a catraca da total pelo Vitest | F00 | A cada push |
-| Análise do SonarQube Cloud, com o quality gate no pull request | F00 | A cada push |
-| `gitleaks`, `pnpm audit`, OSV-Scanner e o zizmor nos workflows | F00 | A cada push |
-| Título do pull request no padrão de commit (commitlint) | F00 | Em pull request, bloqueando o merge desde a abertura |
-| Integração no PostGIS (a versão mínima) e no SQLite, no Directus 11.17 e no 12, um job por combinação | F00 | A cada push |
-| O PostGIS na versão mais nova | F00 | Toda noite |
-| CodeQL, secret scanning e Scorecard | F00, na abertura | Pelo GitHub, e o Scorecard num workflow a cada push no ramo padrão, o `develop` |
-| Paridade de permissão, contrato da API, lint do OpenAPI | F02 | A cada push |
-| As camadas do motor no lint (zonas do `import-x`) | F02 | A cada push |
-| Build sem código do `@directus/api`, e o aviso de licenças de terceiros gerado | F02 | A cada push |
-| Mutação no módulo de permissões; canário | F02 | Toda noite; a cada versão nova do Directus |
-| Peso do arquivo inicial de extensões (`size-limit`) | F04 | A cada push |
-| Ponta a ponta curto: o mapa abre, o tile chega, o drawer abre, o axe passa | F04 | Em pull request que toca a interface, bloqueando o merge |
-| Ponta a ponta completo, com Playwright e axe | F04 | Toda noite e antes da release |
-| Matriz inteira de bancos | F15 | Toda noite e antes da release |
-| Publicação no npm com provenance, e o SBOM | F16 | Na release |
+| Etapa                                                                                                 | Entra na         | Roda                                                                            |
+| ----------------------------------------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------- |
+| Formatação, lint (com o `no-cycle` do `import-x`), tipos, Knip e unitários                            | F00              | A cada push                                                                     |
+| Cobertura: a do diff pelo Codecov, e a catraca da total pelo Vitest                                   | F00              | A cada push                                                                     |
+| Análise do SonarQube Cloud, com o quality gate no pull request                                        | F00              | A cada push                                                                     |
+| `gitleaks`, `pnpm audit`, OSV-Scanner e o zizmor nos workflows                                        | F00              | A cada push                                                                     |
+| Título do pull request no padrão de commit (commitlint)                                               | F00              | Em pull request, bloqueando o merge desde a abertura                            |
+| Integração no PostGIS (a versão mínima) e no SQLite, no Directus 11.17 e no 12, um job por combinação | F00              | A cada push                                                                     |
+| O PostGIS na versão mais nova                                                                         | F00              | Toda noite                                                                      |
+| CodeQL, secret scanning e Scorecard                                                                   | F00, na abertura | Pelo GitHub, e o Scorecard num workflow a cada push no ramo padrão, o `develop` |
+| Paridade de permissão, contrato da API, lint do OpenAPI                                               | F02              | A cada push                                                                     |
+| As camadas do motor no lint (zonas do `import-x`)                                                     | F02              | A cada push                                                                     |
+| Build sem código do `@directus/api`, e o aviso de licenças de terceiros gerado                        | F02              | A cada push                                                                     |
+| Mutação no módulo de permissões; canário                                                              | F02              | Toda noite; a cada versão nova do Directus                                      |
+| Peso do arquivo inicial de extensões (`size-limit`)                                                   | F04              | A cada push                                                                     |
+| Ponta a ponta curto: o mapa abre, o tile chega, o drawer abre, o axe passa                            | F04              | Em pull request que toca a interface, bloqueando o merge                        |
+| Ponta a ponta completo, com Playwright e axe                                                          | F04              | Toda noite e antes da release                                                   |
+| Matriz inteira de bancos                                                                              | F15              | Toda noite e antes da release                                                   |
+| Publicação no npm com provenance, e o SBOM                                                            | F16              | Na release                                                                      |
 
 Até a abertura, os minutos das Actions são uma cota (V-77), e o Codecov aceita 250 envios por mês (V-70); por
 isso o pull request roda o conjunto mínimo, com a cobertura num envio só, e a noite, o resto. Depois da abertura,

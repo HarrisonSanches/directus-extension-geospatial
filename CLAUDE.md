@@ -19,14 +19,14 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 
 ## Documentação
 
-| Arquivo | Papel |
-|---|---|
-| [CONTEXT.md](CONTEXT.md) | Glossário do domínio, com o termo em português e o canônico em inglês |
-| [docs/arquitetura.md](docs/arquitetura.md) | O desenho: o que a extensão faz e como |
-| [docs/decisoes.md](docs/decisoes.md) | As decisões D-0xx; as portas de mão única ficam no topo. Não existe `docs/adr/` |
-| [docs/verificacoes.md](docs/verificacoes.md) | Fatos verificados em ferramentas de terceiros (V-xx) e pendências (P-xx) |
-| `../directus-extension-geospatial-plan/` | Plano por fases, issues, especificações, achados e histórico, num repositório privado do mantenedor |
-| [docs/padroes/](docs/padroes/README.md) | Padrões de código e de testes, e o que "Pronto quer dizer" |
+| Arquivo                                      | Papel                                                                                               |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [CONTEXT.md](CONTEXT.md)                     | Glossário do domínio, com o termo em português e o canônico em inglês                               |
+| [docs/arquitetura.md](docs/arquitetura.md)   | O desenho: o que a extensão faz e como                                                              |
+| [docs/decisoes.md](docs/decisoes.md)         | As decisões D-0xx; as portas de mão única ficam no topo. Não existe `docs/adr/`                     |
+| [docs/verificacoes.md](docs/verificacoes.md) | Fatos verificados em ferramentas de terceiros (V-xx) e pendências (P-xx)                            |
+| `../directus-extension-geospatial-plan/`     | Plano por fases, issues, especificações, achados e histórico, num repositório privado do mantenedor |
+| [docs/padroes/](docs/padroes/README.md)      | Padrões de código e de testes, e o que "Pronto quer dizer"                                          |
 
 ## Idioma
 
