@@ -1,0 +1,6 @@
+{
+	"name": "directus-extension-geospatial-monorepo",
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@12.5.1"
+}

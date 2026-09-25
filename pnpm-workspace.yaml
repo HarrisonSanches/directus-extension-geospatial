@@ -1,0 +1,13 @@
+packages:
+  - packages/*
+
+# pnpm add only accepts versions from the catalog, so the repository keeps one version of each dependency.
+catalogMode: strict
+
+# Dependency build scripts are denied by default, and strictDepBuilds (on by default) fails the install when a
+# package with one is missing here. Each entry is a reviewed decision: true runs its scripts, false skips them.
+allowBuilds: {}
+
+# A version published less than 3 days ago (4320 minutes) is not installed, giving the registry and the community
+# time to find and pull a compromised release.
+minimumReleaseAge: 4320
