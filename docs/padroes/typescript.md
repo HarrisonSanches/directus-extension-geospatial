@@ -12,10 +12,13 @@
 - **TypeScript estrito,** com `noUncheckedIndexedAccess`. `any` não entra: o que chega de fora é `unknown` até ser
   validado.
 - **Só ESM.**
-- **pnpm 10,** com workspaces e catálogos em modo estrito, como no Directus: cada dependência tem uma versão só no
-  repositório inteiro, declarada no `pnpm-workspace.yaml`. O pnpm, e não o Bun: o Bun tem as mesmas proteções, mas
-  o dependency graph do GitHub não lê o `bun.lock`, e sem ele o Dependabot alerts não vê as dependências indiretas
-  (V-81, V-82).
+- **pnpm 12,** fixado no `packageManager`. O próprio pnpm lê essa versão e baixa a certa, sem o Corepack, que o
+  Node deixou de trazer no 25 (V-84, V-85, V-87).
+- **Workspaces e catálogos em modo estrito,** como no Directus: cada dependência tem uma versão só no repositório
+  inteiro, declarada no `pnpm-workspace.yaml`, e o `pnpm add` recusa a versão que foge do catálogo.
+- **O pnpm, e não o Bun:** o Bun tem as mesmas proteções, mas o dependency graph do GitHub não lê o `bun.lock`, e
+  sem ele o Dependabot alerts não vê as dependências indiretas (V-81, V-82). O lockfile do pnpm 12 tem dois
+  documentos, e a leitura dele pelo GitHub ainda está em conferência (V-86, P-24).
 - **Formatação e lint:** Prettier, e ESLint com `typescript-eslint` (com as regras que usam os tipos),
   `eslint-plugin-vue`, `eslint-plugin-import-x` e `eslint-config-prettier`, a mesma combinação do Directus (V-59). O
   lint cuida do estilo e da direção das camadas, e a revisão, do resto.
