@@ -636,7 +636,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
   - indisponível: a operação não aparece.
 - **O admin vê a matriz completa no painel de saúde**, com o motivo de cada item indisponível ou limitado e como liberá-lo (instalar o PostGIS, atualizar a versão, criar o índice).
 - **Visões salvas que usam algo indisponível** (bookmark, painel de dashboard, link compartilhado) abrem com um aviso, e o resto delas funciona.
-- **API e SDK.** `GET /geospatial/capabilities` devolve a matriz. Chamar uma operação indisponível devolve um erro com código próprio e o motivo, no formato de erro do Directus. O SDK expõe as duas coisas.
+- **API e SDK.** `GET /geospatial/capabilities` devolve a matriz, com as versões da API, da extensão e do Directus. Só quem tem sessão lê a rota, e só o admin vê o banco e a extensão espacial, com as versões (D-042). Chamar uma operação indisponível devolve um erro com código próprio e o motivo, no formato de erro do Directus. O SDK expõe as duas coisas.
 - **Detectar de novo.** Um botão no painel de saúde refaz a matriz sem reiniciar, por exemplo depois de instalar o PostGIS.
 
 #### Testes

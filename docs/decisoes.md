@@ -664,3 +664,21 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - O tipo de merge fica fixado por ramo, só squash no `develop` e só merge commit no `main`, pelos rulesets depois da abertura (P-23). Até lá, vale a disciplina.
   - A CI roda nos pushes e nos pull requests dos dois ramos, a noite roda no `develop`, e o Renovate abre os pull requests contra o `develop`.
   - Na F16, a publicação decide como o Changesets anda entre os dois ramos, inclusive a volta do `main` para o `develop` depois do commit de versão.
+
+## D-042 — O `capabilities` só para quem tem sessão, e o banco só para o admin
+
+- **Estado:** aceita em 25/09/2026.
+- **Onde:** §7.4 (API e SDK) · `docs/padroes/api-e-contrato.md` · V-103.
+- **Contexto:** o `GET /geospatial/capabilities` devolve a matriz de capacidades, que o Studio usa para esconder a operação indisponível, e as versões do banco, da extensão espacial e do Directus, que o admin usa no painel de saúde e o suporte usa para diagnosticar. Para quem ataca, as versões são uma impressão digital: com a versão exata, ele procura a falha conhecida dela. O próprio Directus mostra a versão dele só para quem tem sessão, e o banco em uso só para o admin (V-103).
+- **Decisão:**
+  - O pedido sem usuário recebe o `FORBIDDEN` do Directus, antes de a extensão consultar o banco.
+  - O usuário com sessão vê a matriz e as versões da API, da extensão e do Directus.
+  - Só o admin vê também o banco e a extensão espacial, com as versões.
+  - A resposta do usuário que não é admin lista o que leva, e não o que tira, para um campo novo só de admin não vazar por esquecimento.
+- **Alternativas descartadas:**
+  - Qualquer usuário com sessão vê tudo: entregaria a versão do banco e do PostGIS a todo papel, o que o Directus evita.
+  - A matriz pública, para um mapa público saber o que pode chamar: fechar depois quebraria quem passasse a depender dela. Começar fechado deixa a abertura compatível.
+- **Consequências:**
+  - Um front-end público não consegue ler a matriz. Se esse caso aparecer, liberar a matriz para o anônimo é mudança compatível, com decisão própria.
+  - O critério da F00-04 confere o banco e o PostGIS com o token de um admin.
+  - O painel de saúde (admin) e o `geoCapabilities()` do SDK leem a mesma rota, e o SDK trata o `FORBIDDEN` como erro tipado.

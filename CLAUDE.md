@@ -17,7 +17,10 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   P-21 e P-24 viraram fato (V-84 a V-93, P-25). O lockfile ficou num documento só, e o GitHub lê as dependências.
 - F00-02 feita em 25/09/2026: o `pnpm check` confere formatação, lint, tipos, Knip e testes. O lint é o ESLint, com
   a API do TypeScript 6 lado a lado até a P-25, no nível estrito, e nenhum comentário desliga regra (V-94 a V-102).
-- Próximo passo: `/implement-issue F00-03`, que começa pela decisão do recorte dos pacotes.
+- F00-03 feita em 25/09/2026: o bundle responde em `/geospatial/capabilities`. Os pacotes `extension` e `contract`
+  nasceram, com o contrato primeiro, e o `sdk` fica para a F02. Só quem tem sessão lê a rota, e só o admin vê o
+  banco (D-042). As imagens oficiais do Directus não trazem a SpatiaLite (V-104, V-103 a V-108).
+- Próximo passo: `/implement-issue F00-04`, o ambiente de desenvolvimento com um comando.
 
 ## Documentação
 
