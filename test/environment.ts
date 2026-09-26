@@ -157,3 +157,17 @@ export const startEnvironment = async (
 		},
 	};
 };
+
+// Node writes each file of coverage readable only by the user of the container, the node user of the Directus image
+// (V-126). Once every Directus of the run stopped, a container of the same image opens them to the user of the suite,
+// whatever its id, on this machine or on a runner of the CI.
+export const openCoverage = async (root: string, image: string): Promise<void> => {
+	const container = await new GenericContainer(image)
+		.withUser('root')
+		.withEntrypoint(['chmod', '-R', 'a+rX', '/coverage'])
+		.withBindMounts([{ source: root, target: '/coverage', mode: 'rw' }])
+		.withWaitStrategy(Wait.forOneShotStartup())
+		.start();
+
+	await container.stop();
+};
