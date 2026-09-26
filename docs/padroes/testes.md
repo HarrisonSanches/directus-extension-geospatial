@@ -35,7 +35,9 @@ um projeto do Vitest por combinação, e a variável `INTEGRATION` escolhe algum
 no ajudante (`test/directus.ts`): o teste pergunta ao ajudante o que o Directus aceita, e nunca a versão. O
 Directus 12 roda com a chave do Open Innovation Grant, ativada sempre no mesmo projeto (D-044), e, sem ela, no tier
 Core, que recusa as regras próprias de permissão (V-114). Um teste que depende delas, como os da Maria, roda com
-`it.runIf(hasCustomPermissionRules())` e aparece como pulado no Core.
+`it.runIf(hasCustomPermissionRules())` e aparece como pulado no Core. O SQLite roda dentro do Directus, numa imagem
+construída sobre a oficial por `test/spatialite/Dockerfile`, que carrega a SpatiaLite em cada conexão (V-121), e o 12
+com SQLite fica sempre no Core, porque a chave só vai ao banco do projeto dela (D-043, D-044).
 
 **Os dados de teste entram pela API do Directus,** com o `@directus/sdk`: o esquema, os papéis, as políticas e os
 itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. Os papéis de sempre:
