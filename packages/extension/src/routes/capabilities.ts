@@ -5,6 +5,7 @@ import packageJson from '../../package.json' with { type: 'json' };
 import { databaseClientOf, detectCapabilities } from '../capabilities/detect.js';
 import { viewerOf, visibleTo } from '../capabilities/visible.js';
 import { knexClassOf } from '../db/client.js';
+import { failClosed } from '../db/fail-closed.js';
 import { type Query, readVersions } from '../db/versions.js';
 
 type Knex = ApiExtensionContext['database'];
@@ -45,10 +46,11 @@ export const readCapabilities = async (
 
 	const client = databaseClientOf(knexClassOf(context.database));
 
-	const [versions, directusVersion] = await Promise.all([
-		readVersions(client, queryOf(context.database)),
-		directusVersionOf(context, accountability),
-	]);
+	// Both read the database: the versions, and Directus its settings.
+	const [versions, directusVersion] = await failClosed(
+		() => Promise.all([readVersions(client, queryOf(context.database)), directusVersionOf(context, accountability)]),
+		context.logger.child({ extension: 'geospatial' }),
+	);
 
 	const capabilities = detectCapabilities({
 		client,
