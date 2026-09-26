@@ -4,6 +4,9 @@
 	"type": "module",
 	"scripts": {
 		"check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test",
+		"dev": "node dev/env.ts && pnpm --filter directus-extension-geospatial build && docker compose --file dev/compose.yaml up --detach --wait && pnpm --filter directus-extension-geospatial dev",
+		"dev:down": "docker compose --file dev/compose.yaml down",
+		"dev:logs": "docker compose --file dev/compose.yaml logs --follow",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"knip": "knip",

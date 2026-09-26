@@ -2,7 +2,9 @@
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
 		"types": ["node"],
-		"noEmit": true
+		"noEmit": true,
+		// Node runs dev/env.ts by stripping its types, which works only for syntax that erases to JavaScript.
+		"erasableSyntaxOnly": true
 	},
-	"include": ["*.ts"]
+	"include": ["*.ts", "dev/*.ts"]
 }

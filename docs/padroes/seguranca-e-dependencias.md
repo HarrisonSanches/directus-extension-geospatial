@@ -7,6 +7,8 @@ confiança se constrói no repositório.
 
 - **Nunca no repositório nem no banco:** chaves e segredos só em variáveis de ambiente (§7.8). O `.env` fica no
   `.gitignore`, com um `.env.example` sem valores.
+- No ambiente de desenvolvimento, o `pnpm dev` gera os segredos que estão vazios no `dev/.env`, com 32 bytes
+  aleatórios, e mantém os que já têm valor. Cada clone fica com os seus, e nenhum vai para o repositório.
 - `gitleaks` na integração contínua e, antes da abertura do repositório no fim da F00 (D-040), sobre o histórico
   inteiro. Depois da abertura, o secret scanning do GitHub também vigia o repositório (V-75).
 - Segredo nunca em log, mensagem de erro, URL ou resposta da API.

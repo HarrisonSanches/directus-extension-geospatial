@@ -1,0 +1,92 @@
+# The development environment: Directus 12, PostGIS and Redis, with the extension from packages/extension.
+# pnpm dev starts it, pnpm dev:down stops it and keeps the data, and pnpm dev:down --volumes also deletes the data.
+# The values come from dev/.env, a copy of dev/.env.example whose secrets pnpm dev generates.
+
+name: directus-geospatial-dev
+
+services:
+  directus:
+    image: directus/directus:12.4.1
+    depends_on:
+      database:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    # Each port is published on 127.0.0.1 only. Without the address, Docker publishes it on every interface, and its
+    # NAT rules route the traffic before a host firewall such as ufw sees it.
+    ports:
+      - 127.0.0.1:${DIRECTUS_PORT:-8055}:8055
+    volumes:
+      # The whole package, read-only. Directus reads its package.json and the bundle in dist/, which the watch build
+      # rewrites in place. A mount of dist/ alone would keep pointing at the old folder once a build recreates it.
+      - ../packages/extension:/directus/extensions/directus-extension-geospatial:ro
+      - uploads:/directus/uploads
+    environment:
+      PUBLIC_URL: http://127.0.0.1:${DIRECTUS_PORT:-8055}
+      SECRET: ${SECRET:?pnpm dev generates it in dev/.env}
+      DB_CLIENT: pg
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_DATABASE: directus
+      DB_USER: directus
+      DB_PASSWORD: ${DB_PASSWORD:?pnpm dev generates it in dev/.env}
+      # Directus creates the admin on the first start only, while the database is empty.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set it in dev/.env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?pnpm dev generates it in dev/.env}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?pnpm dev generates it in dev/.env}
+      # With REDIS set, Directus moves its message bus, locks and synchronization to Redis, and CACHE_STORE moves the
+      # cache there too.
+      REDIS: redis://cache:6379
+      CACHE_STORE: redis
+      # Reloads the extension when the watch build rewrites dist/api.js or dist/app.js.
+      EXTENSIONS_AUTO_RELOAD: 'true'
+      TELEMETRY: 'false'
+    healthcheck:
+      # The image has Node, and /server/health answers 503 when the database or Redis is down.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8055/server/health').then((res) => process.exit(res.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      # The first start installs the system tables before Directus listens.
+      start_period: 120s
+      start_interval: 2s
+
+  database:
+    image: postgis/postgis:18-3.6-alpine
+    ports:
+      - 127.0.0.1:${DATABASE_PORT:-5432}:5432
+    volumes:
+      # From Postgres 18 on, the image keeps the data under /var/lib/postgresql, and no longer in its data folder.
+      - database:/var/lib/postgresql
+    environment:
+      POSTGRES_DB: directus
+      POSTGRES_USER: directus
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?pnpm dev generates it in dev/.env}
+    healthcheck:
+      # Over TCP: while the image initializes the database, the temporary server listens only on the socket.
+      test: [CMD, pg_isready, --host, 127.0.0.1, --username, directus, --dbname, directus]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+      start_interval: 2s
+
+  cache:
+    image: redis:8.10.2-alpine
+    # No port: only Directus reaches Redis, inside the network of the environment. Its state is temporary, and the
+    # image declares no volume, so it goes away with the container.
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+      start_interval: 2s
+
+volumes:
+  database:
+  uploads:
