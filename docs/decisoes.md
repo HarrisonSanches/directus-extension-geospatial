@@ -682,3 +682,27 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Um front-end público não consegue ler a matriz. Se esse caso aparecer, liberar a matriz para o anônimo é mudança compatível, com decisão própria.
   - O critério da F00-04 confere o banco e o PostGIS com o token de um admin.
   - O painel de saúde (admin) e o `geoCapabilities()` do SDK leem a mesma rota, e o SDK trata o `FORBIDDEN` como erro tipado.
+
+## D-043 — O Directus 12 nos testes com a chave do Open Innovation Grant
+
+- **Estado:** aceita em 26/09/2026.
+- **Onde:** §7.4 (testes), §7.5 · V-114, V-115, V-116 · P-26 · D-017, D-037.
+- **Contexto:** sem chave, o Directus 12 roda no tier Core, que não aceita regra de permissão própria (V-114). A Maria, que só lê a zona sul, não existe num 12 sem chave, então a paridade com filtro por linha (D-017) e a prova dos internos do 12 com a Maria, na F01 e na F02, não rodariam nele. A chave do Open Innovation Grant libera essas regras, mas cada banco novo que a recebe gasta uma das 5 ativações dela (V-115), e a suíte de integração cria um banco por rodada.
+- **Decisão:**
+  - O mantenedor tem uma chave do OIG, pedida em 26/09/2026, guardada no gerenciador de senhas dele e no segredo `DIRECTUS_LICENSE_KEY` do GitHub. A chave nunca vai para o repositório nem para um log.
+  - O Directus 12 licenciado nos testes sobe sempre sobre o mesmo banco base, já ativado, com a mesma `PUBLIC_URL`, e assim todas as rodadas usam uma ativação só. O banco base é criado uma vez, por um script, e a P-26 decide onde ele fica.
+  - Uma trava no código: o Directus 12 só recebe a chave depois de restaurar o banco base. Um banco novo nunca a recebe.
+  - Sem a chave, o 12 roda no Core: tudo menos as regras próprias, mais um teste que prova que o Core as recusa e que falha quando o Directus mudar isso. É o caso dos pull requests de fora, que não recebem os segredos, e de quem clona o projeto.
+  - As 5 ativações: uma para os testes com PostGIS, uma para o `pnpm dev`, uma para a demo pública e duas de reserva. O SQLite no 12 roda no Core, a menos que uma decisão use uma reserva.
+  - Antes de apagar um Directus licenciado, a licença é desativada.
+- **Alternativas descartadas:**
+  - Só o Core no 12: a paridade com filtro por linha e a prova dos internos do 12 ficariam sem teste, e o 12 é a major atual.
+  - Tirar o 12 dos testes até a licença para CI descartável sair: a faixa da D-037 prometeria uma versão sem teste, e o adaptador do 12 ficaria para o fim, com todas as diferenças de uma vez.
+  - Uma instância licenciada fixa para os testes: tira os testes dos containers (D-017) e exige um servidor sempre de pé.
+  - Uma licença comercial: paga, quando o OIG cobre o projeto.
+- **Consequências:**
+  - Os testes licenciados dependem do `licensing.directus.com`. Com ele fora do ar, o job do 12 licenciado falha, e o do Core continua.
+  - Pull requests de fora não rodam as regras próprias no 12; os do mantenedor e a rodada da noite rodam.
+  - A documentação de quem instala diz que a regra por linha no Directus 12 depende da licença do Directus, e que a extensão obedece ao que o Directus aplicar, com ou sem ela.
+  - As coleções da extensão contam no limite de 25 coleções do Core (V-114), e o desenho delas leva isso em conta.
+  - Quando o Directus lançar a licença para CI descartável, o banco base pode sair, com uma decisão nova.

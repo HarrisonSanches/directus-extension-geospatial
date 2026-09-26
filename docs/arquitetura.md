@@ -648,7 +648,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 2. **Paridade de permissão com o `/items`**, usando um papel restrito.
    - Quando um filtro nativo faz a mesma pergunta (a operação por área com "toca" equivale ao `_intersects`, e com "fora", ao `_nintersects`), os IDs precisam ser idênticos. No Oracle, isso depende da P-12.
    - Quando não faz, como no raio, o teste calcula a resposta certa: busca os itens permitidos pelo `/items` e calcula com a GeographicLib.
-3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus. Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5.
+3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus. Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5. O 12 roda com a chave do Open Innovation Grant e, sem ela, no tier Core (D-043).
 
 **Quando cada teste roda:**
 
@@ -691,8 +691,9 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
   - O que depender de algo novo de uma major mais recente aparece como indisponível nas anteriores, pela matriz de capacidades.
   - O Marketplace só oferece a última versão de cada extensão, então todo release precisa valer para a faixa inteira; do contrário, quem está numa major anterior perderia a instalação pelo Marketplace.
   - O CLI do SDK ainda gera `host: ^10.10.0`, então o valor é ajustado à mão.
+  - **A licença do 12:** sem chave, o Directus 12 roda no tier Core, que não aceita regra de permissão própria (filtro por linha, campos restritos, validação e presets) e limita o projeto a 25 coleções, contando as da extensão (V-114). A extensão obedece ao que o Directus aplicar, com ou sem licença, e a documentação diz isso a quem instala.
 - **Bancos:** a mesma política do Directus, que é suportar as versões LTS. A mínima de cada banco é a mais antiga que o fabricante ainda suporta na data do release. A matriz de testes roda a mínima e a mais nova, e a lista concreta é revista a cada release.
-- **PostGIS:** a mais antiga que o projeto PostGIS ainda mantém, nunca abaixo da 3.1 (a primeira com a grade hexagonal).
+- **PostGIS:** a mais antiga que o projeto PostGIS ainda mantém, nunca abaixo da 3.1 (a primeira com a grade hexagonal). Hoje, o piso é o PostGIS 3.2 sobre o Postgres 14, na imagem oficial, que parou de ser reconstruída em 2022, e o topo é o 3.6 sobre o 18 (V-113).
 - **Navegador:** WebGL2, como o mapa nativo.
 
 #### Instalação
@@ -753,7 +754,7 @@ Fica num servidor próprio do autor, com volume moderado (alguns milhões de pon
 - **O Studio exige login.** O papel público do Directus vale para a API, não para o Studio.
 - **Studio com usuários de demonstração**, cujas senhas ficam publicadas na tela de login:
   - "Operador": usa o layout, o módulo e o painel e edita itens da demo, sem acesso a configurações, Flows, usuários ou upload;
-  - "Maria, Operador Zona Sul": igual ao Operador, mas só vê a zona sul, para mostrar a regra de ouro na prática.
+  - "Maria, Operador Zona Sul": igual ao Operador, mas só vê a zona sul, para mostrar a regra de ouro na prática. A regra dela é uma permissão por linha, então o Directus da demo usa uma ativação da chave do Open Innovation Grant (D-043).
 - **Nunca um admin.** Um admin permitiria instalar extensões, mudar configurações, criar Flows que fazem requisições externas e subir arquivos. As funções de admin aparecem na documentação.
 - **API pública só de leitura,** com limite por IP. Os exemplos da documentação apontam para ela e funcionam de verdade.
 - **Proteções:**

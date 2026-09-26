@@ -23,7 +23,10 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - F00-04 feita em 25/09/2026: o `pnpm dev` sobe o Directus 12, o PostGIS e o Redis de `dev/`, só em `127.0.0.1`, com a
   extensão em modo watch e recarregando sem reiniciar o container. O `dev/.env.example` deixa os segredos vazios, e o
   `pnpm dev` os gera. O `/server/health` do Directus 12 pede sessão, e o ambiente espera pelo ping (V-109 a V-112).
-- Próximo passo: `/implement-issue F00-05`, a suíte de integração no Directus 12 com PostGIS.
+- F00-05 feita em 26/09/2026: o `pnpm test:integration` sobe o PostGIS 3.2 e o Directus 11.17.4 em containers e
+  prova a Maria e a união das políticas, com a cobertura de dentro do Directus somada à dos unitários. O Directus 12
+  sem chave não aceita regra por linha, e a chave do Open Innovation Grant entra na F00-06 (D-043, V-113 a V-118).
+- Próximo passo: `/implement-issue F00-06`, o Directus 12 licenciado na suíte.
 
 ## Documentação
 

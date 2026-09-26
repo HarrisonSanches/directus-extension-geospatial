@@ -9,15 +9,23 @@ catalog:
   '@commitlint/types': 21.2.3
   '@directus/errors': 2.5.1
   '@directus/extensions-sdk': 18.0.4
+  # The version released with Directus 12.4.1, which the integration suite runs.
+  '@directus/sdk': 26.0.0
   # The version the extensions SDK depends on, so both read the same types.
   '@directus/types': 16.2.0
   '@eslint/js': 10.0.1
   '@hey-api/openapi-ts': 0.99.0
+  '@testcontainers/postgresql': 12.1.0
   '@types/node': 24.13.6
   # TypeScript runs side by side (V-90): this alias is the TypeScript 7 behind tsc, and the typescript name below
   # serves the 6.0 API that typescript-eslint loads, until typescript-eslint supports TypeScript 7 (P-25).
   '@typescript/native': npm:typescript@7.0.2
   '@vitest/coverage-v8': 5.0.1
+  # The coverage libraries @vitest/coverage-v8 5.0.1 uses, so the coverage from inside Directus is converted and summed
+  # the same way as the one from the unit tests.
+  '@vitest/istanbul-lib-coverage': 1.0.1
+  '@vitest/istanbul-lib-report': 1.0.1
+  ast-v8-to-istanbul: 1.0.7
   eslint: 10.11.0
   eslint-config-prettier: 10.1.8
   eslint-plugin-import-x: 4.17.1
@@ -29,6 +37,7 @@ catalog:
   # The exact version @directus/types names as its optional peer, for the type of the logger.
   pino: 9.7.0
   prettier: 3.9.8
+  testcontainers: 12.1.0
   typescript: npm:@typescript/typescript6@6.0.2
   typescript-eslint: 8.70.1
   vite: 8.3.0
@@ -53,6 +62,13 @@ allowBuilds:
   esbuild: false
   # It only switches the library to Vue 2, and the version it ships is the one for Vue 3.
   vue-demi: false
+  # testcontainers reaches Docker through ssh2 only when Docker runs on another machine over SSH. Its install script
+  # only tries to compile an optional crypto binding with node-gyp, and ssh2 falls back to JavaScript without it.
+  ssh2: false
+  # A native addon that ssh2 lists as optional, to pick its ciphers; ssh2 works without it.
+  cpu-features: false
+  # Its postinstall only warns when a dependent declares an incompatible version scheme of it.
+  protobufjs: false
 
 # The extensions SDK of Directus 18.0.4 ships Vite 8 with @vitejs/plugin-vue 6.0.1, which accepts Vite only up to 7.
 # The plugin declares Vite 8 from 6.0.5 on, in the same 6.0 line.
