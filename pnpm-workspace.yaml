@@ -74,6 +74,12 @@ allowBuilds:
 # The plugin declares Vite 8 from 6.0.5 on, in the same 6.0 line.
 overrides:
   '@directus/extensions-sdk>@vitejs/plugin-vue': 6.0.9
+  # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj and GHSA-2883-xcg3-v3hh: the generator of the contract types and the
+  # utils of Directus pin versions of js-yaml that a crafted YAML drives to quadratic CPU use, fixed in the same line.
+  'js-yaml@>=4.0.0 <4.3.2': 4.3.2
+  # GHSA-6w3j-5fw6-r9vr and GHSA-gg4h-3hg2-grpc: the utils of Directus pin a version of joi open to prototype
+  # pollution, fixed in the same line.
+  'joi@>=18.0.0 <18.2.5': 18.2.5
 
 # Dependencies that these packages use in their type declarations and do not declare. pnpm then resolves them from
 # its hidden hoisting folder, where typescript is the TypeScript 7 package, which has no API, and type-fest is missing.
@@ -95,3 +101,14 @@ pmOnFail: ignore
 
 # Refuses a pnpm outside engines.pnpm, and any dependency that does not support the Node version in use.
 engineStrict: true
+
+# Advisories that pnpm audit ignores, each one reviewed. osv-scanner.toml ignores the same ones until a date, and when
+# it passes, the OSV-Scanner of the CI fails and asks for the review of both lists.
+auditConfig:
+  ignoreGhsas:
+    # unhead, through the themes of the extensions SDK of Directus, which pin @unhead/vue at 1.11.20, the last of the
+    # 1.x line. The fixes only exist in 2.x. The SDK uses it to build the Studio parts of an extension, and the bundle
+    # has none yet, so the sanitization these advisories bypass never runs.
+    - GHSA-5339-hvwr-7582
+    - GHSA-g5xx-pwrp-g3fv
+    - GHSA-95h2-gj7x-gx9w

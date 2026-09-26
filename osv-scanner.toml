@@ -1,0 +1,21 @@
+# Advisories the OSV-Scanner of the CI ignores, each one until a date. The auditConfig of pnpm-workspace.yaml ignores
+# the same ones in pnpm audit, without a date, so when a date here passes, the scan fails and both lists get reviewed.
+
+# unhead, through the themes of the extensions SDK of Directus, which pin @unhead/vue at 1.11.20, the last of the 1.x
+# line. The fixes only exist in 2.x. The SDK uses it to build the Studio parts of an extension, and the bundle has none
+# yet, so the sanitization these advisories bypass never runs.
+
+[[IgnoredVulns]]
+id = "GHSA-5339-hvwr-7582"
+ignoreUntil = 2026-12-26
+reason = "unhead 1.11.20, pinned by the extensions SDK of Directus, with no fix in 1.x and no Studio code in the bundle."
+
+[[IgnoredVulns]]
+id = "GHSA-g5xx-pwrp-g3fv"
+ignoreUntil = 2026-12-26
+reason = "unhead 1.11.20, pinned by the extensions SDK of Directus, with no fix in 1.x and no Studio code in the bundle."
+
+[[IgnoredVulns]]
+id = "GHSA-95h2-gj7x-gx9w"
+ignoreUntil = 2026-12-26
+reason = "unhead 1.11.20, pinned by the extensions SDK of Directus, with no fix in 1.x and no Studio code in the bundle."
