@@ -710,7 +710,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-044 — A ativação dos testes presa a um `project_id` fixo, sem banco base
 
 - **Estado:** aceita em 26/09/2026. Substitui a D-043 no banco base e na trava.
-- **Onde:** §7.4 (testes), §7.5 · V-114, V-115, V-119 · P-27 · D-043.
+- **Onde:** §7.4 (testes), §7.5 · V-114, V-115, V-119, V-130 · D-043.
 - **Contexto:** a D-043 previa um banco base, criado uma vez com a chave e restaurado a cada rodada, e deixava para a P-26 onde guardá-lo. A P-26 mostrou que a ativação se prende ao `project_id` gravado no banco e à `PUBLIC_URL`, e que o banco licenciado guarda a própria chave em texto puro (V-119). O banco base não poderia ir para o Git nem para o cache da CI, e o que ele levava de útil para a licença era só o `project_id`.
 - **Decisão:**
   - O Directus 12 dos testes sobe num banco novo, sem a chave, no Core. A suíte troca o `project_id` sorteado por um `project_id` fixo dos testes, versionado, e só então aplica a chave pela rota `POST /license`, com uma `PUBLIC_URL` fixa. Toda rodada, em qualquer máquina e na CI, cai no mesmo par e reaproveita uma ativação só.

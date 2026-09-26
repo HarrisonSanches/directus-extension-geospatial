@@ -38,7 +38,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   e a causa só no log, e volta quando o banco volta. Os códigos da extensão levam o prefixo `GEOSPATIAL_` (D-045). O
   Directus mostra ao admin a mensagem de um erro que não é dele e carrega uma extensão fora do `host` sem aviso
   (V-124, V-125).
-- Próximo passo: `/implement-issue F00-09`, a integração contínua no pull request e à noite.
+- F00-09 feita em 26/09/2026: o GitHub Actions confere cada push e pull request do `develop` e do `main`, com a
+  integração num job por combinação, o gitleaks, o `pnpm audit`, o OSV-Scanner e o zizmor, e o título do pull
+  request pelo commitlint. A noite acrescenta o PostGIS mais novo e roda pela primeira vez depois do merge, porque o
+  GitHub só agenda o que está no ramo padrão. A chave do 12 ativa no runner, e o gitleaks passava sem varrer nada
+  (V-126 a V-130).
+- Próximo passo: `/implement-issue F00-10`, a cobertura do diff e o quality gate.
 
 ## Documentação
 

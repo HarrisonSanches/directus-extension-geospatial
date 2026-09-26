@@ -35,7 +35,10 @@ confiança se constrói no repositório.
   - dependência que não roda no Node em uso não instala (`engineStrict`, V-93);
   - versão recém-publicada só entra depois de 3 dias (`minimumReleaseAge` de 4320 minutos, no pnpm e no
     Renovate), para dar tempo de um pacote comprometido ser descoberto;
-  - `pnpm audit` e OSV-Scanner na CI;
+  - `pnpm audit` e OSV-Scanner na CI. Uma vulnerabilidade com correção sai por atualização ou, quando quem a puxa
+    prende a versão exata, por um `overrides` com a faixa vulnerável no nome. A que não tem correção vira exceção,
+    com o motivo, no `auditConfig.ignoreGhsas` do `pnpm-workspace.yaml` e no `osv-scanner.toml`, este com a data de
+    revisão (`ignoreUntil`): passada a data, o OSV-Scanner falha e as duas listas são revistas (V-128);
   - o Dependabot alerts ligado, para a vulnerabilidade nova aparecer mesmo sem push (V-75);
   - os workflows do GitHub Actions passam pelo zizmor (V-74).
 - Atualizações pelo Renovate, agrupadas, com a integração contínua como filtro. As tags do Directus também, e o
