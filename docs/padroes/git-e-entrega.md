@@ -59,9 +59,11 @@ módulo (`tiles`, `cache`, `queue`, `live`, `reports`, `internals`), o pacote (`
   a mudança quebra cliente. Isso só acontece em versão major, com o aviso de descontinuação antes
   ([`api-e-contrato.md`](api-e-contrato.md));
 - `Co-Authored-By: <modelo> <noreply@anthropic.com>`, na última linha, quando um agente de IA trabalhou na
-  mudança: nos commits dele direto no `develop` e no fim da descrição do pull request, que vira o commit do
-  `develop` no squash. Os commits dos ramos das issues saem sem ela, porque, com a linha neles, o GitHub acrescenta
-  na caixa do squash um bloco `---------` que repete o `Co-authored-by` (V-92).
+  mudança: em todo commit dele, nos ramos das issues e direto no `develop`, e no fim da descrição do pull request,
+  que vira o commit do `develop` no squash. Com a linha nos commits do ramo, o GitHub acrescenta na caixa do squash
+  um bloco `---------` com o `Co-authored-by` deles (V-92). A mensagem do squash termina com uma linha só de
+  coautoria: antes de entregar o pull request, o agente confere o texto da caixa pelo `viewerMergeBodyText` da API
+  do GitHub e ajusta a descrição até sobrar uma linha só, no fim.
 
 **O tipo não decide a versão.** Quem decide é o changeset do pull request (veja Versões). O tipo e o `!` servem a
 quem lê o histórico e a quem procura uma mudança.
