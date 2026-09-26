@@ -42,12 +42,13 @@ services:
       EXTENSIONS_AUTO_RELOAD: 'true'
       TELEMETRY: 'false'
     healthcheck:
-      # The image has Node, and /server/health answers 503 when the database or Redis is down.
+      # The image has Node. /server/ping answers anyone once Directus serves requests, while /server/health refuses a
+      # request without a session from Directus 12 on. The database and Redis have health checks of their own.
       test:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:8055/server/health').then((res) => process.exit(res.ok ? 0 : 1), () => process.exit(1))"
+        - "fetch('http://127.0.0.1:8055/server/ping').then((res) => process.exit(res.ok ? 0 : 1), () => process.exit(1))"
       interval: 10s
       timeout: 5s
       retries: 3
