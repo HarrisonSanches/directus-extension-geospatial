@@ -15,7 +15,7 @@ const bind = async (key: string): Promise<string> => {
 	const images = combinations['12-postgis'];
 	const network = await new Network().start();
 
-	const database = await new PostgreSqlContainer(images.database)
+	const database = await new PostgreSqlContainer(images.database.image)
 		.withNetwork(network)
 		.withNetworkAliases('database')
 		.withDatabase('directus')
@@ -26,7 +26,7 @@ const bind = async (key: string): Promise<string> => {
 	const adminToken = newSecret();
 
 	// The same image and public URL as the suite, without the extension, which the license does not need.
-	const directus = await new GenericContainer(images.directus)
+	const directus = await new GenericContainer(images.directus.image)
 		.withNetwork(network)
 		.withEnvironment({
 			DB_CLIENT: 'pg',

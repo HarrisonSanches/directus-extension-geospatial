@@ -30,7 +30,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   variável `INTEGRATION` escolhe a combinação. A ativação dos testes se prende a um `project_id` que o servidor de
   licenças escolheu, sem banco base, e o `pnpm dev` recebe a chave pelo Studio. Sem a chave, o 12 roda no Core
   (D-044, V-119, V-120).
-- Próximo passo: `/implement-issue F00-07`, o SQLite com SpatiaLite na suíte.
+- F00-07 feita em 26/09/2026: o SQLite com a SpatiaLite entra nas duas versões do Directus e fecha as quatro
+  combinações da suíte. O Directus nunca carrega a SpatiaLite, e a imagem de teste a carrega em cada conexão, por uma
+  pré-carga do Node. O 12 com SQLite roda no Core, e os filtros espaciais do Directus não valem num campo
+  `geometry.Point` (V-121 a V-123).
+- Próximo passo: `/implement-issue F00-08`, o `capabilities` falhando fechado com o banco fora.
 
 ## Documentação
 

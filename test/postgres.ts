@@ -1,4 +1,5 @@
 import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import type { DatabaseVersions } from './directus.ts';
 
 // Runs a query with psql inside the database container, and returns the rows as text: one per line, with the columns
 // separated by |.
@@ -17,9 +18,7 @@ export const query = async (database: StartedPostgreSqlContainer, sql: string): 
 };
 
 // The versions the database container runs, read as the extension reads them.
-export const versionsOf = async (
-	database: StartedPostgreSqlContainer,
-): Promise<{ postgres: string; postgis: string }> => {
+export const versionsOf = async (database: StartedPostgreSqlContainer): Promise<DatabaseVersions> => {
 	const output = await query(
 		database,
 		"select current_setting('server_version'), extversion from pg_extension where extname = 'postgis'",
@@ -30,5 +29,5 @@ export const versionsOf = async (
 		throw new Error(`Could not read the versions of the database: ${output}`);
 	}
 
-	return { postgres, postgis };
+	return { database: { client: 'postgres', version: postgres }, spatial: { name: 'postgis', version: postgis } };
 };

@@ -625,7 +625,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 - **MariaDB:** passa pelo mesmo helper do MySQL. O índice espacial exige `NOT NULL`. As distâncias são planas, e metros só com `ST_Distance_Sphere`.
 - **SQL Server:** a coluna é `geometry` (plano) com SRID 4326. Para medir em metros, os itens são convertidos para `geography` depois do filtro por caixa.
 - **Oracle:** a coluna é `sdo_geometry` com SRID 4326 (geodésico, em metros), e há busca de mais próximos com índice (`SDO_NN`). O filtro nativo do Directus usa um operador que provavelmente exige índice espacial; isso será confirmado.
-- **SQLite:** só tem geometria se a SpatiaLite já estiver carregada. Na prática, é banco de desenvolvimento e de testes.
+- **SQLite:** só tem geometria se a SpatiaLite já estiver carregada, e o Directus não a carrega: quem monta o ambiente a carrega em cada conexão, como a imagem dos testes faz (V-121). Na prática, é banco de desenvolvimento e de testes.
 
 #### Como lidar com as diferenças
 
@@ -648,7 +648,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 2. **Paridade de permissão com o `/items`**, usando um papel restrito.
    - Quando um filtro nativo faz a mesma pergunta (a operação por área com "toca" equivale ao `_intersects`, e com "fora", ao `_nintersects`), os IDs precisam ser idênticos. No Oracle, isso depende da P-12.
    - Quando não faz, como no raio, o teste calcula a resposta certa: busca os itens permitidos pelo `/items` e calcula com a GeographicLib.
-3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus. Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5. O 12 roda com a chave do Open Innovation Grant, ativada sempre no mesmo projeto dos testes, e, sem ela, no tier Core (D-043, D-044).
+3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus, e o SQLite na imagem oficial do Directus com a SpatiaLite (V-121). Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5. O 12 com PostGIS roda com a chave do Open Innovation Grant, ativada sempre no mesmo projeto dos testes, e, sem ela, no tier Core. O 12 com SQLite fica sempre no Core, porque outro banco seria outro projeto e gastaria outra ativação (D-043, D-044).
 
 **Quando cada teste roda:**
 

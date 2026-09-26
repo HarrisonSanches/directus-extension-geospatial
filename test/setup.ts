@@ -5,14 +5,15 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
-import { GenericContainer, Network, Wait } from 'testcontainers';
+import { GenericContainer, Network, type StartedTestContainer, Wait } from 'testcontainers';
 import type { TestProject } from 'vitest/node';
 import { type Combination, combinations } from './combinations.ts';
 import { collectCoverage } from './coverage.ts';
-import { connect, type Directus } from './directus.ts';
+import { type Client, connect, type DatabaseVersions, type Directus } from './directus.ts';
 import { activateLicense, publicUrl, readLicenseKey } from './license.ts';
-import { versionsOf } from './postgres.ts';
+import { versionsOf as postgresVersionsOf } from './postgres.ts';
 import { seed } from './seed.ts';
+import { directusWithSpatialite, versionsOf as sqliteVersionsOf } from './sqlite.ts';
 
 // Where Directus loads the extension from, and where Node writes the coverage of the Directus processes.
 const extensionInContainer = '/directus/extensions/directus-extension-geospatial';
@@ -34,21 +35,67 @@ interface Started {
 	stop: () => Promise<void>;
 }
 
-// Starts the database and the Directus of one combination, with the built extension, and builds the schema, the roles
-// and the data.
-const start = async (combination: Combination, licenseKey: string | undefined): Promise<Started> => {
-	const images = combinations[combination];
-	const version = images.directus.split(':')[1] ?? '';
+// What differs between the databases of the combinations.
+interface Backend {
+	// Directus, before it starts, and what it needs to reach its database.
+	directus: GenericContainer;
+	environment: Record<string, string>;
+	versions: (directus: StartedTestContainer) => Promise<DatabaseVersions>;
+	// Applies the key of the tests, which only goes to the PostGIS database, under the project the key is bound to. Any
+	// other database would be another project, and another activation of the key (D-043, D-044).
+	activate?: (admin: Client, key: string) => Promise<void>;
+	stop: () => Promise<void>;
+}
 
+const withPostgis = async (directus: string, image: string): Promise<Backend> => {
 	const network = await new Network().start();
 
-	const database = await new PostgreSqlContainer(images.database)
+	const database = await new PostgreSqlContainer(image)
 		.withNetwork(network)
 		.withNetworkAliases('database')
 		.withDatabase('directus')
 		.withUsername('directus')
 		.withPassword(newSecret())
 		.start();
+
+	return {
+		directus: new GenericContainer(directus).withNetwork(network),
+		environment: {
+			DB_CLIENT: 'pg',
+			DB_HOST: 'database',
+			DB_PORT: '5432',
+			DB_DATABASE: database.getDatabase(),
+			DB_USER: database.getUsername(),
+			DB_PASSWORD: database.getPassword(),
+		},
+		versions: () => postgresVersionsOf(database),
+		activate: (admin, key) => activateLicense(admin, database, key),
+		stop: async () => {
+			await database.stop();
+			await network.stop();
+		},
+	};
+};
+
+// SQLite has no container of its own: Directus opens the file its image points DB_FILENAME to.
+const withSqlite = async (combination: Combination): Promise<Backend> => {
+	const builtAt = performance.now();
+	const directus = await directusWithSpatialite(combinations[combination].directus);
+
+	log(`${combination}: built the image of Directus with SpatiaLite in ${seconds(builtAt)} s`);
+
+	return { directus, environment: {}, versions: sqliteVersionsOf, stop: () => Promise.resolve() };
+};
+
+// Starts the database and the Directus of one combination, with the built extension, and builds the schema, the roles
+// and the data.
+const start = async (combination: Combination, licenseKey: string | undefined): Promise<Started> => {
+	const images = combinations[combination];
+
+	const backend =
+		images.database.client === 'postgres'
+			? await withPostgis(images.directus.image, images.database.image)
+			: await withSqlite(combination);
 
 	// The container user of Directus writes the coverage here, so the folder is open to any user.
 	const recorded = await mkdtemp(join(tmpdir(), 'geospatial-coverage-'));
@@ -57,15 +104,9 @@ const start = async (combination: Combination, licenseKey: string | undefined): 
 	const adminToken = newSecret();
 	const startedAt = performance.now();
 
-	const directus = await new GenericContainer(images.directus)
-		.withNetwork(network)
+	const directus = await backend.directus
 		.withEnvironment({
-			DB_CLIENT: 'pg',
-			DB_HOST: 'database',
-			DB_PORT: '5432',
-			DB_DATABASE: database.getDatabase(),
-			DB_USER: database.getUsername(),
-			DB_PASSWORD: database.getPassword(),
+			...backend.environment,
 			SECRET: newSecret(),
 			ADMIN_EMAIL: 'admin@example.com',
 			ADMIN_PASSWORD: newSecret(),
@@ -94,25 +135,31 @@ const start = async (combination: Combination, licenseKey: string | undefined): 
 		.withStartupTimeout(180_000)
 		.start();
 
-	log(`${images.directus} started in ${seconds(startedAt)} s`);
+	log(`${combination}: Directus started in ${seconds(startedAt)} s`);
 
 	const url = `http://${directus.getHost()}:${String(directus.getMappedPort(8055))}`;
 	const admin = connect(url, adminToken);
 
 	// Directus 12 starts on the Core tier, which refuses permissions with rules of their own, and the key of the Open
 	// Innovation Grant lifts that (V-114, D-043). Directus 11 has no license key.
-	const licensed = Number(version.split('.')[0]) >= 12;
+	const tiered = Number(images.directus.version.split('.')[0]) >= 12;
+	const { activate } = backend;
 
-	if (licensed && licenseKey !== undefined) {
+	if (tiered && licenseKey !== undefined && activate !== undefined) {
 		const activatingAt = performance.now();
 
-		await activateLicense(admin, database, licenseKey);
-		log(`${images.directus} activated the key on the project of the tests in ${seconds(activatingAt)} s`);
-	} else if (licensed) {
-		log(`${images.directus} runs on the Core tier: DIRECTUS_LICENSE_KEY is empty or missing`);
+		await activate(admin, licenseKey);
+		log(`${combination}: activated the key on the project of the tests in ${seconds(activatingAt)} s`);
+	} else if (tiered) {
+		const reason =
+			licenseKey === undefined
+				? 'DIRECTUS_LICENSE_KEY is empty or missing'
+				: 'the key of the tests only goes to the database of their project';
+
+		log(`${combination}: runs on the Core tier, because ${reason}`);
 	}
 
-	const customPermissionRules = !licensed || licenseKey !== undefined;
+	const customPermissionRules = !tiered || (licenseKey !== undefined && activate !== undefined);
 	const tokens = await seed(admin, newSecret, customPermissionRules);
 
 	return {
@@ -120,15 +167,14 @@ const start = async (combination: Combination, licenseKey: string | undefined): 
 		directus: {
 			url,
 			tokens: { admin: adminToken, ...tokens },
-			versions: { directus: version, ...(await versionsOf(database)) },
+			versions: { directus: images.directus.version, ...(await backend.versions(directus)) },
 			customPermissionRules,
 		},
 		recorded,
 		stop: async () => {
 			// Time for Directus to shut down and for Node to write the coverage. Without it, Docker kills the container at once.
 			await directus.stop({ timeout: 60_000 });
-			await database.stop();
-			await network.stop();
+			await backend.stop();
 		},
 	};
 };

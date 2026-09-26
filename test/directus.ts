@@ -1,16 +1,23 @@
 import { createDirectus, type DirectusClient, rest, type RestClient, staticToken } from '@directus/sdk';
 import { inject } from 'vitest';
 import type { Combination } from './combinations.ts';
+import type { Database, Spatial } from 'directus-geospatial-contract';
 
 // The users the suite calls Directus as. Each one but the public has a static token of its own.
 export type Role = 'admin' | 'maria' | 'twoPolicies' | 'public';
+
+// The database and the spatial extension a combination runs, with the versions as they report them.
+export interface DatabaseVersions {
+	database: { client: Database['client']; version: string };
+	spatial: Spatial;
+}
 
 // What the global setup hands to the tests about the Directus of one combination.
 export interface Directus {
 	url: string;
 	tokens: Record<Exclude<Role, 'public'>, string>;
 	// The versions the containers run, read from them.
-	versions: { directus: string; postgres: string; postgis: string };
+	versions: { directus: string } & DatabaseVersions;
 	// Whether Directus accepts permissions with rules of their own, such as the row filter of Maria. Directus 12 only
 	// does with a license key, and runs on the Core tier without one (V-114, D-043).
 	customPermissionRules: boolean;
