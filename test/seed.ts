@@ -103,7 +103,9 @@ export const seed = async (
 				{ field: 'region', type: 'string', schema: {} },
 				{ field: 'category', type: 'string', schema: {} },
 				{ field: 'status', type: 'string', schema: {} },
-				{ field: 'occurred_at', type: 'timestamp', schema: {} },
+				// On SQLite, Directus flags a timestamp in its meta, and without a meta of its own the flag goes into one with no
+				// collection and no field, which fails validation (V-122).
+				{ field: 'occurred_at', type: 'timestamp', schema: {}, meta: {} },
 			],
 		}),
 	);

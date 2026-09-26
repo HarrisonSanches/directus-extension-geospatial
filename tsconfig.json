@@ -8,5 +8,5 @@
 		"erasableSyntaxOnly": true,
 		"allowImportingTsExtensions": true
 	},
-	"include": ["*.ts", "dev/*.ts", "test/*.ts"]
+	"include": ["*.ts", "dev/*.ts", "test/*.ts", "test/spatialite/*.ts"]
 }

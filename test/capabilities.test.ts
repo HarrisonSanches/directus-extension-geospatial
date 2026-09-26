@@ -6,14 +6,17 @@ import type { Capabilities } from 'directus-geospatial-contract';
 const capabilities = (role: Role) =>
 	as(role).request(customEndpoint<Capabilities>({ path: '/geospatial/capabilities', method: 'GET' }));
 
+// The extension reports the version of the database as major.minor.
+const majorMinor = (version: string) => version.split('.').slice(0, 2).join('.');
+
 describe('GET /geospatial/capabilities num Directus de verdade', () => {
-	it('para o admin, responde com o Postgres e o PostGIS do container, nas versões que eles informam', async () => {
-		const { directus, postgres, postgis } = versions();
+	it('para o admin, responde com o banco e a extensão espacial da combinação, nas versões que eles informam', async () => {
+		const { directus, database, spatial } = versions();
 
 		expect(await capabilities('admin')).toMatchObject({
 			directus: { version: directus },
-			database: { client: 'postgres', version: postgres },
-			spatial: { name: 'postgis', version: postgis },
+			database: { client: database.client, version: majorMinor(database.version) },
+			spatial,
 		});
 	});
 
