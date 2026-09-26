@@ -15,10 +15,10 @@ const coverageDir = new URL('../coverage/', import.meta.url);
 
 const readJson = async <T>(path: string | URL): Promise<T> => JSON.parse(await readFile(path, 'utf8')) as T;
 
-// Converts the coverage Node recorded inside the container into the format of the unit coverage, with the same
-// library and parser Vitest uses, so both can be summed. The two sides still split the code into statements at
-// slightly different positions, so the sum is a floor (V-118).
-export const collectCoverage = async (recorded: string, output: URL): Promise<void> => {
+// Converts the coverage Node recorded inside the containers, a folder for each combination, into the format of the unit
+// coverage, with the same library and parser Vitest uses, so both can be summed. The two sides still split the code
+// into statements at slightly different positions, so the sum is a floor (V-118).
+export const collectCoverage = async (recorded: Record<string, string>, output: URL): Promise<void> => {
 	const code = await readFile(bundle, 'utf8');
 	const sourceMap = await readJson<{ version: number; sources: string[]; mappings: string; names: string[] }>(
 		new URL('api.js.map', bundle),
@@ -35,28 +35,33 @@ export const collectCoverage = async (recorded: string, output: URL): Promise<vo
 	}
 
 	const coverage = createCoverageMap({});
-	let scripts = 0;
 
-	for (const file of await readdir(recorded)) {
-		const { result } = await readJson<{ result: Profiler.ScriptCoverage[] }>(join(recorded, file));
+	for (const [combination, folder] of Object.entries(recorded)) {
+		let scripts = 0;
 
-		// Directus imports the bundle with a query string that changes on each load.
-		for (const script of result.filter(({ url }) => url.split('?')[0] === bundleInContainer)) {
-			scripts++;
-			coverage.merge(
-				await convert({
-					code,
-					sourceMap,
-					ast: program,
-					coverage: { url: bundle.href, functions: script.functions },
-				}),
+		for (const file of await readdir(folder)) {
+			const { result } = await readJson<{ result: Profiler.ScriptCoverage[] }>(join(folder, file));
+
+			// Directus imports the bundle with a query string that changes on each load.
+			for (const script of result.filter(({ url }) => url.split('?')[0] === bundleInContainer)) {
+				scripts++;
+				coverage.merge(
+					await convert({
+						code,
+						sourceMap,
+						ast: program,
+						coverage: { url: bundle.href, functions: script.functions },
+					}),
+				);
+			}
+		}
+
+		// Without it, the sum would quietly lose the code that only runs inside that Directus.
+		if (scripts === 0) {
+			throw new Error(
+				`The Directus of ${combination} wrote no coverage of the extension. It has to stop gracefully, within the stop timeout.`,
 			);
 		}
-	}
-
-	// Without it, the sum would quietly lose the code that only runs inside Directus.
-	if (scripts === 0) {
-		throw new Error('Directus wrote no coverage of the extension. It has to stop gracefully, within the stop timeout.');
 	}
 
 	await mkdir(new URL('.', output), { recursive: true });

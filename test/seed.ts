@@ -1,5 +1,5 @@
 import { createCollection, createItems, createPolicy, createRole, createUser } from '@directus/sdk';
-import type { Client, Occurrence } from './directus.js';
+import type { Client, Occurrence } from './directus.ts';
 
 const point = (longitude: number, latitude: number): Occurrence['geometry'] => ({
 	type: 'Point',
@@ -81,8 +81,17 @@ const userWith = async (admin: Client, role: string, email: string, newSecret: (
 	return token;
 };
 
-// Builds the schema, the roles and the data through the API, so each database stores them the way Directus writes to it.
-export const seed = async (admin: Client, newSecret: () => string): Promise<{ maria: string; twoPolicies: string }> => {
+// The row rule of Maria, who only reads the south zone.
+export const southZone = { region: { _eq: 'south' } };
+
+// Builds the schema, the roles and the data through the API, so each database stores them the way Directus writes to
+// it. Without custom permission rules, as on the Core tier of Directus 12, the roles get no policy, and their users
+// only have a session (V-114).
+export const seed = async (
+	admin: Client,
+	newSecret: () => string,
+	customPermissionRules: boolean,
+): Promise<{ maria: string; twoPolicies: string }> => {
 	await admin.request(
 		createCollection({
 			collection: 'occurrences',
@@ -101,12 +110,17 @@ export const seed = async (admin: Client, newSecret: () => string): Promise<{ ma
 
 	await admin.request(createItems('occurrences', occurrences));
 
-	const maria = await roleWith(admin, 'Maria, South Zone Operator', { 'South zone': { region: { _eq: 'south' } } });
+	const maria = await roleWith(
+		admin,
+		'Maria, South Zone Operator',
+		customPermissionRules ? { 'South zone': southZone } : {},
+	);
 
-	const twoPolicies = await roleWith(admin, 'Two policies', {
-		'North zone': { region: { _eq: 'north' } },
-		Theft: { category: { _eq: 'theft' } },
-	});
+	const twoPolicies = await roleWith(
+		admin,
+		'Two policies',
+		customPermissionRules ? { 'North zone': { region: { _eq: 'north' } }, Theft: { category: { _eq: 'theft' } } } : {},
+	);
 
 	return {
 		maria: await userWith(admin, maria, 'maria@example.com', newSecret),

@@ -26,7 +26,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - F00-05 feita em 26/09/2026: o `pnpm test:integration` sobe o PostGIS 3.2 e o Directus 11.17.4 em containers e
   prova a Maria e a união das políticas, com a cobertura de dentro do Directus somada à dos unitários. O Directus 12
   sem chave não aceita regra por linha, e a chave do Open Innovation Grant entra na F00-06 (D-043, V-113 a V-118).
-- Próximo passo: `/implement-issue F00-06`, o Directus 12 licenciado na suíte.
+- F00-06 feita em 26/09/2026: a suíte roda também no Directus 12.4.1 licenciado, em paralelo com o 11.17, e a
+  variável `INTEGRATION` escolhe a combinação. A ativação dos testes se prende a um `project_id` que o servidor de
+  licenças escolheu, sem banco base, e o `pnpm dev` recebe a chave pelo Studio. Sem a chave, o 12 roda no Core
+  (D-044, V-119, V-120).
+- Próximo passo: `/implement-issue F00-07`, o SQLite com SpatiaLite na suíte.
 
 ## Documentação
 

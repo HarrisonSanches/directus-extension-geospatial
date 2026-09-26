@@ -1,4 +1,5 @@
 import { configDefaults, defineConfig } from 'vitest/config';
+import { selectCombinations } from './test/combinations.ts';
 
 export default defineConfig({
 	test: {
@@ -10,24 +11,23 @@ export default defineConfig({
 			// test/coverage.ts sums this report with the coverage recorded inside Directus by the integration suite.
 			reportsDirectory: 'coverage/unit',
 		},
-		// The global setup of the integration suite stops Directus and waits for Node to write the coverage recorded
-		// inside the container. The option applies to the whole run, not to one project.
+		// Starts Directus and the database of every combination of the run in containers, at once, for every test file.
+		// At the root it runs once, and the projects do not extend the root, so they do not run it again.
+		globalSetup: ['test/setup.ts'],
+		// The global setup stops Directus and waits for Node to write the coverage recorded inside the containers. The
+		// option applies to the whole run, not to one project.
 		teardownTimeout: 120_000,
 		projects: [
-			{
-				extends: true,
-				test: { name: 'unit', exclude: [...configDefaults.exclude, 'test/**'] },
-			},
-			{
-				extends: true,
+			{ test: { name: 'unit', exclude: [...configDefaults.exclude, 'test/**'] } },
+			// A project for each combination of the integration suite, and INTEGRATION picks some of them.
+			...selectCombinations(process.env.INTEGRATION).map((combination) => ({
 				test: {
-					name: 'integration',
+					name: `integration:${combination}`,
 					include: ['test/**/*.test.ts'],
-					// Starts Directus and the database in containers once, for every test file.
-					globalSetup: ['test/setup.ts'],
+					provide: { combination },
 					testTimeout: 30_000,
 				},
-			},
+			})),
 		],
 	},
 });

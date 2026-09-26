@@ -1,6 +1,11 @@
 # The development environment: Directus 12, PostGIS and Redis, with the extension from packages/extension.
 # pnpm dev starts it, pnpm dev:down stops it and keeps the data, and pnpm dev:down --volumes also deletes the data.
 # The values come from dev/.env, a copy of dev/.env.example whose secrets pnpm dev generates.
+#
+# Directus 12 runs on the Core tier until its license key is applied in the Studio, under Settings > License (D-044).
+# The key binds to the database and to PUBLIC_URL, which comes from DIRECTUS_PORT, and takes one of its activations.
+# Deactivate the license there before pnpm dev:down --volumes, or the deleted database keeps the activation, and before
+# a change of DIRECTUS_PORT. LICENSE_KEY stays out of this file: with it, Directus would activate every new database.
 
 name: directus-geospatial-dev
 
@@ -40,6 +45,8 @@ services:
       CACHE_STORE: redis
       # Reloads the extension when the watch build rewrites dist/api.js or dist/app.js.
       EXTENSIONS_AUTO_RELOAD: 'true'
+      # Directus 12 sends the telemetry anyway, because both the Core tier and the license key require it. It only
+      # stops the telemetry under a license without that requirement (V-116).
       TELEMETRY: 'false'
     healthcheck:
       # The image has Node. /server/ping answers anyone once Directus serves requests, while /server/health refuses a

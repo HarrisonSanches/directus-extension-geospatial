@@ -685,7 +685,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 ## D-043 — O Directus 12 nos testes com a chave do Open Innovation Grant
 
-- **Estado:** aceita em 26/09/2026.
+- **Estado:** aceita em 26/09/2026. Em parte substituída pela D-044 em 26/09/2026: o banco base e a trava.
 - **Onde:** §7.4 (testes), §7.5 · V-114, V-115, V-116 · P-26 · D-017, D-037.
 - **Contexto:** sem chave, o Directus 12 roda no tier Core, que não aceita regra de permissão própria (V-114). A Maria, que só lê a zona sul, não existe num 12 sem chave, então a paridade com filtro por linha (D-017) e a prova dos internos do 12 com a Maria, na F01 e na F02, não rodariam nele. A chave do Open Innovation Grant libera essas regras, mas cada banco novo que a recebe gasta uma das 5 ativações dela (V-115), e a suíte de integração cria um banco por rodada.
 - **Decisão:**
@@ -706,3 +706,26 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - A documentação de quem instala diz que a regra por linha no Directus 12 depende da licença do Directus, e que a extensão obedece ao que o Directus aplicar, com ou sem ela.
   - As coleções da extensão contam no limite de 25 coleções do Core (V-114), e o desenho delas leva isso em conta.
   - Quando o Directus lançar a licença para CI descartável, o banco base pode sair, com uma decisão nova.
+
+## D-044 — A ativação dos testes presa a um `project_id` fixo, sem banco base
+
+- **Estado:** aceita em 26/09/2026. Substitui a D-043 no banco base e na trava.
+- **Onde:** §7.4 (testes), §7.5 · V-114, V-115, V-119 · P-27 · D-043.
+- **Contexto:** a D-043 previa um banco base, criado uma vez com a chave e restaurado a cada rodada, e deixava para a P-26 onde guardá-lo. A P-26 mostrou que a ativação se prende ao `project_id` gravado no banco e à `PUBLIC_URL`, e que o banco licenciado guarda a própria chave em texto puro (V-119). O banco base não poderia ir para o Git nem para o cache da CI, e o que ele levava de útil para a licença era só o `project_id`.
+- **Decisão:**
+  - O Directus 12 dos testes sobe num banco novo, sem a chave, no Core. A suíte troca o `project_id` sorteado por um `project_id` fixo dos testes, versionado, e só então aplica a chave pela rota `POST /license`, com uma `PUBLIC_URL` fixa. Toda rodada, em qualquer máquina e na CI, cai no mesmo par e reaproveita uma ativação só.
+  - O `project_id` fixo é o que o servidor escolheu na primeira ativação, pelo `pnpm test:bind-license`, porque ele não aceita um `project_id` que não conhece (V-119). O script roda uma vez, com o consentimento do mantenedor, e de novo só se a ativação dos testes for desativada.
+  - A trava: a chave só sai para um Directus cujo banco tem o `project_id` fixo.
+  - A conferência: depois de ativar, a suíte relê o `project_id`. Se o servidor o trocou, criou uma ativação nova, e a suíte a desativa na hora e falha.
+  - A chave nunca vai para as variáveis do container: ela segue no corpo do pedido à rota `/license` e fica no banco descartável do teste.
+  - No `pnpm dev`, a chave se aplica pelo Studio (Settings → License), e não pela variável `LICENSE_KEY`. Um banco novo continua no Core, a desativação é um clique e o ambiente sobe sem o servidor de licenças.
+  - O resto da D-043 continua valendo: as 5 ativações, o Core sem a chave, o teste que prova que o Core recusa a regra, a desativação antes de apagar um Directus licenciado e o segredo `DIRECTUS_LICENSE_KEY` na CI.
+- **Alternativas descartadas:**
+  - O banco base da D-043: o dump leva a chave em texto puro e precisaria ir cifrado para o repositório, e uma versão nova do Directus pediria um banco base novo ou as migrações na restauração.
+  - A chave pela variável `LICENSE_KEY` nos testes: o Directus ativaria na subida, com o `project_id` sorteado, antes de a suíte trocá-lo.
+  - A chave pela variável no `pnpm dev`, como a F00-06 pedia: um `pnpm dev:down --volumes` seguido de um `pnpm dev` gastaria uma ativação sem aviso, a desativação exigiria tirar a variável e reiniciar, e o ambiente não subiria sem o servidor de licenças.
+- **Consequências:**
+  - O esquema depende de a reativação ser idempotente no servidor, como o cliente de licença documenta e o ensaio da F00-06 confirmou (V-119). A conferência depois de cada ativação avisa se isso mudar, sem deixar uma ativação a mais presa.
+  - Nenhuma API mostra a contagem de ativações: a prova de que os testes usam uma só é o `project_id` que não muda.
+  - O `project_id` fixo fica preso à chave do mantenedor. Com outra chave, o servidor devolveria um `project_id` novo, e a conferência falharia: quem tiver uma chave própria roda o 12 no Core.
+  - Quando o Directus lançar a licença para CI descartável, a troca do `project_id` pode sair, com uma decisão nova.
