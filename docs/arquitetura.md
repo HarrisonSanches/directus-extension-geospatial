@@ -648,7 +648,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 2. **Paridade de permissão com o `/items`**, usando um papel restrito.
    - Quando um filtro nativo faz a mesma pergunta (a operação por área com "toca" equivale ao `_intersects`, e com "fora", ao `_nintersects`), os IDs precisam ser idênticos. No Oracle, isso depende da P-12.
    - Quando não faz, como no raio, o teste calcula a resposta certa: busca os itens permitidos pelo `/items` e calcula com a GeographicLib.
-3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus. Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5. O 12 roda com a chave do Open Innovation Grant e, sem ela, no tier Core (D-043).
+3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus. Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5. O 12 roda com a chave do Open Innovation Grant, ativada sempre no mesmo projeto dos testes, e, sem ela, no tier Core (D-043, D-044).
 
 **Quando cada teste roda:**
 
