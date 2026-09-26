@@ -9,6 +9,10 @@ confiança se constrói no repositório.
   `.gitignore`, com um `.env.example` sem valores.
 - No ambiente de desenvolvimento, o `pnpm dev` gera os segredos que estão vazios no `dev/.env`, com 32 bytes
   aleatórios, e mantém os que já têm valor. Cada clone fica com os seus, e nenhum vai para o repositório.
+- A chave de licença do Directus 12 (D-043, D-044) fica no `test/.env` da máquina e, na CI, no segredo
+  `DIRECTUS_LICENSE_KEY`. A suíte a manda só no corpo do pedido à rota `/license` do Directus do teste, nunca nas
+  variáveis do container, e a tira das mensagens de erro. No `pnpm dev`, ela se aplica pelo Studio, e o Directus a
+  guarda no banco do volume (V-119).
 - `gitleaks` na integração contínua e, antes da abertura do repositório no fim da F00 (D-040), sobre o histórico
   inteiro. Depois da abertura, o secret scanning do GitHub também vigia o repositório (V-75).
 - Segredo nunca em log, mensagem de erro, URL ou resposta da API.

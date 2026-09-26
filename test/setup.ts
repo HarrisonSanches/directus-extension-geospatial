@@ -7,14 +7,12 @@ import { fileURLToPath } from 'node:url';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { GenericContainer, Network, Wait } from 'testcontainers';
 import type { TestProject } from 'vitest/node';
-import { collectCoverage } from './coverage.js';
-import { connect } from './directus.js';
-import { seed } from './seed.js';
-
-// The oldest PostGIS the PostGIS project maintains, on the oldest supported Postgres, in its official image, which
-// stopped being rebuilt in 2022 (V-113). Directus 11.17 is the floor of the range (D-037); Directus 12 comes with the
-// key of the Open Innovation Grant in F00-06 (D-043).
-const images = { postgis: 'postgis/postgis:14-3.2-alpine', directus: 'directus/directus:11.17.4' };
+import { type Combination, combinations } from './combinations.ts';
+import { collectCoverage } from './coverage.ts';
+import { connect, type Directus } from './directus.ts';
+import { activateLicense, publicUrl, readLicenseKey } from './license.ts';
+import { versionsOf } from './postgres.ts';
+import { seed } from './seed.ts';
 
 // Where Directus loads the extension from, and where Node writes the coverage of the Directus processes.
 const extensionInContainer = '/directus/extensions/directus-extension-geospatial';
@@ -26,29 +24,25 @@ const newSecret = () => randomBytes(32).toString('hex');
 
 const seconds = (since: number) => ((performance.now() - since) / 1000).toFixed(1);
 
-// Reads the versions the database container runs, as the extension does.
-const versionsOf = async (database: Awaited<ReturnType<PostgreSqlContainer['start']>>) => {
-	const { output, exitCode } = await database.exec([
-		'psql',
-		...['--username', database.getUsername(), '--dbname', database.getDatabase(), '--tuples-only', '--no-align'],
-		...[
-			'--command',
-			"select current_setting('server_version'), extversion from pg_extension where extname = 'postgis'",
-		],
-	]);
-	const [postgres, postgis] = output.trim().split('|');
+const log = (text: string) => process.stdout.write(`${text}\n`);
 
-	if (exitCode !== 0 || postgres === undefined || postgis === undefined) {
-		throw new Error(`Could not read the versions of the database: ${output}`);
-	}
+interface Started {
+	combination: Combination;
+	directus: Directus;
+	// The folder where Node writes the coverage of this Directus.
+	recorded: string;
+	stop: () => Promise<void>;
+}
 
-	return { postgres, postgis };
-};
+// Starts the database and the Directus of one combination, with the built extension, and builds the schema, the roles
+// and the data.
+const start = async (combination: Combination, licenseKey: string | undefined): Promise<Started> => {
+	const images = combinations[combination];
+	const version = images.directus.split(':')[1] ?? '';
 
-export default async function setup(project: TestProject): Promise<() => Promise<void>> {
 	const network = await new Network().start();
 
-	const database = await new PostgreSqlContainer(images.postgis)
+	const database = await new PostgreSqlContainer(images.database)
 		.withNetwork(network)
 		.withNetworkAliases('database')
 		.withDatabase('directus')
@@ -61,7 +55,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 	await chmod(recorded, 0o777);
 
 	const adminToken = newSecret();
-	const started = performance.now();
+	const startedAt = performance.now();
 
 	const directus = await new GenericContainer(images.directus)
 		.withNetwork(network)
@@ -76,8 +70,11 @@ export default async function setup(project: TestProject): Promise<() => Promise
 			ADMIN_EMAIL: 'admin@example.com',
 			ADMIN_PASSWORD: newSecret(),
 			ADMIN_TOKEN: adminToken,
+			// Directus 12 binds the license key to it (D-044). The suite reaches Directus by the mapped port instead.
+			PUBLIC_URL: publicUrl,
 			// Directus exits if the extension fails to load, instead of answering 404 on its routes.
 			EXTENSIONS_MUST_LOAD: 'true',
+			// Directus 12 sends the telemetry anyway, because both the Core tier and the license require it (V-116).
 			TELEMETRY: 'false',
 			// Node writes the coverage of each process when it exits, and pm2 waits this long before killing Directus.
 			NODE_V8_COVERAGE: coverageInContainer,
@@ -97,23 +94,80 @@ export default async function setup(project: TestProject): Promise<() => Promise
 		.withStartupTimeout(180_000)
 		.start();
 
-	process.stdout.write(`${images.directus} started in ${seconds(started)} s\n`);
+	log(`${images.directus} started in ${seconds(startedAt)} s`);
 
 	const url = `http://${directus.getHost()}:${String(directus.getMappedPort(8055))}`;
-	const tokens = await seed(connect(url, adminToken), newSecret);
+	const admin = connect(url, adminToken);
 
-	project.provide('directus', {
-		url,
-		tokens: { admin: adminToken, ...tokens },
-		versions: { directus: images.directus.split(':')[1] ?? '', ...(await versionsOf(database)) },
-	});
+	// Directus 12 starts on the Core tier, which refuses permissions with rules of their own, and the key of the Open
+	// Innovation Grant lifts that (V-114, D-043). Directus 11 has no license key.
+	const licensed = Number(version.split('.')[0]) >= 12;
+
+	if (licensed && licenseKey !== undefined) {
+		const activatingAt = performance.now();
+
+		await activateLicense(admin, database, licenseKey);
+		log(`${images.directus} activated the key on the project of the tests in ${seconds(activatingAt)} s`);
+	} else if (licensed) {
+		log(`${images.directus} runs on the Core tier: DIRECTUS_LICENSE_KEY is empty or missing`);
+	}
+
+	const customPermissionRules = !licensed || licenseKey !== undefined;
+	const tokens = await seed(admin, newSecret, customPermissionRules);
+
+	return {
+		combination,
+		directus: {
+			url,
+			tokens: { admin: adminToken, ...tokens },
+			versions: { directus: version, ...(await versionsOf(database)) },
+			customPermissionRules,
+		},
+		recorded,
+		stop: async () => {
+			// Time for Directus to shut down and for Node to write the coverage. Without it, Docker kills the container at once.
+			await directus.stop({ timeout: 60_000 });
+			await database.stop();
+			await network.stop();
+		},
+	};
+};
+
+const cleanUp = async (started: Started[]) => {
+	await Promise.all(started.map(({ stop }) => stop()));
+	await Promise.all(started.map(({ recorded }) => rm(recorded, { recursive: true, force: true })));
+};
+
+// Vitest runs the global setup of each project one after the other, so this one, at the root, runs once and starts at
+// the same time the combinations of every project of the run. Each project finds its own by name (test/directus.ts).
+export default async function setup(project: TestProject): Promise<() => Promise<void>> {
+	const selected = project.vitest.projects.flatMap(({ config }) => config.provide.combination ?? []);
+
+	// A run of the unit tests alone starts nothing.
+	if (selected.length === 0) {
+		return () => Promise.resolve();
+	}
+
+	const licenseKey = await readLicenseKey();
+	const results = await Promise.allSettled(selected.map((combination) => start(combination, licenseKey)));
+	const started = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+	const failure = results.find((result) => result.status === 'rejected');
+
+	if (failure !== undefined) {
+		await cleanUp(started);
+		throw failure.reason;
+	}
+
+	project.provide('directus', Object.fromEntries(started.map(({ combination, directus }) => [combination, directus])));
 
 	return async () => {
-		// Time for Directus to shut down and for Node to write the coverage. Without it, Docker kills the container at once.
-		await directus.stop({ timeout: 60_000 });
-		await collectCoverage(recorded, new URL('../coverage/integration/coverage-final.json', import.meta.url));
-		await rm(recorded, { recursive: true, force: true });
-		await database.stop();
-		await network.stop();
+		const recorded = Object.fromEntries(started.map(({ combination, recorded }) => [combination, recorded]));
+
+		try {
+			await Promise.all(started.map(({ stop }) => stop()));
+			await collectCoverage(recorded, new URL('../coverage/integration/coverage-final.json', import.meta.url));
+		} finally {
+			await Promise.all(started.map(({ recorded }) => rm(recorded, { recursive: true, force: true })));
+		}
 	};
 }

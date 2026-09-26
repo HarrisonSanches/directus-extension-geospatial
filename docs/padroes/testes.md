@@ -30,6 +30,13 @@ junto, mas vem.
 os bancos em containers, nas mesmas imagens dos testes do Directus (V-28). Um mock do Knex não pega a diferença
 entre dialetos, que é exatamente onde o risco mora.
 
+**Cada teste de integração roda em todas as combinações** de versão do Directus e banco (`test/combinations.ts`),
+um projeto do Vitest por combinação, e a variável `INTEGRATION` escolhe algumas. O que difere entre as versões fica
+no ajudante (`test/directus.ts`): o teste pergunta ao ajudante o que o Directus aceita, e nunca a versão. O
+Directus 12 roda com a chave do Open Innovation Grant, ativada sempre no mesmo projeto (D-044), e, sem ela, no tier
+Core, que recusa as regras próprias de permissão (V-114). Um teste que depende delas, como os da Maria, roda com
+`it.runIf(hasCustomPermissionRules())` e aparece como pulado no Core.
+
 **Os dados de teste entram pela API do Directus,** com o `@directus/sdk`: o esquema, os papéis, as políticas e os
 itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. Os papéis de sempre:
 

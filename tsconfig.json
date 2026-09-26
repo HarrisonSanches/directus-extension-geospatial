@@ -3,8 +3,10 @@
 	"compilerOptions": {
 		"types": ["node"],
 		"noEmit": true,
-		// Node runs dev/env.ts by stripping its types, which works only for syntax that erases to JavaScript.
-		"erasableSyntaxOnly": true
+		// Node runs dev/env.ts and the scripts of test/ by stripping their types, which works only for syntax that erases
+		// to JavaScript, and only finds a local module by the .ts extension it has on disk.
+		"erasableSyntaxOnly": true,
+		"allowImportingTsExtensions": true
 	},
 	"include": ["*.ts", "dev/*.ts", "test/*.ts"]
 }
