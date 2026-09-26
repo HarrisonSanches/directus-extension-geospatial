@@ -1,0 +1,84 @@
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import type { Profiler } from 'node:inspector';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { type CoverageMapData, createCoverageMap } from '@vitest/istanbul-lib-coverage';
+import { create, createContext } from '@vitest/istanbul-lib-report';
+import convert from 'ast-v8-to-istanbul';
+import { parse } from 'vite';
+
+// The bundle on this machine, and the path Directus imports it from inside the container.
+const bundle = new URL('../packages/extension/dist/api.js', import.meta.url);
+const bundleInContainer = 'file:///directus/extensions/directus-extension-geospatial/dist/api.js';
+
+const coverageDir = new URL('../coverage/', import.meta.url);
+
+const readJson = async <T>(path: string | URL): Promise<T> => JSON.parse(await readFile(path, 'utf8')) as T;
+
+// Converts the coverage Node recorded inside the container into the format of the unit coverage, with the same
+// library and parser Vitest uses, so both can be summed. The two sides still split the code into statements at
+// slightly different positions, so the sum is a floor (V-118).
+export const collectCoverage = async (recorded: string, output: URL): Promise<void> => {
+	const code = await readFile(bundle, 'utf8');
+	const sourceMap = await readJson<{ version: number; sources: string[]; mappings: string; names: string[] }>(
+		new URL('api.js.map', bundle),
+	);
+
+	// The sources of the map are relative to it, and the unit coverage names each file by its absolute path.
+	sourceMap.sources = sourceMap.sources.map((source) => fileURLToPath(new URL(source, bundle)));
+
+	// The parser and options behind parseAstAsync of vitest/node, the one @vitest/coverage-v8 converts with.
+	const { program, errors } = await parse('api.js', code, { lang: 'js', preserveParens: false });
+
+	if (errors.length > 0) {
+		throw new Error(`Could not parse the bundle: ${errors.map(({ message }) => message).join('; ')}`);
+	}
+
+	const coverage = createCoverageMap({});
+	let scripts = 0;
+
+	for (const file of await readdir(recorded)) {
+		const { result } = await readJson<{ result: Profiler.ScriptCoverage[] }>(join(recorded, file));
+
+		// Directus imports the bundle with a query string that changes on each load.
+		for (const script of result.filter(({ url }) => url.split('?')[0] === bundleInContainer)) {
+			scripts++;
+			coverage.merge(
+				await convert({
+					code,
+					sourceMap,
+					ast: program,
+					coverage: { url: bundle.href, functions: script.functions },
+				}),
+			);
+		}
+	}
+
+	// Without it, the sum would quietly lose the code that only runs inside Directus.
+	if (scripts === 0) {
+		throw new Error('Directus wrote no coverage of the extension. It has to stop gracefully, within the stop timeout.');
+	}
+
+	await mkdir(new URL('.', output), { recursive: true });
+	await writeFile(output, JSON.stringify(coverage.toJSON()));
+};
+
+// Sums the coverage of the unit tests and of the integration suite, and prints it. Only the files of the unit
+// coverage count, which are the ones the Vitest configuration includes.
+if (import.meta.main) {
+	const coverage = createCoverageMap(await readJson<CoverageMapData>(new URL('unit/coverage-final.json', coverageDir)));
+	const integration = createCoverageMap(
+		await readJson<CoverageMapData>(new URL('integration/coverage-final.json', coverageDir)),
+	);
+
+	const included = new Set(coverage.files());
+
+	integration.filter((file) => included.has(file));
+	coverage.merge(integration);
+
+	const context = createContext({ dir: fileURLToPath(new URL('all', coverageDir)), coverageMap: coverage });
+
+	for (const report of [create('text'), create('json'), create('lcovonly')]) {
+		report.execute(context);
+	}
+}
