@@ -52,6 +52,11 @@ export type OperationCapability = {
 };
 
 /**
+ * The codes of the errors of the extension, in the extensions.code of the error format of Directus. Each one starts with GEOSPATIAL_, so it never collides with a code of Directus.
+ */
+export type ErrorCode = 'GEOSPATIAL_DATABASE_UNAVAILABLE';
+
+/**
  * The error format of Directus.
  */
 export type Errors = {
@@ -75,6 +80,10 @@ export type CapabilitiesErrors = {
 	 * The request has no authenticated user (code FORBIDDEN).
 	 */
 	403: Errors;
+	/**
+	 * The database did not answer, so the extension cannot tell what it can do (code GEOSPATIAL_DATABASE_UNAVAILABLE). The route answers again as soon as the database is back.
+	 */
+	503: Errors;
 };
 
 export type CapabilitiesError = CapabilitiesErrors[keyof CapabilitiesErrors];

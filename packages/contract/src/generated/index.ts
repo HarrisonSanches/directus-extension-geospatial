@@ -9,6 +9,7 @@ export type {
 	CapabilitiesResponses,
 	ClientOptions,
 	Database,
+	ErrorCode,
 	Errors,
 	OperationCapability,
 	Spatial,

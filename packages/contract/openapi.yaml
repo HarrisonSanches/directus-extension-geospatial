@@ -34,6 +34,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Errors'
+        '503':
+          description: >-
+            The database did not answer, so the extension cannot tell what it can do (code
+            GEOSPATIAL_DATABASE_UNAVAILABLE). The route answers again as soon as the database is back.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
 components:
   securitySchemes:
     bearer:
@@ -100,6 +108,12 @@ components:
             the extension, on a maximum volume; unavailable does not run.
           type: string
           enum: [indexed, unindexed, capped, unavailable]
+    ErrorCode:
+      description: >-
+        The codes of the errors of the extension, in the extensions.code of the error format of Directus. Each one
+        starts with GEOSPATIAL_, so it never collides with a code of Directus.
+      type: string
+      enum: [GEOSPATIAL_DATABASE_UNAVAILABLE]
     Errors:
       description: The error format of Directus.
       type: object
