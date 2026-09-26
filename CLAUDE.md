@@ -20,7 +20,10 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - F00-03 feita em 25/09/2026: o bundle responde em `/geospatial/capabilities`. Os pacotes `extension` e `contract`
   nasceram, com o contrato primeiro, e o `sdk` fica para a F02. Só quem tem sessão lê a rota, e só o admin vê o
   banco (D-042). As imagens oficiais do Directus não trazem a SpatiaLite (V-104, V-103 a V-108).
-- Próximo passo: `/implement-issue F00-04`, o ambiente de desenvolvimento com um comando.
+- F00-04 feita em 25/09/2026: o `pnpm dev` sobe o Directus 12, o PostGIS e o Redis de `dev/`, só em `127.0.0.1`, com a
+  extensão em modo watch e recarregando sem reiniciar o container. O `dev/.env.example` deixa os segredos vazios, e o
+  `pnpm dev` os gera. O `/server/health` do Directus 12 pede sessão, e o ambiente espera pelo ping (V-109 a V-112).
+- Próximo passo: `/implement-issue F00-05`, a suíte de integração no Directus 12 com PostGIS.
 
 ## Documentação
 
