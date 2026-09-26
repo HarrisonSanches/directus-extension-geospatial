@@ -84,6 +84,10 @@ com o rastro do Playwright guardado para investigar.
 - **Mutação:** 90% no módulo de permissões, toda noite. É o que mede se os testes testam, e não só executam.
 - Cobertura vinda de teste escrito só para bater a meta não conta.
 - O provedor de cobertura é o V8, pelo Vitest.
+- **O código que roda dentro do Directus** (a rota, o endpoint e o hook) só é medido pela integração: o Directus do
+  teste sobe com o `NODE_V8_COVERAGE`, para com tempo de gravar a cobertura, e ela é convertida pela mesma biblioteca
+  do Vitest e somada à dos unitários no `pnpm test:coverage` (V-117). Como os dois lados dividem o código em trechos
+  com posições um pouco diferentes, essa soma é um piso, e o critério de 90% se lê em linhas (V-118).
 
 ## Os ensaios de falha viram testes
 
