@@ -36,7 +36,8 @@
 		"host": "^11.17.0 || ^12.4.0"
 	},
 	"scripts": {
-		"build": "directus-extension build"
+		"build": "directus-extension build",
+		"dev": "directus-extension build --watch --no-minify"
 	},
 	"devDependencies": {
 		"@directus/errors": "catalog:",
