@@ -90,7 +90,9 @@ packages/extension/src/
 - Erros de domínio tipados, com o código do contrato, convertidos para o formato do Directus só na borda, pelo
   `createError` do `@directus/errors`.
 - Nada de `throw` com texto solto, e nada de erro engolido: um `catch` que não sabe o que fazer propaga.
-- Mensagem de erro nunca leva SQL, a geometria enviada, token ou dado de outro usuário.
+- Mensagem de erro nunca leva SQL, a geometria enviada, token ou dado de outro usuário. O Directus devolve ao admin
+  a mensagem de um erro que não é dele (V-124), então a leitura do banco de uma rota passa pelo `failClosed`, que
+  troca a falha pelo erro próprio e manda a causa para o log.
 
 ## Tempo, aleatoriedade e cancelamento
 

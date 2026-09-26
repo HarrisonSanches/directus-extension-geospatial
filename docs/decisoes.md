@@ -729,3 +729,17 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Nenhuma API mostra a contagem de ativações: a prova de que os testes usam uma só é o `project_id` que não muda.
   - O `project_id` fixo fica preso à chave do mantenedor. Com outra chave, o servidor devolveria um `project_id` novo, e a conferência falharia: quem tiver uma chave própria roda o 12 no Core.
   - Quando o Directus lançar a licença para CI descartável, a troca do `project_id` pode sair, com uma decisão nova.
+
+## D-045 — Os códigos de erro da extensão com o prefixo `GEOSPATIAL_`
+
+- **Estado:** aceita em 26/09/2026.
+- **Onde:** §7.4 (API e SDK) · `docs/padroes/api-e-contrato.md` · V-124.
+- **Contexto:** a F00-08 criou o primeiro código de erro próprio, para o banco fora. O Directus já usa códigos sem prefixo, como `LIMIT_EXCEEDED`, `TIMEOUT` e `SERVICE_UNAVAILABLE` (`@directus/errors` 2.5.1), e dois dos códigos que o contrato prevê, o de limite excedido e o de tempo esgotado, colidiriam com eles.
+- **Decisão:**
+  - Todo código de erro da extensão começa com `GEOSPATIAL_`, em `UPPER_SNAKE_CASE`, e fica listado no schema `ErrorCode` do contrato, que tipa o código no `createError` da extensão.
+  - O primeiro é o `GEOSPATIAL_DATABASE_UNAVAILABLE`, com status 503: o banco não respondeu. A mensagem é fixa, e a causa vai só para o log.
+  - Um erro que o Directus já tem no formato dele passa como veio, com o código dele.
+- **Alternativas descartadas:**
+  - Códigos sem prefixo, no estilo do Directus: os de limite e de tempo esgotado precisariam de nomes que desviassem dos dele, e um código novo do Directus poderia colidir com um nosso a qualquer versão.
+  - Usar o `SERVICE_UNAVAILABLE` do Directus para o banco fora: o cliente não distinguiria o banco da extensão de outro serviço, e o código não seria da extensão, como a F00-08 pedia.
+- **Consequências:** o SDK e quem consome a API reconhecem um erro da extensão pelo prefixo. Depois da primeira publicação, mudar um código quebra cliente, então um código só muda numa versão major (`docs/padroes/api-e-contrato.md`).

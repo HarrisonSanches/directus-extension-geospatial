@@ -34,7 +34,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   combinações da suíte. O Directus nunca carrega a SpatiaLite, e a imagem de teste a carrega em cada conexão, por uma
   pré-carga do Node. O 12 com SQLite roda no Core, e os filtros espaciais do Directus não valem num campo
   `geometry.Point` (V-121 a V-123).
-- Próximo passo: `/implement-issue F00-08`, o `capabilities` falhando fechado com o banco fora.
+- F00-08 feita em 26/09/2026: com o banco fora, o `capabilities` falha fechado, com o `GEOSPATIAL_DATABASE_UNAVAILABLE`
+  e a causa só no log, e volta quando o banco volta. Os códigos da extensão levam o prefixo `GEOSPATIAL_` (D-045). O
+  Directus mostra ao admin a mensagem de um erro que não é dele e carrega uma extensão fora do `host` sem aviso
+  (V-124, V-125).
+- Próximo passo: `/implement-issue F00-09`, a integração contínua no pull request e à noite.
 
 ## Documentação
 

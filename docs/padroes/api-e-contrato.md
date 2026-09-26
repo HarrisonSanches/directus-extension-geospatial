@@ -19,7 +19,8 @@
 
 - Tudo sob `/geospatial` (D-019), com os nomes das operações em camelCase: o termo canônico do glossário (D-024).
 - Respostas no formato do Directus: `{ data, meta }`.
-- Erros no formato do Directus, com códigos próprios em `UPPER_SNAKE_CASE`, todos listados no contrato: operação
+- Erros no formato do Directus, com códigos próprios em `UPPER_SNAKE_CASE` e o prefixo `GEOSPATIAL_` (D-045), todos
+  listados no schema `ErrorCode` do contrato: banco fora (`GEOSPATIAL_DATABASE_UNAVAILABLE`, 503), operação
   indisponível, geometria inválida, limite excedido, consulta desconhecida e tempo esgotado (§7.8).
 - Valores calculados no campo reservado `$geo`; nas formas, nas propriedades do GeoJSON.
 - Horários em ISO 8601 com deslocamento (D-031).

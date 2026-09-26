@@ -39,6 +39,11 @@ Core, que recusa as regras próprias de permissão (V-114). Um teste que depende
 construída sobre a oficial por `test/spatialite/Dockerfile`, que carrega a SpatiaLite em cada conexão (V-121), e o 12
 com SQLite fica sempre no Core, porque a chave só vai ao banco do projeto dela (D-043, D-044).
 
+**Um teste que derruba um container sobe o próprio ambiente,** com o `startEnvironment` de `test/environment.ts`,
+para não quebrar os outros testes da combinação, que rodam em paralelo. A cobertura do Directus dele entra na soma
+pela pasta de cobertura da rodada, que o setup global entrega a todos os testes. Com o banco fora, o teste entra com
+um JWT, porque o Directus procura o token estático no banco antes de qualquer rota (V-124).
+
 **Os dados de teste entram pela API do Directus,** com o `@directus/sdk`: o esquema, os papéis, as políticas e os
 itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. Os papéis de sempre:
 
