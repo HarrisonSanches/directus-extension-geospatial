@@ -33,14 +33,14 @@ catalog:
   jiti: 2.7.0
   # The exact version Directus uses and @directus/types names as its peer.
   knex: 3.1.0
-  knip: 6.37.0
+  knip: 6.38.0
   # The exact version @directus/types names as its optional peer, for the type of the logger.
   pino: 9.7.0
-  prettier: 3.9.8
+  prettier: 3.9.9
   testcontainers: 12.1.0
   typescript: npm:@typescript/typescript6@6.0.2
   typescript-eslint: 8.70.1
-  vite: 8.3.0
+  vite: 8.3.1
   vitest: 5.0.1
   yaml: 2.9.1
 
@@ -79,7 +79,7 @@ overrides:
   'js-yaml@>=4.0.0 <4.3.2': 4.3.2
   # GHSA-6w3j-5fw6-r9vr and GHSA-gg4h-3hg2-grpc: the utils of Directus pin a version of joi open to prototype
   # pollution, fixed in the same line.
-  'joi@>=18.0.0 <18.2.5': 18.2.5
+  'joi@>=18.0.0 <18.2.5': 18.2.9
 
 # Dependencies that these packages use in their type declarations and do not declare. pnpm then resolves them from
 # its hidden hoisting folder, where typescript is the TypeScript 7 package, which has no API, and type-fest is missing.
