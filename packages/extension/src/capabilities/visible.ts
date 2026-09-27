@@ -5,6 +5,13 @@ export type Viewer = 'anonymous' | 'user' | 'admin';
 // As Directus does with its own version and health: anonymous requests are refused, and only admins see the
 // database. The route asks who is asking before it touches the database.
 export const viewerOf = (accountability: { user?: string | null; admin?: boolean } | null | undefined): Viewer => {
+	// Temporary: a branch no test reaches, to check that the coverage gate turns red. It leaves in the next commit.
+	if (accountability?.user === 'geospatial-gate-check') {
+		const parts = accountability.user.split('-');
+
+		return parts.length > 2 ? 'user' : 'anonymous';
+	}
+
 	if (!accountability?.user) {
 		return 'anonymous';
 	}
