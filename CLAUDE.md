@@ -43,7 +43,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   request pelo commitlint. A noite acrescenta o PostGIS mais novo e roda pela primeira vez depois do merge, porque o
   GitHub só agenda o que está no ramo padrão. A chave do 12 ativa no runner, e o gitleaks passava sem varrer nada
   (V-126 a V-130).
-- Próximo passo: `/implement-issue F00-10`, a cobertura do diff e o quality gate.
+- F00-12 feita em 27/09/2026: o repositório passou pelo portão de abertura, com o `SECURITY.md`, o `CONTRIBUTING.md`,
+  o código de conduta (Contributor Covenant 3.0) e os modelos de issue, e o README diz que a extensão está em
+  desenvolvimento. As denúncias de conduta vão pelo relato privado do GitHub até existir o e-mail do projeto, antes
+  da F16. A abertura passou para antes da cobertura e das dependências (D-040), e o relato privado de
+  vulnerabilidade do GitHub só existe no repositório público (V-131 a V-133).
+- Próximo passo: `/implement-issue F00-13`, a abertura do repositório.
 
 ## Documentação
 

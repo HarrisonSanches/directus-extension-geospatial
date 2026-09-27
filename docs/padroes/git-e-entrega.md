@@ -108,7 +108,7 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
 - **O título do pull request na CI,** pelo mesmo commitlint, bloqueando o merge. É a conferência que mais importa,
   porque no merge por squash o título vira o commit do `develop` (V-64, D-041). O próprio commitlint lê o título,
   sem action de terceiros. O bloqueio depende dos ramos protegidos, que no plano Free só existem em repositório
-  público (V-66): até a abertura, no fim da F00 (D-040), a falha aparece no pull request, mas não impede o merge.
+  público (V-66): até a abertura, na F00 (D-040), a falha aparece no pull request, mas não impede o merge.
 - **O squash no GitHub** configurado para usar o título e a descrição do pull request (V-64). O título vira o
   cabeçalho do commit, e a descrição vira o corpo e os rodapés; o modelo do pull request termina com
   `Refs: Fxx-yy`. Por isso a descrição traz só o porquê e os rodapés, e nunca uma lista de conferência, que iria
@@ -133,7 +133,8 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
   Exemplos: `feat/f02-03-radius-order`, `chore/f00-01-toolchain-and-commit-standard`.
 
 - O título do pull request segue o padrão de commit (`feat(radius): order items by distance`), porque vira o
-  commit do `develop`, e o identificador vai no rodapé `Refs: F02-03` da descrição.
+  commit do `develop`, e o identificador vai no rodapé `Refs: F02-03` da descrição. O pull request de quem vem de
+  fora cita a issue do GitHub, `Refs: #12`, como diz o [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 - Pull request mesmo trabalhando sozinho: é onde a integração contínua roda e onde fica o registro da mudança. O
   modelo do pull request pede o porquê e o `Refs:`; a lista "Pronto quer dizer" do [`README.md`](README.md) é
   conferida pela CI e pela revisão, e não entra na descrição.
@@ -141,7 +142,7 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
   por issue.
 - **Do `develop` para o `main`, merge commit,** num pull request no fim da fase, com a tag da fase no `main`
   (`f00-done`). É o único merge commit do projeto: o squash e o rebase fariam os dois ramos divergirem.
-- Os dois ramos são protegidos desde a abertura do repositório, no fim da F00 (D-040): sem push direto, com a
+- Os dois ramos são protegidos desde a abertura do repositório, na F00 (D-040): sem push direto, com a
   integração contínua e o título do pull request obrigatórios, e com o tipo de merge fixado em cada um (P-23).
 - **Nenhum dos dois recebe push forçado.** No GitHub, o histórico reescrito continua visível pelo hash e na página
   Activity (V-78); o que entrou se corrige com um commit novo, ou com `revert`.

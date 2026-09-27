@@ -3,7 +3,7 @@
 > Registro das decisões do projeto (D-0xx). Não existe `docs/adr/`: decisão nova entra aqui, com o próximo número livre.
 > Uma decisão só entra quando é **difícil de reverter**, **surpreendente sem contexto** e **resultado de um trade-off real**. O que é só esclarecimento vai direto para [arquitetura.md](arquitetura.md) ou para o [CONTEXT.md](../CONTEXT.md).
 > Uma decisão mudada não é apagada: ela ganha a linha "Substituída por D-0yy", e a nova explica o porquê.
-> As referências "§" apontam para seções de [arquitetura.md](arquitetura.md); V-xx e P-xx, para [verificacoes.md](verificacoes.md).
+> As referências "§" apontam para seções de [arquitetura.md](arquitetura.md); V-xx e P-xx, para [verificacoes.md](verificacoes.md). As fases (F00 a F17), as issues (como a F00-06) e os achados (A-0xx) são do plano de implementação, que o mantenedor guarda num repositório privado.
 
 ## Portas de mão única
 
@@ -632,8 +632,8 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 ## D-040 — Repositório aberto no fim da F00, antes da publicação
 
-- **Estado:** aceita em 25/09/2026. Complementada pela D-041: a proteção vale para o `develop` e para o `main`.
-- **Onde:** plano de implementação (F00, F16 e portões) · V-66, V-70, V-72, V-75, V-76, V-77 · A-001.
+- **Estado:** aceita em 25/09/2026. Complementada pela D-041: a proteção vale para o `develop` e para o `main`. Ajustada em 27/09/2026: a abertura vem logo depois do portão, antes da cobertura do diff e da atualização das dependências, que ficam mais simples e sem cota com o repositório público (V-66, V-70, V-72, V-77).
+- **Onde:** plano de implementação (F00, F16 e portões) · V-66, V-70, V-72, V-75, V-76, V-77 · A-001, A-018.
 - **Contexto:** o plano mantinha o repositório privado até a F16, para abrir junto com a publicação no npm. Num repositório privado de conta pessoal no plano Free, o `main` não tem proteção nem CI obrigatória (V-66), não existem CodeQL, secret scanning nem Scorecard (V-75, V-76), o SonarQube Cloud e o Codecov têm limites (V-70, V-72), e os minutos do Actions são uma cota que a matriz de testes consome rápido (V-77). O projeto também vai para o portfólio público do autor, e o processo (decisões, verificações e pull requests com CI) é parte do que ele mostra.
 - **Decisão:**
   - O repositório fica público no fim da F00, depois do portão de abertura do índice do plano.
