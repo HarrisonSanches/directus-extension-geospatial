@@ -47,7 +47,8 @@ confiança se constrói no repositório.
   - os workflows do GitHub Actions passam pelo zizmor (V-74).
 - **Atualizações pelo Renovate** (D-046), com a configuração em `.github/renovate.json5`, que a CI valida:
   - os minor e patch num pull request por semana, na segunda-feira, e cada major à parte. Nenhum entra sozinho, e
-    a integração contínua é o filtro;
+    a integração contínua é o filtro. A descrição, que vira o commit do `develop`, leva a tabela das versões, com o
+    link do diff de cada uma, e não as notas de versão;
   - as imagens do Directus a qualquer hora, com o patch separado da minor. O patch troca a versão da matriz, e a
     minor ou a major nova entra nela ao lado do piso (D-037). O canário roda nelas;
   - o que só anda junto vem num grupo: os pacotes do Directus, que o `@directus/extensions-sdk` prende em versões
