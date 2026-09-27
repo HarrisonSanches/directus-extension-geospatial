@@ -1,0 +1,26 @@
+name: Design question or idea
+description: A question or feedback on the design, or a problem you want the extension to solve.
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The design is in [docs/arquitetura.md](https://github.com/HarrisonSanches/directus-extension-geospatial/blob/develop/docs/arquitetura.md), and the reasons behind it are in [docs/decisoes.md](https://github.com/HarrisonSanches/directus-extension-geospatial/blob/develop/docs/decisoes.md), both in Portuguese. Questions and feedback are welcome, in English or in Portuguese. Code for a new feature waits for the first release, as [CONTRIBUTING.md](https://github.com/HarrisonSanches/directus-extension-geospatial/blob/develop/CONTRIBUTING.md) says.
+  - type: textarea
+    id: context
+    attributes:
+      label: What it is about
+      description: The problem you want to solve, or the part of the design your question is about.
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question or idea
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Where in the documents
+      description: A section of the architecture (§5) or a decision (D-001), when it is about one.

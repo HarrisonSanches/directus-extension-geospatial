@@ -10,7 +10,7 @@ Draw an area, follow a vehicle, count incidents by neighborhood, prove when a tr
 geofence. Every spatial operation runs in the database, and every answer respects Directus
 permissions.
 
-![phase](https://img.shields.io/badge/phase-design%20reviewed-F2B33D?style=flat-square)
+![status](https://img.shields.io/badge/status-in%20development-F2B33D?style=flat-square)
 ![Directus](https://img.shields.io/badge/Directus-11.17%20%C2%B7%2012-0C1622?style=flat-square)
 ![PostGIS](https://img.shields.io/badge/PostGIS-reference-336791?style=flat-square&logo=postgresql&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-engine%20%C2%B7%20SDK-3178C6?style=flat-square&logo=typescript&logoColor=white)
@@ -22,8 +22,9 @@ permissions.
 ---
 
 > [!NOTE]
-> **Status: design phase.** The architecture has been planned and reviewed, and the implementation
-> plan is written. Nothing is usable yet. This page describes what the extension will do.
+> **Status: in development.** The foundation is being built, and no spatial operation works yet.
+> Nothing is published on npm or the Directus Marketplace. This page describes what the extension
+> will do.
 
 ## Why it exists
 
@@ -149,11 +150,13 @@ Full detail, with the reasoning behind each choice, in [`docs/arquitetura.md`](d
 
 ## Status
 
-- [x] Architecture designed and documented (decisions D-001 to D-039)
+- [x] Architecture designed and documented
 - [x] Directus internals verified in the source code (version 12.4.1)
 - [x] Design reviewed against the glossary and the decisions
 - [x] Implementation plan, in phases
-- [ ] Foundation: permitted queries, adapters, tiles and the capability matrix
+- [ ] Foundation, in progress: the bundle answers on `/geospatial/capabilities`, and every pull request runs the
+      integration suite on Directus 11.17 and 12, with PostGIS and with SQLite
+- [ ] Permitted queries, database adapters, tiles and the capability matrix
 - [ ] Studio surfaces, operations, time and movement
 - [ ] Evidence reports, starting with the geofence template
 - [ ] First public release on npm and the Directus Marketplace
@@ -162,7 +165,8 @@ Full detail, with the reasoning behind each choice, in [`docs/arquitetura.md`](d
 
 The design documents are currently in Portuguese. English user, admin, API and SDK documentation
 will ship with the first release. The phase-by-phase implementation plan is kept by the maintainer in a
-private repository, and the Status above follows it.
+private repository, and the Status above follows it. The phase ids (F00), issue ids (F00-06) and
+finding ids (A-001) in the documents refer to that plan.
 
 | Document                                       | Contents                                                                                       |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -170,6 +174,13 @@ private repository, and the Status above follows it.
 | [`docs/arquitetura.md`](docs/arquitetura.md)   | The full architecture                                                                          |
 | [`docs/decisoes.md`](docs/decisoes.md)         | Every decision, with the reason and the alternatives ruled out                                 |
 | [`docs/verificacoes.md`](docs/verificacoes.md) | Facts verified in the source code of Directus, PostGIS and the other tools, and pending checks |
+| [`docs/padroes/`](docs/padroes/README.md)      | How the code is written, tested and delivered                                                  |
+
+## Contributing
+
+The extension is not ready for outside code yet. [`CONTRIBUTING.md`](CONTRIBUTING.md) says what helps
+now and how to run the project, and [`SECURITY.md`](SECURITY.md) says how to report a vulnerability.
+Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Author
 

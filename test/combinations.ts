@@ -15,7 +15,7 @@ const directus = {
 // stopped being rebuilt in 2022 (V-113).
 const postgis = { client: 'postgres', image: 'postgis/postgis:14-3.2-alpine' } as const;
 
-// The newest PostGIS, on the newest Postgres (V-104, A-012).
+// The newest PostGIS, on the newest Postgres (V-104).
 const postgisNewest = { client: 'postgres', image: 'postgis/postgis:18-3.6-alpine' } as const;
 
 // SQLite runs inside Directus, in the file its image points to, with SpatiaLite loaded by test/spatialite/ (V-121).

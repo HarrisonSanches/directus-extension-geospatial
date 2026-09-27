@@ -7,6 +7,9 @@ A referência de mercado mais próxima é o próprio repositório do Directus (V
 ferramentas do host, para o código dela ler como o dele e para uma mudança no Directus aparecer nos nossos
 testes ao mesmo tempo, e não depois.
 
+As fases (F00 a F17), as issues (como a F00-06) e os achados (A-0xx) citados aqui são do plano de implementação,
+que o mantenedor guarda num repositório privado.
+
 | Arquivo                                                      | Trata de                                                                          |
 | ------------------------------------------------------------ | --------------------------------------------------------------------------------- |
 | [`testes.md`](testes.md)                                     | A estratégia de testes, a mais importante daqui                                   |

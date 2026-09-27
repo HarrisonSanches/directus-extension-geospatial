@@ -13,7 +13,7 @@ confiança se constrói no repositório.
   `DIRECTUS_LICENSE_KEY`. A suíte a manda só no corpo do pedido à rota `/license` do Directus do teste, nunca nas
   variáveis do container, e a tira das mensagens de erro. No `pnpm dev`, ela se aplica pelo Studio, e o Directus a
   guarda no banco do volume (V-119).
-- `gitleaks` na integração contínua e, antes da abertura do repositório no fim da F00 (D-040), sobre o histórico
+- `gitleaks` na integração contínua e, antes da abertura do repositório, na F00 (D-040), sobre o histórico
   inteiro. Depois da abertura, o secret scanning do GitHub também vigia o repositório (V-75).
 - Segredo nunca em log, mensagem de erro, URL ou resposta da API.
 
@@ -48,7 +48,7 @@ confiança se constrói no repositório.
 
 - Pelo GitHub Actions, com a publicação confiável do npm (OIDC, sem token guardado) e provenance.
 - SBOM (CycloneDX) em cada release; CHANGELOG e versionamento semântico.
-- `SECURITY.md` com o canal para relatar falhas.
+- O `SECURITY.md`, desde a abertura do repositório, com o relato privado do GitHub como canal (V-131).
 - A documentação lista exatamente o que a extensão acessa: tabelas, funções internas do Directus e variáveis de
   ambiente.
 
