@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { chmod, mkdir } from 'node:fs/promises';
+import { chmod, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
@@ -11,11 +11,29 @@ import { activateLicense, publicUrl } from './license.ts';
 import { versionsOf as postgresVersionsOf } from './postgres.ts';
 import { directusWithSpatialite, versionsOf as sqliteVersionsOf } from './sqlite.ts';
 
-// Where Directus loads the extension from, and where Node writes the coverage of the Directus processes.
-const extensionInContainer = '/directus/extensions/directus-extension-geospatial';
+// Where Node writes the coverage of the Directus processes.
 const coverageInContainer = '/tmp/v8-coverage';
 
-const extension = new URL('../packages/extension/', import.meta.url);
+// The extension, which every Directus of the suite loads. A run can add other packages beside it, by their folder in
+// the repository, as the spikes of F01 do.
+export const extension = 'packages/extension';
+
+const repository = new URL('../', import.meta.url);
+
+// A copy of each built package, as an installation has it, in the folder of its name, where Directus loads it from.
+const copiesOf = async (packages: readonly string[]) =>
+	Promise.all(
+		packages.map(async (folder) => {
+			const source = new URL(`${folder}/`, repository);
+			const { name } = JSON.parse(await readFile(new URL('package.json', source), 'utf8')) as { name: string };
+			const target = `/directus/extensions/${name}`;
+
+			return {
+				files: { source: fileURLToPath(new URL('package.json', source)), target: `${target}/package.json` },
+				directories: { source: fileURLToPath(new URL('dist', source)), target: `${target}/dist` },
+			};
+		}),
+	);
 
 export const newSecret = (): string => randomBytes(32).toString('hex');
 
@@ -88,13 +106,14 @@ export interface Environment {
 	stop: () => Promise<void>;
 }
 
-// Starts the database and the Directus of one combination, with the built extension, under a name for the log. Node
-// writes the coverage of the Directus processes into a folder of that name in the root, which test/coverage.ts reads
-// when the run ends.
+// Starts the database and the Directus of one combination, with the built extension and any other package the run
+// adds, under a name for the log. Node writes the coverage of the Directus processes into a folder of that name in the
+// root, which test/coverage.ts reads when the run ends.
 export const startEnvironment = async (
 	combination: Combination,
 	root: string,
 	name: string = combination,
+	packages: readonly string[] = [extension],
 ): Promise<Environment> => {
 	const images = combinations[combination];
 
@@ -110,6 +129,7 @@ export const startEnvironment = async (
 	await chmod(coverage, 0o777);
 
 	const admin = { email: 'admin@example.com', password: newSecret(), token: newSecret() };
+	const copies = await copiesOf(packages);
 	const startedAt = performance.now();
 
 	const directus = await backend.directus
@@ -129,13 +149,9 @@ export const startEnvironment = async (
 			NODE_V8_COVERAGE: coverageInContainer,
 			PM2_KILL_TIMEOUT: '30000',
 		})
-		// A copy of the built package, as an installation has it. The coverage comes back through a mount.
-		.withCopyFilesToContainer([
-			{ source: fileURLToPath(new URL('package.json', extension)), target: `${extensionInContainer}/package.json` },
-		])
-		.withCopyDirectoriesToContainer([
-			{ source: fileURLToPath(new URL('dist', extension)), target: `${extensionInContainer}/dist` },
-		])
+		// The coverage comes back through a mount.
+		.withCopyFilesToContainer(copies.map(({ files }) => files))
+		.withCopyDirectoriesToContainer(copies.map(({ directories }) => directories))
 		.withBindMounts([{ source: coverage, target: coverageInContainer, mode: 'rw' }])
 		.withExposedPorts(8055)
 		// /server/health refuses a request without a session from Directus 12 on (V-110).

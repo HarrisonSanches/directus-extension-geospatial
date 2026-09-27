@@ -67,7 +67,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   chave, em 186 s, e o `pnpm dev` só em `127.0.0.1`. A CI leva uns 3 min por push, e o Scorecard está em 6,2. Os passos
   da F02 esperam o resultado das provas da F01, e o Scorecard fica como está até a F16 (A-019, A-022, no plano).
 - O `develop` foi para o `main` em 27/09/2026, no pull request #20, com a tag `f00-done`.
-- Próximo passo: `/to-issues F01`, as provas técnicas.
+- F01 quebrada em 16 issues em 27/09/2026, no repositório do plano. As provas ficam em `spikes/`, fora do pacote da
+  extensão, e rodam sob demanda pelo `pnpm spike`, fora da CI; a pasta sai no fechamento da fase.
+- F01-01 feita em 27/09/2026: a extensão de prova importa do `@directus/api` o Directus em execução, e não uma cópia.
+  O `ItemsService`, a conexão e o `getSchema` que ela importa são os do `context`, nas quatro combinações. O pacote
+  vem de `/directus/node_modules`, fica fora do bundle e se declara num `.d.ts` próprio, sem instalar (V-141).
+- Próximo passo: `/implement-issue F01-02`, o raio da Maria num SQL só.
 
 ## Documentação
 

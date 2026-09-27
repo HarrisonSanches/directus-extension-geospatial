@@ -18,13 +18,23 @@ export default defineConfig({
 		// option applies to the whole run, not to one project.
 		teardownTimeout: 120_000,
 		projects: [
-			{ test: { name: 'unit', exclude: [...configDefaults.exclude, 'test/**'] } },
+			{ test: { name: 'unit', exclude: [...configDefaults.exclude, 'test/**', 'spikes/**'] } },
 			// A project for each combination of the integration suite, and INTEGRATION picks some of them.
 			...selectCombinations(process.env.INTEGRATION).map((combination) => ({
 				test: {
 					name: `integration:${combination}`,
 					include: ['test/**/*.test.ts'],
 					provide: { combination },
+					testTimeout: 30_000,
+				},
+			})),
+			// The proofs of F01, in the same combinations, with their extension loaded beside the extension. Only pnpm spike
+			// runs them, and they leave when the phase closes.
+			...selectCombinations(process.env.INTEGRATION).map((combination) => ({
+				test: {
+					name: `spike:${combination}`,
+					include: ['spikes/*.test.ts'],
+					provide: { combination, extensions: ['spikes/extension'] },
 					testTimeout: 30_000,
 				},
 			})),

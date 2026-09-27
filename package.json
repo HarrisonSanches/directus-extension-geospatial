@@ -12,11 +12,12 @@
 		"knip": "knip",
 		"lint": "eslint --max-warnings 0 .",
 		"prepare": "husky",
+		"spike": "pnpm --filter directus-extension-geospatial build && pnpm --filter directus-extension-geospatial-spikes build && vitest run --project \"spike:*\"",
 		"test": "vitest run --project unit",
 		"test:bind-license": "node test/bind-license.ts",
 		"test:coverage": "vitest run --project unit --coverage && pnpm test:integration && node test/coverage.ts && node test/ratchet.ts",
 		"test:integration": "pnpm --filter directus-extension-geospatial build --no-minify --sourcemap && vitest run --project \"integration:*\"",
-		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension"
+		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension && tsc -p spikes/extension"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "catalog:",
