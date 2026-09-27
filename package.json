@@ -3,7 +3,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test && pnpm test:integration",
+		"check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test:coverage",
 		"dev": "node dev/env.ts && pnpm --filter directus-extension-geospatial build && docker compose --file dev/compose.yaml up --detach --wait && pnpm --filter directus-extension-geospatial dev",
 		"dev:down": "docker compose --file dev/compose.yaml down",
 		"dev:logs": "docker compose --file dev/compose.yaml logs --follow",
