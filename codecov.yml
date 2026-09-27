@@ -3,7 +3,8 @@
 # test/coverage.ts, so the status of the whole project stays off.
 coverage:
   status:
-    project: off
+    project:
+      default: false
     patch:
       default:
         target: 90%
