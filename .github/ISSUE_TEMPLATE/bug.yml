@@ -1,0 +1,43 @@
+name: Bug report
+description: Something that already exists does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The extension is in development, and no spatial operation works yet. This form is for what already exists: the development environment, the test suite and the CI. A security vulnerability never goes here: report it privately, as [SECURITY.md](https://github.com/HarrisonSanches/directus-extension-geospatial/blob/develop/SECURITY.md) says.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce
+      description: The commands or the steps, from a clean clone when you can.
+      placeholder: |
+        1. pnpm install
+        2. pnpm dev
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: The commit you ran, from `git rev-parse --short HEAD`.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: The operating system and the versions of Node, pnpm and Docker, from `node --version`, `pnpm --version` and `docker version`.
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The output that shows the problem. It is shown as code, so it needs no backticks. Remove any secret first.
+      render: text
