@@ -10,7 +10,7 @@ Issue pedida: **$ARGUMENTS** (ex.: `F00-03`). O arquivo é `../directus-extensio
 
 O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
-**Não faça commit, não crie branch, não dê push, a menos que o mantenedor peça.** Se ele pedir um commit: mensagem em inglês, no padrão Conventional Commits, e **nunca** com linha de coautoria (`Co-Authored-By`) de Claude ou de qualquer IA.
+**Git pelas regras do `CLAUDE.md`:** você cria o ramo da issue, faz os commits, dá push no ramo e abre o pull request para o `develop`. O merge é do mantenedor, e o `main` do produto nunca é tocado. As mensagens seguem `docs/padroes/git-e-entrega.md`. A coautoria, `Co-Authored-By: <modelo> <noreply@anthropic.com>`, com o nome do modelo desta sessão, é a última linha da descrição do pull request, e os commits do ramo saem sem ela: com a linha neles, o GitHub repete o `Co-authored-by` na caixa do squash (V-92).
 
 ## Ler antes (uma vez)
 
@@ -22,6 +22,10 @@ O plano fica num repositório privado, clonado ao lado deste em `../directus-ext
 
 ## Antes de editar
 
+- **Ramo primeiro.** Confira em que ramo o repositório está (`git branch --show-current`). Se não for o ramo desta issue, **pare antes de qualquer edição**:
+  - recomende o nome no padrão de mercado de `docs/padroes/git-e-entrega.md` (Conventional Branch, `<tipo>/<id>-<descrição>`, como `feat/f02-03-radius-order`);
+  - crie o ramo a partir do `develop` atualizado, `git switch develop && git pull && git switch -c <ramo>`, e diga o nome ao mantenedor;
+  - nunca edite no `develop` nem no `main`.
 - **Já está feita?** Se todos os critérios de aceite já valem no repositório, reporte com ✅ em cada um e pare.
 - **Pré-requisitos:** as issues de "bloqueada por" estão feitas no repositório? Se não, **pare e pergunte**. Não conserte issue anterior por conta própria.
 - **Contradição** entre issue, fase, arquitetura, decisão ou código: **pare e pergunte**. Não improvise design. Uma porta de mão única nunca muda sem uma decisão nova.
@@ -35,7 +39,7 @@ O plano fica num repositório privado, clonado ao lado deste em `../directus-ext
   - Nada de mock de banco nem de Directus: eles rodam de verdade em containers.
   - O relógio é injetado em tudo o que depende de tempo.
 - **A regra de ouro (D-001) não se negocia.** Todo dado devolvido sai da query permitida montada pelo Directus. Se a issue devolve dados, ela tem teste de paridade de permissão com o `/items`.
-- **Comandos no ambiente** (instalar algo no sistema, Docker fora dos testes, bancos fora dos containers de teste, publicar no npm, push) só com confirmação explícita do mantenedor, pedida na hora, dizendo o que o comando faz e como desfazer.
+- **Comandos no ambiente** (instalar algo no sistema, Docker fora dos testes, bancos fora dos containers de teste, publicar no npm) só com confirmação explícita do mantenedor, pedida na hora, dizendo o que o comando faz e como desfazer.
 - **Siga o que o repositório já faz** (nomes, organização, estilo) e o que está em `docs/padroes/`.
 - **Afirmação sobre ferramenta de terceiros** (Directus, PostGIS, MapLibre, bancos, bibliotecas) se confere no código-fonte ou na documentação oficial. O fato relevante vai para `docs/verificacoes.md` como `V-xx`; uma pendência confirmada deixa de ser `P-xx` e vira `V-xx`.
 - **Fora do escopo da issue, não mexa**, mesmo que veja algo errado. Anote em "sugestões".
@@ -43,6 +47,7 @@ O plano fica num repositório privado, clonado ao lado deste em `../directus-ext
 ## Explicar na conversa (parte da entrega, não opcional)
 
 Ao entregar, explique passo a passo, de forma didática e breve:
+
 - o que foi feito;
 - os conceitos novos da issue, do zero;
 - como o código funciona, com links para arquivo e linha;
@@ -73,6 +78,6 @@ Não existe guia didático em arquivo. A documentação pública (README, site) 
 4. **O que aprender aqui:** os conceitos novos em três ou quatro linhas.
 5. **Decisões tomadas fora da issue**, se houve, e por quê.
 6. **Sugestões** para a issue, a fase ou os padrões, sem editar por conta própria.
-7. **Mensagem de commit sugerida,** no padrão de `docs/padroes/git-e-entrega.md` e sem linha de coautoria, e o texto do pull request: o título no mesmo padrão e a descrição terminando em `Refs: <issue>`. Se o plano mudou (o estado da issue, um achado), também a mensagem do commit no repositório do plano, separada.
+7. **O versionamento feito:** os commits no ramo, no padrão de `docs/padroes/git-e-entrega.md` e sem a linha de coautoria; o push, depois de ler o diff inteiro; e o pull request para o `develop`, com o título no mesmo padrão e a descrição terminando nos rodapés `Refs: <issue>` e `Co-Authored-By:`. Confira pelo `viewerMergeBodyText` da API do GitHub que a caixa do squash termina nesses dois rodapés, com uma linha só de coautoria. Dê o link dele. Se o plano mudou (o estado da issue, um achado), também o commit e o push no repositório do plano, sem coautoria.
 
-**Não avance para a próxima issue.** Espere o mantenedor pedir.
+**Não avance para a próxima issue nem faça o merge.** Espere o mantenedor revisar e pedir.

@@ -1,0 +1,114 @@
+packages:
+  - packages/*
+
+catalog:
+  '@commitlint/cli': 21.2.3
+  '@commitlint/config-conventional': 21.2.3
+  '@commitlint/lint': 21.2.3
+  '@commitlint/load': 21.2.3
+  '@commitlint/types': 21.2.3
+  '@directus/errors': 2.5.1
+  '@directus/extensions-sdk': 18.0.4
+  # The version released with Directus 12.4.1, which the integration suite runs.
+  '@directus/sdk': 26.0.0
+  # The version the extensions SDK depends on, so both read the same types.
+  '@directus/types': 16.2.0
+  '@eslint/js': 10.0.1
+  '@hey-api/openapi-ts': 0.99.0
+  '@testcontainers/postgresql': 12.1.0
+  '@types/node': 24.13.6
+  # TypeScript runs side by side (V-90): this alias is the TypeScript 7 behind tsc, and the typescript name below
+  # serves the 6.0 API that typescript-eslint loads, until typescript-eslint supports TypeScript 7 (P-25).
+  '@typescript/native': npm:typescript@7.0.2
+  '@vitest/coverage-v8': 5.0.1
+  # The coverage libraries @vitest/coverage-v8 5.0.1 uses, so the coverage from inside Directus is converted and summed
+  # the same way as the one from the unit tests.
+  '@vitest/istanbul-lib-coverage': 1.0.1
+  '@vitest/istanbul-lib-report': 1.0.1
+  ast-v8-to-istanbul: 1.0.7
+  eslint: 10.11.0
+  eslint-config-prettier: 10.1.8
+  eslint-plugin-import-x: 4.17.1
+  husky: 9.1.7
+  jiti: 2.7.0
+  # The exact version Directus uses and @directus/types names as its peer.
+  knex: 3.1.0
+  knip: 6.38.0
+  # The exact version @directus/types names as its optional peer, for the type of the logger.
+  pino: 9.7.0
+  prettier: 3.9.9
+  testcontainers: 12.1.0
+  typescript: npm:@typescript/typescript6@6.0.2
+  typescript-eslint: 8.70.1
+  vite: 8.3.1
+  vitest: 5.0.1
+  yaml: 2.9.1
+
+catalogs:
+  # The code of the extension runs in the Node of the Directus images, the 22 (V-80), so its types come from that line.
+  node22:
+    '@types/node': 22.20.4
+
+# pnpm add only accepts versions from the catalog, so the repository keeps one version of each dependency.
+catalogMode: strict
+
+# Dependency build scripts are denied by default, and strictDepBuilds (on by default) fails the install when a
+# package with one is missing here. Each entry is a reviewed decision: true runs its scripts, false skips them.
+allowBuilds:
+  # Its postinstall only downloads the native binding when the package manager skipped the optional dependency for
+  # the platform, and pnpm installs it.
+  unrs-resolver: false
+  # The same: with the platform package installed, it only swaps the command shim for the native binary.
+  esbuild: false
+  # It only switches the library to Vue 2, and the version it ships is the one for Vue 3.
+  vue-demi: false
+  # testcontainers reaches Docker through ssh2 only when Docker runs on another machine over SSH. Its install script
+  # only tries to compile an optional crypto binding with node-gyp, and ssh2 falls back to JavaScript without it.
+  ssh2: false
+  # A native addon that ssh2 lists as optional, to pick its ciphers; ssh2 works without it.
+  cpu-features: false
+  # Its postinstall only warns when a dependent declares an incompatible version scheme of it.
+  protobufjs: false
+
+# The extensions SDK of Directus 18.0.4 ships Vite 8 with @vitejs/plugin-vue 6.0.1, which accepts Vite only up to 7.
+# The plugin declares Vite 8 from 6.0.5 on, in the same 6.0 line.
+overrides:
+  '@directus/extensions-sdk>@vitejs/plugin-vue': 6.0.9
+  # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj and GHSA-2883-xcg3-v3hh: the generator of the contract types and the
+  # utils of Directus pin versions of js-yaml that a crafted YAML drives to quadratic CPU use, fixed in the same line.
+  'js-yaml@>=4.0.0 <4.3.2': 4.3.2
+  # GHSA-6w3j-5fw6-r9vr and GHSA-gg4h-3hg2-grpc: the utils of Directus pin a version of joi open to prototype
+  # pollution, fixed in the same line.
+  'joi@>=18.0.0 <18.2.5': 18.2.9
+
+# Dependencies that these packages use in their type declarations and do not declare. pnpm then resolves them from
+# its hidden hoisting folder, where typescript is the TypeScript 7 package, which has no API, and type-fest is missing.
+packageExtensions:
+  '@typescript-eslint/types':
+    peerDependencies:
+      typescript: '>=4.8.4 <6.1.0'
+  eslint-import-context:
+    dependencies:
+      type-fest: ^4.41.0
+
+# A version published less than 3 days ago (4320 minutes) is not installed, giving the registry and the community
+# time to find and pull a compromised release.
+minimumReleaseAge: 4320
+
+# pnpm does not switch itself to the packageManager version: switching records pnpm in a first lockfile document,
+# and the GitHub dependency graph reads only that one (V-93). engines.pnpm refuses any other pnpm instead.
+pmOnFail: ignore
+
+# Refuses a pnpm outside engines.pnpm, and any dependency that does not support the Node version in use.
+engineStrict: true
+
+# Advisories that pnpm audit ignores, each one reviewed. osv-scanner.toml ignores the same ones until a date, and when
+# it passes, the OSV-Scanner of the CI fails and asks for the review of both lists.
+auditConfig:
+  ignoreGhsas:
+    # unhead, through the themes of the extensions SDK of Directus, which pin @unhead/vue at 1.11.20, the last of the
+    # 1.x line. The fixes only exist in 2.x. The SDK uses it to build the Studio parts of an extension, and the bundle
+    # has none yet, so the sanitization these advisories bypass never runs.
+    - GHSA-5339-hvwr-7582
+    - GHSA-g5xx-pwrp-g3fv
+    - GHSA-95h2-gj7x-gx9w

@@ -1,0 +1,16 @@
+{
+	"name": "directus-geospatial-contract",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"generate": "openapi-ts"
+	},
+	"devDependencies": {
+		"@hey-api/openapi-ts": "catalog:",
+		"prettier": "catalog:",
+		"yaml": "catalog:"
+	}
+}

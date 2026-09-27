@@ -1,0 +1,92 @@
+{
+	"name": "main",
+	"target": "branch",
+	"enforcement": "active",
+	"bypass_actors": [],
+	"conditions": {
+		"ref_name": {
+			"include": ["refs/heads/main"],
+			"exclude": []
+		}
+	},
+	"rules": [
+		{
+			"type": "deletion"
+		},
+		{
+			"type": "non_fast_forward"
+		},
+		{
+			"type": "pull_request",
+			"parameters": {
+				"allowed_merge_methods": ["merge"],
+				"required_approving_review_count": 0,
+				"dismiss_stale_reviews_on_push": false,
+				"require_code_owner_review": false,
+				"require_last_push_approval": false,
+				"required_review_thread_resolution": true
+			}
+		},
+		{
+			"type": "required_status_checks",
+			"parameters": {
+				"strict_required_status_checks_policy": false,
+				"do_not_enforce_on_create": false,
+				"required_status_checks": [
+					{
+						"context": "Format, lint, types, Knip and unit tests",
+						"integration_id": 15368
+					},
+					{
+						"context": "Combinations of the integration suite",
+						"integration_id": 15368
+					},
+					{
+						"context": "Integration (11.17-postgis)",
+						"integration_id": 15368
+					},
+					{
+						"context": "Integration (11.17-sqlite)",
+						"integration_id": 15368
+					},
+					{
+						"context": "Integration (12-postgis)",
+						"integration_id": 15368
+					},
+					{
+						"context": "Integration (12-sqlite)",
+						"integration_id": 15368
+					},
+					{
+						"context": "Secrets in the history (gitleaks)",
+						"integration_id": 15368
+					},
+					{
+						"context": "Vulnerable dependencies (pnpm audit and OSV-Scanner)",
+						"integration_id": 15368
+					},
+					{
+						"context": "Workflows (zizmor)",
+						"integration_id": 15368
+					},
+					{
+						"context": "Renovate configuration (renovate-config-validator)",
+						"integration_id": 15368
+					},
+					{
+						"context": "Title in the commit standard (commitlint)",
+						"integration_id": 15368
+					},
+					{
+						"context": "Coverage (ratchet, Codecov and SonarQube Cloud)",
+						"integration_id": 15368
+					},
+					{
+						"context": "codecov/patch",
+						"integration_id": 254
+					}
+				]
+			}
+		}
+	]
+}

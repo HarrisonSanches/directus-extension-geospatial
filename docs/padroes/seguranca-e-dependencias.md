@@ -7,8 +7,15 @@ confiança se constrói no repositório.
 
 - **Nunca no repositório nem no banco:** chaves e segredos só em variáveis de ambiente (§7.8). O `.env` fica no
   `.gitignore`, com um `.env.example` sem valores.
-- `gitleaks` na integração contínua e, antes da abertura do repositório no fim da F00 (D-040), sobre o histórico
-  inteiro. Depois da abertura, o secret scanning do GitHub também vigia o repositório (V-75).
+- No ambiente de desenvolvimento, o `pnpm dev` gera os segredos que estão vazios no `dev/.env`, com 32 bytes
+  aleatórios, e mantém os que já têm valor. Cada clone fica com os seus, e nenhum vai para o repositório.
+- A chave de licença do Directus 12 (D-043, D-044) fica no `test/.env` da máquina e, na CI, no segredo
+  `DIRECTUS_LICENSE_KEY`. A suíte a manda só no corpo do pedido à rota `/license` do Directus do teste, nunca nas
+  variáveis do container, e a tira das mensagens de erro. No `pnpm dev`, ela se aplica pelo Studio, e o Directus a
+  guarda no banco do volume (V-119).
+- `gitleaks` na integração contínua e, antes da abertura do repositório, na F00 (D-040), sobre o histórico
+  inteiro. Depois da abertura, o secret scanning do GitHub também vigia o repositório, e a proteção de push recusa
+  o push que traz um segredo conhecido (V-75, V-136).
 - Segredo nunca em log, mensagem de erro, URL ou resposta da API.
 
 ## Dependências
@@ -24,21 +31,39 @@ confiança se constrói no repositório.
   conferência na CI garante que o build os deixou de fora.
 - **Cadeia de suprimentos:**
   - lockfile versionado, e instalação com o lockfile congelado na CI;
-  - scripts de instalação das dependências desligados, com a lista explícita das que podem rodar
-    (`onlyBuiltDependencies`), como no Directus (V-59);
-  - versão recém-publicada só entra depois de alguns dias (`minimumReleaseAge`, no pnpm e no Renovate), para dar
-    tempo de um pacote comprometido ser descoberto;
-  - `pnpm audit` e OSV-Scanner na CI;
-  - o Dependabot alerts ligado, para a vulnerabilidade nova aparecer mesmo sem push (V-75);
+  - scripts de instalação das dependências desligados, com cada exceção decidida no `allowBuilds`; a instalação
+    falha quando aparece um script que ninguém revisou (`strictDepBuilds`, V-85);
+  - dependência que não roda no Node em uso não instala (`engineStrict`, V-93);
+  - versão recém-publicada só entra depois de 3 dias (`minimumReleaseAge` de 4320 minutos, no pnpm e no
+    Renovate), para dar tempo de um pacote comprometido ser descoberto. A exceção é a correção de um alerta do
+    Dependabot, que chega na hora (D-046);
+  - `pnpm audit` e OSV-Scanner na CI. Uma vulnerabilidade com correção sai por atualização ou, quando quem a puxa
+    prende a versão exata, por um `overrides` com a faixa vulnerável no nome. A que não tem correção vira exceção,
+    com o motivo, no `auditConfig.ignoreGhsas` do `pnpm-workspace.yaml` e no `osv-scanner.toml`, este com a data de
+    revisão (`ignoreUntil`): passada a data, o OSV-Scanner falha e as duas listas são revistas (V-128). O alerta
+    dela no GitHub é dispensado com o mesmo motivo, senão o Renovate tenta a correção que não existe (V-140);
+  - o Dependabot alerts ligado, para a vulnerabilidade nova aparecer mesmo sem push (V-75, V-140). O Dependabot
+    security updates fica desligado, porque a correção vem pelo Renovate;
   - os workflows do GitHub Actions passam pelo zizmor (V-74).
-- Atualizações pelo Renovate, agrupadas, com a integração contínua como filtro. As tags do Directus também, e o
-  canário roda nelas.
+- **Atualizações pelo Renovate** (D-046), com a configuração em `.github/renovate.json5`, que a CI valida:
+  - os minor e patch num pull request por semana, na segunda-feira, e cada major à parte. Nenhum entra sozinho, e
+    a integração contínua é o filtro. A descrição, que vira o commit do `develop`, leva a tabela das versões, com o
+    link do diff de cada uma, e não as notas de versão;
+  - as imagens do Directus a qualquer hora, com o patch separado da minor. O patch troca a versão da matriz, e a
+    minor ou a major nova entra nela ao lado do piso (D-037). O canário roda nelas;
+  - o que só anda junto vem num grupo: os pacotes do Directus, que o `@directus/extensions-sdk` prende em versões
+    exatas, e, no major, o Vitest com as bibliotecas de cobertura;
+  - o que segue outra coisa fica parado: o `knex` e o `pino`, peers exatos do `@directus/types`; o `@types/node` de
+    cada catálogo, na linha do Node dele; o override, no major em que está; e o PostGIS mínimo, que segue a política
+    de suporte;
+  - uma versão fixada fora dos gerenciadores do Renovate ganha uma regra por regex ou um comentário `# renovate:`
+    com a origem, senão fica parada sem aviso (V-139).
 
 ## Publicação
 
 - Pelo GitHub Actions, com a publicação confiável do npm (OIDC, sem token guardado) e provenance.
 - SBOM (CycloneDX) em cada release; CHANGELOG e versionamento semântico.
-- `SECURITY.md` com o canal para relatar falhas.
+- O `SECURITY.md`, desde a abertura do repositório, com o relato privado do GitHub como canal (V-131).
 - A documentação lista exatamente o que a extensão acessa: tabelas, funções internas do Directus e variáveis de
   ambiente.
 

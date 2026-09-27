@@ -9,7 +9,7 @@ Uma disciplina para bugs difíceis. Pule fases somente quando explicitamente jus
 
 Ao explorar o codebase, use o glossário de domínio do projeto para ter um modelo mental claro dos módulos relevantes.
 
-**Não faça commit, não crie branches.**
+**Commits e ramos seguem as regras do `CLAUDE.md`:** a correção vai no ramo de uma issue, nunca direto no `develop` nem no `main`.
 
 ---
 
@@ -53,6 +53,7 @@ Pare e diga explicitamente. Liste o que tentou. Peça ao usuário: (a) acesso ao
 Execute o loop. Observe o bug aparecer.
 
 Confirme:
+
 - O loop produz o modo de falha que o **usuário** descreveu — não uma falha diferente que acontece estar por perto.
 - A falha é reproduzível através de múltiplas execuções.
 - Você capturou o sintoma exato (mensagem de erro, saída errada, timing lento).
@@ -80,6 +81,7 @@ Se não conseguir declarar a predição, a hipótese é um palpite — descarte 
 Cada sonda deve mapear para uma predição específica da Fase 3. **Mude uma variável por vez.**
 
 Preferência de ferramenta:
+
 1. **Inspeção de debugger / REPL** se o ambiente suportar. Um breakpoint vale mais que dez logs.
 2. **Logs direcionados** nas boundaries que distinguem hipóteses.
 3. Nunca "logue tudo e faça grep".
@@ -99,6 +101,7 @@ Uma seam correta é aquela onde o teste exercita o **padrão real do bug** como 
 Se nenhuma seam correta existir, isso em si é o achado. Anote. A arquitetura do codebase está impedindo o bug de ser travado.
 
 Se uma seam correta existir:
+
 1. Transforme a reprodução minimizada em um teste falhando nessa seam.
 2. Observe falhar.
 3. Aplique a correção.

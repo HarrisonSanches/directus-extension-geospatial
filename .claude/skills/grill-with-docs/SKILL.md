@@ -9,19 +9,19 @@ Faça as perguntas uma de cada vez e espere a resposta de cada uma antes de cont
 
 Se uma pergunta puder ser respondida explorando o repositório, explore em vez de perguntar. Se ela depender de como uma ferramenta de terceiros funciona (Directus, PostGIS, MapLibre, os bancos), confira no código-fonte ou na documentação oficial. O clone do Directus pode ser feito numa pasta temporária.
 
-**Não faça commit nem push.**
+**O commit e o push das mudanças nos docs seguem as regras do `CLAUDE.md`.**
 
 ---
 
 ## A documentação que esta sessão desafia e atualiza
 
-| Arquivo | Papel |
-|---|---|
-| `CONTEXT.md` | Glossário do domínio, bilíngue: o termo em português e o canônico em inglês |
-| `docs/arquitetura.md` | O desenho |
-| `docs/decisoes.md` | As decisões `D-0xx`. É o registro de decisões do projeto; **não crie `docs/adr/`**. As portas de mão única ficam no topo |
-| `docs/verificacoes.md` | Fatos verificados em ferramentas de terceiros (`V-xx`) e pendências (`P-xx`) |
-| `../directus-extension-geospatial-plan/` | O plano por fases, os achados e o histórico, num repositório privado clonado ao lado deste |
+| Arquivo                                  | Papel                                                                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `CONTEXT.md`                             | Glossário do domínio, bilíngue: o termo em português e o canônico em inglês                                              |
+| `docs/arquitetura.md`                    | O desenho                                                                                                                |
+| `docs/decisoes.md`                       | As decisões `D-0xx`. É o registro de decisões do projeto; **não crie `docs/adr/`**. As portas de mão única ficam no topo |
+| `docs/verificacoes.md`                   | Fatos verificados em ferramentas de terceiros (`V-xx`) e pendências (`P-xx`)                                             |
+| `../directus-extension-geospatial-plan/` | O plano por fases, os achados e o histórico, num repositório privado clonado ao lado deste                               |
 
 - Um termo resolvido vai para o `CONTEXT.md` na hora, nos dois idiomas.
 - Uma decisão que passa no teste dos três critérios abaixo vira uma `D-0xx` nova em `docs/decisoes.md`, com a numeração continuada. As seções da arquitetura que ela muda são ajustadas junto.

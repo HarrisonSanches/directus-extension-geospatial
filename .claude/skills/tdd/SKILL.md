@@ -5,7 +5,7 @@ description: Desenvolvimento orientado por testes no directus-extension-geospati
 
 # Desenvolvimento orientado por testes
 
-**Não faça commit, não crie branch.** A estratégia completa está em `docs/padroes/testes.md` e na D-017.
+**Commits e ramos seguem as regras do `CLAUDE.md`,** e o ciclo não faz commit a cada passo. A estratégia completa está em `docs/padroes/testes.md` e na D-017.
 
 ## Princípio
 

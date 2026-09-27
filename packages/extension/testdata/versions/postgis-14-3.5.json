@@ -1,0 +1,6 @@
+{
+	"source": "postgis/postgis:14-3.5, current_setting('server_version') and the extversion of postgis",
+	"capturedOn": "2026-09-25",
+	"databaseVersion": "14.18 (Debian 14.18-1.pgdg110+1)",
+	"spatialVersion": "3.5.2"
+}

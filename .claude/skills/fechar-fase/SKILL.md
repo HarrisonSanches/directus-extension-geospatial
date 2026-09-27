@@ -1,7 +1,7 @@
 ---
 name: fechar-fase
 description: Fecha uma fase do plano do directus-extension-geospatial. Confere o critério de saída e as issues, escreve o "Como terminou" e a entrada do histórico, atualiza o índice e detalha a próxima fase. Use quando todas as issues de uma fase estiverem feitas, ou quando o mantenedor pedir para fechar a fase.
-argument-hint: "<fase, ex.: F00>"
+argument-hint: '<fase, ex.: F00>'
 ---
 
 # Fechar uma fase
@@ -10,7 +10,7 @@ Fase: **$ARGUMENTS**, ou a que está "em andamento" no índice `../directus-exte
 
 O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
-**Não faça commit, tag nem push.** Sugira; o mantenedor executa. Qualquer mensagem sugerida segue o padrão de `docs/padroes/git-e-entrega.md` e **nunca** tem linha de coautoria de Claude ou de qualquer IA.
+**Git pelas regras do `CLAUDE.md`:** você faz os commits do fechamento e o push no `main` do plano e, no produto, num ramo `chore/` com pull request para o `develop`, que o mantenedor mergeia antes da promoção. **A promoção para o `main` do produto e a tag são do mantenedor:** você só prepara o texto do pull request. As mensagens seguem o padrão de `docs/padroes/git-e-entrega.md`: no produto, os commits do ramo saem sem coautoria, e a descrição do pull request termina com ela; no repositório do plano, sem coautoria.
 
 ## 1. Conferir, e parar se algo faltar
 
@@ -47,5 +47,6 @@ Pelo detalhamento progressivo, a fase seguinte à próxima ganha agora os passos
 
 - O que a fase entregou, em cinco linhas, e os números.
 - Os conceitos centrais da fase, explicados passo a passo na conversa, de forma didática e breve.
-- Sugestão das mensagens de commit do fechamento, uma para cada repositório que mudou (o do plano e o do produto), e, se ele quiser, de tag no produto (por exemplo, `f00-done`).
+- Os commits do fechamento feitos e enviados, um em cada repositório que mudou (o do plano e o do produto).
+- A promoção da fase (D-041), pronta para o mantenedor: o título do pull request do `develop` para o `main`, no padrão de commit (por exemplo, `chore: promote F00 to main`), a descrição, e a tag da fase (por exemplo, `f00-done`). Ele abre o pull request, faz o merge commit e cria a tag.
 - O próximo comando: `/to-issues <próxima fase>`.

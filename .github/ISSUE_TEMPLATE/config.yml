@@ -1,0 +1,6 @@
+# Only the forms of this folder open an issue. A vulnerability goes to a private report instead.
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/HarrisonSanches/directus-extension-geospatial/blob/develop/SECURITY.md
+    about: Never in a public issue. SECURITY.md says how to report it privately.

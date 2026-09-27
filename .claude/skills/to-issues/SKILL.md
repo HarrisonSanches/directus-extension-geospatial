@@ -1,7 +1,7 @@
 ---
 name: to-issues
 description: Quebra uma fase do plano do directus-extension-geospatial em issues pequenas, uma por pull request, salvas em issues/fNN.md, no repositório do plano. Use quando uma fase for começar, ou quando o mantenedor pedir para quebrar uma fase em tarefas.
-argument-hint: "<fase, ex.: F00>"
+argument-hint: '<fase, ex.: F00>'
 ---
 
 # Quebrar uma fase em issues
@@ -10,7 +10,7 @@ Fase pedida: **$ARGUMENTS**. Se nada vier, use a fase marcada como "em andamento
 
 O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
-**Não faça commit, não publique em rastreador de issues nenhum.** Só gere arquivos.
+**Não publique em rastreador de issues nenhum.** Gere os arquivos e, depois da aprovação, faça o commit e o push no repositório do plano, pelas regras do `CLAUDE.md`.
 
 ## 1. Ler, nesta ordem
 
@@ -58,9 +58,9 @@ No topo vai a tabela de estado; depois, uma seção por issue, no modelo abaixo.
 
 Fase: [F00](../fases/f00-fundacao.md). Implementar uma por vez com `/implement-issue F00-01`.
 
-| Issue | Título | Tipo | Bloqueada por | Estado |
-|---|---|---|---|---|
-| F00-01 | ... | HITL | — | a fazer |
+| Issue  | Título | Tipo | Bloqueada por | Estado  |
+| ------ | ------ | ---- | ------------- | ------- |
+| F00-01 | ...    | HITL | —             | a fazer |
 
 ---
 
@@ -69,26 +69,32 @@ Fase: [F00](../fases/f00-fundacao.md). Implementar uma por vez com `/implement-i
 **Tipo:** HITL | AFK · **Bloqueada por:** — | F00-0x
 
 ### O que construir
+
 O comportamento de ponta a ponta que passa a existir, em poucas linhas. Não é lista de arquivos.
 
 ### Critérios de aceite
+
 - [ ] Verificável por comando ou teste, sem interpretação.
 - [ ] ...
 
 ### Testes
+
 Quais camadas de `docs/padroes/testes.md` esta issue exige, em quais bancos da matriz, e o que cada teste prova. Se a issue devolve dados, inclua a paridade de permissão com o `/items`.
 
 ### Toca em
+
 D-0xx · V-xx · P-xx · §seção da arquitetura.
 
 ### Conceitos novos
+
 Os conceitos que a explicação na conversa, na entrega, precisa cobrir.
 
 ### Perguntar antes
+
 Comandos no ambiente que exigem confirmação do mantenedor, ou "nada".
 ```
 
-Por fim, a seção "Passos" do arquivo da fase ganha uma linha apontando para o arquivo de issues. Os passos em si não são copiados. Depois, sugira ao mantenedor a mensagem do commit no repositório do plano.
+Por fim, a seção "Passos" do arquivo da fase ganha uma linha apontando para o arquivo de issues. Os passos em si não são copiados. Depois, faça o commit e o push no repositório do plano, sem coautoria.
 
 ## 5. Se o mantenedor quiser as issues no GitHub
 

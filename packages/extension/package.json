@@ -1,0 +1,51 @@
+{
+	"name": "directus-extension-geospatial",
+	"version": "0.1.0",
+	"description": "Spatial operations for Directus, in the database, the API, the SDK and the Studio.",
+	"license": "MIT",
+	"type": "module",
+	"keywords": [
+		"directus",
+		"directus-extension",
+		"directus-extension-bundle"
+	],
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=22"
+	},
+	"directus:extension": {
+		"type": "bundle",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"entries": [
+			{
+				"type": "endpoint",
+				"name": "geospatial",
+				"source": "src/endpoint.ts"
+			},
+			{
+				"type": "hook",
+				"name": "geospatial-hook",
+				"source": "src/hook.ts"
+			}
+		],
+		"host": "^11.17.0 || ^12.4.0"
+	},
+	"scripts": {
+		"build": "directus-extension build",
+		"dev": "directus-extension build --watch --no-minify"
+	},
+	"devDependencies": {
+		"@directus/errors": "catalog:",
+		"@directus/extensions-sdk": "catalog:",
+		"@directus/types": "catalog:",
+		"@types/node": "catalog:node22",
+		"directus-geospatial-contract": "workspace:*",
+		"knex": "catalog:",
+		"pino": "catalog:"
+	}
+}

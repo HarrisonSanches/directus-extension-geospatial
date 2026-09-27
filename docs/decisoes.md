@@ -3,7 +3,7 @@
 > Registro das decisões do projeto (D-0xx). Não existe `docs/adr/`: decisão nova entra aqui, com o próximo número livre.
 > Uma decisão só entra quando é **difícil de reverter**, **surpreendente sem contexto** e **resultado de um trade-off real**. O que é só esclarecimento vai direto para [arquitetura.md](arquitetura.md) ou para o [CONTEXT.md](../CONTEXT.md).
 > Uma decisão mudada não é apagada: ela ganha a linha "Substituída por D-0yy", e a nova explica o porquê.
-> As referências "§" apontam para seções de [arquitetura.md](arquitetura.md); V-xx e P-xx, para [verificacoes.md](verificacoes.md).
+> As referências "§" apontam para seções de [arquitetura.md](arquitetura.md); V-xx e P-xx, para [verificacoes.md](verificacoes.md). As fases (F00 a F17), as issues (como a F00-06) e os achados (A-0xx) são do plano de implementação, que o mantenedor guarda num repositório privado.
 
 ## Portas de mão única
 
@@ -369,12 +369,12 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 - **Estado:** aceita em 23/09/2026. Detalha a D-016.
 - **Onde:** §7.8 (API e SDK) · [CONTEXT.md](../CONTEXT.md).
-- **Contexto:** o SDK usava `withinRadius()` e `countByPolygon()`, mas o termo canônico de "contagem por região" é *count by region*. A antiga "área desenhada" passou a receber qualquer forma, com as opções da D-023, e o nome não a descrevia mais.
+- **Contexto:** o SDK usava `withinRadius()` e `countByPolygon()`, mas o termo canônico de "contagem por região" é _count by region_. A antiga "área desenhada" passou a receber qualquer forma, com as opções da D-023, e o nome não a descrevia mais.
 - **Decisão:**
   - O id de cada operação na API é o termo canônico do glossário em camelCase, e o comando do SDK é o mesmo id com o prefixo `geo`: `radius` e `geoRadius()`, `byArea` e `geoByArea()`, `countByRegion` e `geoCountByRegion()`.
-  - A operação de área se chama "Por área" (*By area*). "Área desenhada" fica como o nome da forma que o usuário desenha.
+  - A operação de área se chama "Por área" (_By area_). "Área desenhada" fica como o nome da forma que o usuário desenha.
 - **Alternativas descartadas:**
-  - "Área" (*Area*): brigaria com a medida (a área de um polígono) e com expressões como "área visível".
+  - "Área" (_Area_): brigaria com a medida (a área de um polígono) e com expressões como "área visível".
   - Nomes livres no SDK, como `withinRadius()`: cada superfície acabaria com um vocabulário próprio.
   - Comandos sem prefixo: nomes genéricos como `center()` e `measure()` colidiriam com funções do código de quem usa e de outras extensões.
 - **Consequências:** um termo novo no glossário define também o nome público da operação, e renomear depois é mudança incompatível (D-016).
@@ -632,8 +632,8 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 ## D-040 — Repositório aberto no fim da F00, antes da publicação
 
-- **Estado:** aceita em 25/09/2026.
-- **Onde:** plano de implementação (F00, F16 e portões) · V-66, V-70, V-72, V-75, V-76, V-77 · A-001.
+- **Estado:** aceita em 25/09/2026. Complementada pela D-041: a proteção vale para o `develop` e para o `main`. Ajustada em 27/09/2026: a abertura vem logo depois do portão, antes da cobertura do diff e da atualização das dependências, que ficam mais simples e sem cota com o repositório público (V-66, V-70, V-72, V-77).
+- **Onde:** plano de implementação (F00, F16 e portões) · V-66, V-70, V-72, V-75, V-76, V-77 · A-001, A-018.
 - **Contexto:** o plano mantinha o repositório privado até a F16, para abrir junto com a publicação no npm. Num repositório privado de conta pessoal no plano Free, o `main` não tem proteção nem CI obrigatória (V-66), não existem CodeQL, secret scanning nem Scorecard (V-75, V-76), o SonarQube Cloud e o Codecov têm limites (V-70, V-72), e os minutos do Actions são uma cota que a matriz de testes consome rápido (V-77). O projeto também vai para o portfólio público do autor, e o processo (decisões, verificações e pull requests com CI) é parte do que ele mostra.
 - **Decisão:**
   - O repositório fica público no fim da F00, depois do portão de abertura do índice do plano.
@@ -647,3 +647,115 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - O desenvolvimento acontece em público, e o `CONTRIBUTING.md` diz o que se aceita de fora enquanto a extensão não fica pronta.
   - O critério da F00 que pede o pull request bloqueado na CI é conferido depois da abertura, no fim da própria fase.
   - Abrir não se desfaz: o que ficou público pode ter sido copiado. Por isso o `gitleaks` roda sobre o histórico inteiro antes.
+
+## D-041 — Ramos com o `develop`: as issues voltam para ele, e ele vai para o `main` no fim de cada fase
+
+- **Estado:** aceita em 25/09/2026. Muda o fluxo de ramos do `git-e-entrega.md`, que era baseado no tronco.
+- **Onde:** `docs/padroes/git-e-entrega.md` · V-64 · V-72 · V-83 · V-134 · V-138.
+- **Contexto:** o padrão previa o desenvolvimento no tronco: cada issue num ramo curto, com pull request direto para o `main`. O mantenedor preferiu um ramo de integração, o `develop`, criado em 25/09/2026, para as issues se juntarem nele antes de chegar ao `main`.
+- **Decisão:**
+  - Cada issue nasce num ramo a partir do `develop` atualizado, antes da primeira edição, com o nome no padrão Conventional Branch (V-83), e volta para o `develop` por pull request, com squash. O `develop` fica com um commit por issue.
+  - O `develop` vai para o `main` no fim de cada fase, por um pull request com merge commit, e o `main` recebe a tag da fase (por exemplo, `f00-done`). É o único merge commit do projeto, porque o squash e o rebase fariam o `develop` e o `main` divergirem.
+  - Os dois ramos são protegidos desde a abertura (D-040), sem push direto nem forçado.
+- **Alternativa descartada:** o tronco só com o `main`, que era o padrão. É mais simples, mas o `main` receberia cada issue assim que ela entrasse, sem um ponto de fechamento por fase.
+- **Consequências:**
+  - O `develop` passa a ser o ramo padrão do GitHub, para os pull requests nascerem apontando para ele.
+  - O SonarQube Cloud gratuito só analisa o pull request cujo destino é o branch principal do projeto (V-72), então o branch principal dele passa a ser o `develop`. Com o repositório público, o plano OSS analisa qualquer ramo, e o `develop` continua o principal, por ser o ramo padrão (V-138).
+  - O tipo de merge fica fixado por ramo, só squash no `develop` e só merge commit no `main`, pelos rulesets depois da abertura (V-134). Até lá, vale a disciplina.
+  - A CI roda nos pushes e nos pull requests dos dois ramos, a noite roda no `develop`, e o Renovate abre os pull requests contra o `develop`.
+  - Na F16, a publicação decide como o Changesets anda entre os dois ramos, inclusive a volta do `main` para o `develop` depois do commit de versão.
+
+## D-042 — O `capabilities` só para quem tem sessão, e o banco só para o admin
+
+- **Estado:** aceita em 25/09/2026.
+- **Onde:** §7.4 (API e SDK) · `docs/padroes/api-e-contrato.md` · V-103.
+- **Contexto:** o `GET /geospatial/capabilities` devolve a matriz de capacidades, que o Studio usa para esconder a operação indisponível, e as versões do banco, da extensão espacial e do Directus, que o admin usa no painel de saúde e o suporte usa para diagnosticar. Para quem ataca, as versões são uma impressão digital: com a versão exata, ele procura a falha conhecida dela. O próprio Directus mostra a versão dele só para quem tem sessão, e o banco em uso só para o admin (V-103).
+- **Decisão:**
+  - O pedido sem usuário recebe o `FORBIDDEN` do Directus, antes de a extensão consultar o banco.
+  - O usuário com sessão vê a matriz e as versões da API, da extensão e do Directus.
+  - Só o admin vê também o banco e a extensão espacial, com as versões.
+  - A resposta do usuário que não é admin lista o que leva, e não o que tira, para um campo novo só de admin não vazar por esquecimento.
+- **Alternativas descartadas:**
+  - Qualquer usuário com sessão vê tudo: entregaria a versão do banco e do PostGIS a todo papel, o que o Directus evita.
+  - A matriz pública, para um mapa público saber o que pode chamar: fechar depois quebraria quem passasse a depender dela. Começar fechado deixa a abertura compatível.
+- **Consequências:**
+  - Um front-end público não consegue ler a matriz. Se esse caso aparecer, liberar a matriz para o anônimo é mudança compatível, com decisão própria.
+  - O critério da F00-04 confere o banco e o PostGIS com o token de um admin.
+  - O painel de saúde (admin) e o `geoCapabilities()` do SDK leem a mesma rota, e o SDK trata o `FORBIDDEN` como erro tipado.
+
+## D-043 — O Directus 12 nos testes com a chave do Open Innovation Grant
+
+- **Estado:** aceita em 26/09/2026. Em parte substituída pela D-044 em 26/09/2026: o banco base e a trava.
+- **Onde:** §7.4 (testes), §7.5 · V-114, V-115, V-116 · P-26 · D-017, D-037.
+- **Contexto:** sem chave, o Directus 12 roda no tier Core, que não aceita regra de permissão própria (V-114). A Maria, que só lê a zona sul, não existe num 12 sem chave, então a paridade com filtro por linha (D-017) e a prova dos internos do 12 com a Maria, na F01 e na F02, não rodariam nele. A chave do Open Innovation Grant libera essas regras, mas cada banco novo que a recebe gasta uma das 5 ativações dela (V-115), e a suíte de integração cria um banco por rodada.
+- **Decisão:**
+  - O mantenedor tem uma chave do OIG, pedida em 26/09/2026, guardada no gerenciador de senhas dele e no segredo `DIRECTUS_LICENSE_KEY` do GitHub. A chave nunca vai para o repositório nem para um log.
+  - O Directus 12 licenciado nos testes sobe sempre sobre o mesmo banco base, já ativado, com a mesma `PUBLIC_URL`, e assim todas as rodadas usam uma ativação só. O banco base é criado uma vez, por um script, e a P-26 decide onde ele fica.
+  - Uma trava no código: o Directus 12 só recebe a chave depois de restaurar o banco base. Um banco novo nunca a recebe.
+  - Sem a chave, o 12 roda no Core: tudo menos as regras próprias, mais um teste que prova que o Core as recusa e que falha quando o Directus mudar isso. É o caso dos pull requests de fora, que não recebem os segredos, e de quem clona o projeto.
+  - As 5 ativações: uma para os testes com PostGIS, uma para o `pnpm dev`, uma para a demo pública e duas de reserva. O SQLite no 12 roda no Core, a menos que uma decisão use uma reserva.
+  - Antes de apagar um Directus licenciado, a licença é desativada.
+- **Alternativas descartadas:**
+  - Só o Core no 12: a paridade com filtro por linha e a prova dos internos do 12 ficariam sem teste, e o 12 é a major atual.
+  - Tirar o 12 dos testes até a licença para CI descartável sair: a faixa da D-037 prometeria uma versão sem teste, e o adaptador do 12 ficaria para o fim, com todas as diferenças de uma vez.
+  - Uma instância licenciada fixa para os testes: tira os testes dos containers (D-017) e exige um servidor sempre de pé.
+  - Uma licença comercial: paga, quando o OIG cobre o projeto.
+- **Consequências:**
+  - Os testes licenciados dependem do `licensing.directus.com`. Com ele fora do ar, o job do 12 licenciado falha, e o do Core continua.
+  - Pull requests de fora não rodam as regras próprias no 12; os do mantenedor e a rodada da noite rodam.
+  - A documentação de quem instala diz que a regra por linha no Directus 12 depende da licença do Directus, e que a extensão obedece ao que o Directus aplicar, com ou sem ela.
+  - As coleções da extensão contam no limite de 25 coleções do Core (V-114), e o desenho delas leva isso em conta.
+  - Quando o Directus lançar a licença para CI descartável, o banco base pode sair, com uma decisão nova.
+
+## D-044 — A ativação dos testes presa a um `project_id` fixo, sem banco base
+
+- **Estado:** aceita em 26/09/2026. Substitui a D-043 no banco base e na trava.
+- **Onde:** §7.4 (testes), §7.5 · V-114, V-115, V-119, V-130 · D-043.
+- **Contexto:** a D-043 previa um banco base, criado uma vez com a chave e restaurado a cada rodada, e deixava para a P-26 onde guardá-lo. A P-26 mostrou que a ativação se prende ao `project_id` gravado no banco e à `PUBLIC_URL`, e que o banco licenciado guarda a própria chave em texto puro (V-119). O banco base não poderia ir para o Git nem para o cache da CI, e o que ele levava de útil para a licença era só o `project_id`.
+- **Decisão:**
+  - O Directus 12 dos testes sobe num banco novo, sem a chave, no Core. A suíte troca o `project_id` sorteado por um `project_id` fixo dos testes, versionado, e só então aplica a chave pela rota `POST /license`, com uma `PUBLIC_URL` fixa. Toda rodada, em qualquer máquina e na CI, cai no mesmo par e reaproveita uma ativação só.
+  - O `project_id` fixo é o que o servidor escolheu na primeira ativação, pelo `pnpm test:bind-license`, porque ele não aceita um `project_id` que não conhece (V-119). O script roda uma vez, com o consentimento do mantenedor, e de novo só se a ativação dos testes for desativada.
+  - A trava: a chave só sai para um Directus cujo banco tem o `project_id` fixo.
+  - A conferência: depois de ativar, a suíte relê o `project_id`. Se o servidor o trocou, criou uma ativação nova, e a suíte a desativa na hora e falha.
+  - A chave nunca vai para as variáveis do container: ela segue no corpo do pedido à rota `/license` e fica no banco descartável do teste.
+  - No `pnpm dev`, a chave se aplica pelo Studio (Settings → License), e não pela variável `LICENSE_KEY`. Um banco novo continua no Core, a desativação é um clique e o ambiente sobe sem o servidor de licenças.
+  - O resto da D-043 continua valendo: as 5 ativações, o Core sem a chave, o teste que prova que o Core recusa a regra, a desativação antes de apagar um Directus licenciado e o segredo `DIRECTUS_LICENSE_KEY` na CI.
+- **Alternativas descartadas:**
+  - O banco base da D-043: o dump leva a chave em texto puro e precisaria ir cifrado para o repositório, e uma versão nova do Directus pediria um banco base novo ou as migrações na restauração.
+  - A chave pela variável `LICENSE_KEY` nos testes: o Directus ativaria na subida, com o `project_id` sorteado, antes de a suíte trocá-lo.
+  - A chave pela variável no `pnpm dev`, como a F00-06 pedia: um `pnpm dev:down --volumes` seguido de um `pnpm dev` gastaria uma ativação sem aviso, a desativação exigiria tirar a variável e reiniciar, e o ambiente não subiria sem o servidor de licenças.
+- **Consequências:**
+  - O esquema depende de a reativação ser idempotente no servidor, como o cliente de licença documenta e o ensaio da F00-06 confirmou (V-119). A conferência depois de cada ativação avisa se isso mudar, sem deixar uma ativação a mais presa.
+  - Nenhuma API mostra a contagem de ativações: a prova de que os testes usam uma só é o `project_id` que não muda.
+  - O `project_id` fixo fica preso à chave do mantenedor. Com outra chave, o servidor devolveria um `project_id` novo, e a conferência falharia: quem tiver uma chave própria roda o 12 no Core.
+  - Quando o Directus lançar a licença para CI descartável, a troca do `project_id` pode sair, com uma decisão nova.
+
+## D-045 — Os códigos de erro da extensão com o prefixo `GEOSPATIAL_`
+
+- **Estado:** aceita em 26/09/2026.
+- **Onde:** §7.4 (API e SDK) · `docs/padroes/api-e-contrato.md` · V-124.
+- **Contexto:** a F00-08 criou o primeiro código de erro próprio, para o banco fora. O Directus já usa códigos sem prefixo, como `LIMIT_EXCEEDED`, `TIMEOUT` e `SERVICE_UNAVAILABLE` (`@directus/errors` 2.5.1), e dois dos códigos que o contrato prevê, o de limite excedido e o de tempo esgotado, colidiriam com eles.
+- **Decisão:**
+  - Todo código de erro da extensão começa com `GEOSPATIAL_`, em `UPPER_SNAKE_CASE`, e fica listado no schema `ErrorCode` do contrato, que tipa o código no `createError` da extensão.
+  - O primeiro é o `GEOSPATIAL_DATABASE_UNAVAILABLE`, com status 503: o banco não respondeu. A mensagem é fixa, e a causa vai só para o log.
+  - Um erro que o Directus já tem no formato dele passa como veio, com o código dele.
+- **Alternativas descartadas:**
+  - Códigos sem prefixo, no estilo do Directus: os de limite e de tempo esgotado precisariam de nomes que desviassem dos dele, e um código novo do Directus poderia colidir com um nosso a qualquer versão.
+  - Usar o `SERVICE_UNAVAILABLE` do Directus para o banco fora: o cliente não distinguiria o banco da extensão de outro serviço, e o código não seria da extensão, como a F00-08 pedia.
+- **Consequências:** o SDK e quem consome a API reconhecem um erro da extensão pelo prefixo. Depois da primeira publicação, mudar um código quebra cliente, então um código só muda numa versão major (`docs/padroes/api-e-contrato.md`).
+
+## D-046 — O Renovate atualiza as dependências, e a correção de segurança não espera os 3 dias
+
+- **Estado:** aceita em 27/09/2026.
+- **Onde:** `docs/padroes/seguranca-e-dependencias.md` · `.github/renovate.json5` · D-037 · D-041 · V-75 · V-139 · V-140.
+- **Contexto:** a F00 deixou a atualização automática como decisão da fase, e os padrões recomendavam o Renovate. As versões ficam no catálogo do pnpm, nas actions fixadas pelo commit, nas imagens da CI e do ambiente de desenvolvimento, e nas imagens do Directus e do PostGIS de `test/combinations.ts`, que alimentam o canário da F02.
+- **Decisão:**
+  - O Renovate, pelo app hospedado da Mend, instalado só neste repositório, com a configuração em `.github/renovate.json5`, que a CI valida. Os pull requests vão para o `develop`, e nenhum entra sozinho: o merge é do mantenedor.
+  - A mesma idade mínima do pnpm, 3 dias, conferida sempre que o registro informa a data da versão.
+  - Os minor e patch num pull request por semana, na segunda-feira, e cada major à parte. As imagens do Directus chegam a qualquer hora, com o patch separado da minor, porque uma minor nova entra na matriz ao lado do piso (D-037).
+  - A correção de um alerta do Dependabot chega na hora, sem os 3 dias, e o Renovate a registra no `minimumReleaseAgeExclude` do pnpm. O Dependabot só alerta: o Dependabot security updates fica desligado.
+- **Alternativas descartadas:**
+  - O Dependabot version updates: já vem no GitHub, mas não tem gerenciador por regex e não enxergaria as imagens do Directus no TypeScript, de que o canário depende.
+  - A correção de segurança esperando os 3 dias, como o resto: enquanto a vulnerabilidade existe, o `pnpm audit` da CI reprova todo pull request, e a versão corrigida quase sempre já passou dos 3 dias quando o alerta sai. Chegar na hora é também o padrão do Renovate e do Dependabot.
+  - O Renovate por uma action no próprio repositório, com um token ou um app nosso: mais um segredo para guardar e mais um workflow para manter, sem ganho num repositório público.
+- **Consequências:** o Scorecard passa a reconhecer a ferramenta de atualização. Uma versão fixada fora dos gerenciadores do Renovate precisa de uma regra por regex ou de um comentário `# renovate:`, senão ela fica parada sem aviso. Uma minor ou major nova do Directus não se aplica como veio: ela ganha combinações na matriz. A entrada que o Renovate acrescenta no `minimumReleaseAgeExclude` vale só para aquela versão e pode sair quando ela passar dos 3 dias.

@@ -10,7 +10,11 @@ Draw an area, follow a vehicle, count incidents by neighborhood, prove when a tr
 geofence. Every spatial operation runs in the database, and every answer respects Directus
 permissions.
 
-![phase](https://img.shields.io/badge/phase-design%20reviewed-F2B33D?style=flat-square)
+![status](https://img.shields.io/badge/status-in%20development-F2B33D?style=flat-square)
+[![CI](https://img.shields.io/github/actions/workflow/status/HarrisonSanches/directus-extension-geospatial/ci.yml?branch=develop&style=flat-square&label=CI)](https://github.com/HarrisonSanches/directus-extension-geospatial/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![Coverage](https://img.shields.io/codecov/c/github/HarrisonSanches/directus-extension-geospatial/develop?style=flat-square&label=coverage)](https://app.codecov.io/gh/HarrisonSanches/directus-extension-geospatial)
+[![Quality gate](https://img.shields.io/sonar/quality_gate/HarrisonSanches_directus-extension-geospatial?server=https%3A%2F%2Fsonarcloud.io&style=flat-square&label=quality%20gate)](https://sonarcloud.io/summary/new_code?id=HarrisonSanches_directus-extension-geospatial)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/HarrisonSanches/directus-extension-geospatial?style=flat-square&label=OpenSSF%20Scorecard)](https://scorecard.dev/viewer/?uri=github.com/HarrisonSanches/directus-extension-geospatial)
 ![Directus](https://img.shields.io/badge/Directus-11.17%20%C2%B7%2012-0C1622?style=flat-square)
 ![PostGIS](https://img.shields.io/badge/PostGIS-reference-336791?style=flat-square&logo=postgresql&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-engine%20%C2%B7%20SDK-3178C6?style=flat-square&logo=typescript&logoColor=white)
@@ -22,19 +26,20 @@ permissions.
 ---
 
 > [!NOTE]
-> **Status: design phase.** The architecture has been planned and reviewed, and the implementation
-> plan is written. Nothing is usable yet. This page describes what the extension will do.
+> **Status: in development.** The foundation is in place, and no spatial operation works yet.
+> Nothing is published on npm or the Directus Marketplace. This page describes what the extension
+> will do.
 
 ## Why it exists
 
 Directus stores geometry well and filters it with four operators: `_intersects`, `_nintersects`,
 `_intersects_bbox` and `_nintersects_bbox`. That is where it stops.
 
-| The gap | What it means |
-|---|---|
-| **No "near me".** | There is no distance query, no radius and no nearest neighbor. Teams write custom endpoints or raw SQL, and re-implement permissions along the way. |
-| **No analysis.** | Counting by region, finding hotspots, following a trajectory or measuring an area all happen outside Directus, in another tool, with another copy of the data. |
-| **The native map shows, it doesn't analyze.** | It loads 1,000 items per page, clusters in the browser and can't be extended by other extensions. |
+| The gap                                       | What it means                                                                                                                                                  |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **No "near me".**                             | There is no distance query, no radius and no nearest neighbor. Teams write custom endpoints or raw SQL, and re-implement permissions along the way.            |
+| **No analysis.**                              | Counting by region, finding hotspots, following a trajectory or measuring an area all happen outside Directus, in another tool, with another copy of the data. |
+| **The native map shows, it doesn't analyze.** | It loads 1,000 items per page, clusters in the browser and can't be extended by other extensions.                                                              |
 
 **Geospatial closes that gap without leaving Directus.**
 
@@ -51,7 +56,7 @@ then wraps that query with the spatial SQL and runs it as a single statement.
    the list pages with a cursor and the count arrives in two steps: first "10,000+", then the exact
    number.
 3. **Each request re-applies the user's permissions.** A user restricted to one region gets the 10
-   nearest items *they* can see, never fewer and never someone else's.
+   nearest items _they_ can see, never fewer and never someone else's.
 4. **What the database can't do runs in Node,** over the permitted items, with a cap and a warning.
 
 ```mermaid
@@ -88,7 +93,7 @@ flowchart LR
 
 ```ts
 const nearby = await client.request(
-  geoRadius('stores', { center: [-46.63, -23.55], distance: 2000, fields: ['id', 'name'] }),
+	geoRadius('stores', { center: [-46.63, -23.55], distance: 2000, fields: ['id', 'name'] }),
 );
 ```
 
@@ -121,39 +126,41 @@ const nearby = await client.request(
 
 ## Architecture at a glance
 
-| Layer | Choice |
-|---|---|
-| Package | One Directus bundle: endpoint, hooks, layout, module, panel and Flow operation. It runs outside the sandbox. |
-| Engine | TypeScript on Node. Directus's internal query chain (`getAstFromQuery` → `runAst` → `getDBQuery`) behind a version adapter, checked at startup |
-| Databases | PostGIS as the reference; one adapter per database; a capability matrix detected at startup |
-| Map | MapLibre with deck.gl interleaved, both loaded on demand; Terra Draw for drawing; GeographicLib for measurements |
-| Tiles | Mapbox Vector Tiles from `ST_AsMVT`, composite per request, cached per layer |
-| Live | Server-Sent Events in ticks; `LISTEN/NOTIFY` triggers for writes made outside Directus |
-| Storage | The extension's data in Directus collections (`geospatial_*`); temporary state in memory or Redis |
-| API | Two styles, `/items`-compatible and registered queries, under `/geospatial`, with an OpenAPI contract |
-| SDK | `directus-geospatial-sdk`, typed commands used with `client.request` |
-| Reports | PDF built on the server, SHA-256 content and file hashes, optional PAdES signature |
-| Tests | Real Directus 11 and 12 and real databases in containers; permission parity with `/items`; 90% coverage |
+| Layer     | Choice                                                                                                                                         |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Package   | One Directus bundle: endpoint, hooks, layout, module, panel and Flow operation. It runs outside the sandbox.                                   |
+| Engine    | TypeScript on Node. Directus's internal query chain (`getAstFromQuery` → `runAst` → `getDBQuery`) behind a version adapter, checked at startup |
+| Databases | PostGIS as the reference; one adapter per database; a capability matrix detected at startup                                                    |
+| Map       | MapLibre with deck.gl interleaved, both loaded on demand; Terra Draw for drawing; GeographicLib for measurements                               |
+| Tiles     | Mapbox Vector Tiles from `ST_AsMVT`, composite per request, cached per layer                                                                   |
+| Live      | Server-Sent Events in ticks; `LISTEN/NOTIFY` triggers for writes made outside Directus                                                         |
+| Storage   | The extension's data in Directus collections (`geospatial_*`); temporary state in memory or Redis                                              |
+| API       | Two styles, `/items`-compatible and registered queries, under `/geospatial`, with an OpenAPI contract                                          |
+| SDK       | `directus-geospatial-sdk`, typed commands used with `client.request`                                                                           |
+| Reports   | PDF built on the server, SHA-256 content and file hashes, optional PAdES signature                                                             |
+| Tests     | Real Directus 11 and 12 and real databases in containers; permission parity with `/items`; 90% coverage                                        |
 
 Full detail, with the reasoning behind each choice, in [`docs/arquitetura.md`](docs/arquitetura.md).
 
 ## Databases
 
-| Database | Support |
-|---|---|
-| PostgreSQL + PostGIS | Everything. This is the reference. |
-| CockroachDB | Through the Postgres adapter; the gaps will be confirmed by the tests. |
-| MySQL, MariaDB | What the database supports runs there, and the rest runs in Node with a cap. |
-| SQL Server, Oracle | Adapters with their own spatial functions. |
-| SQLite + SpatiaLite | Development and tests. |
+| Database             | Support                                                                      |
+| -------------------- | ---------------------------------------------------------------------------- |
+| PostgreSQL + PostGIS | Everything. This is the reference.                                           |
+| CockroachDB          | Through the Postgres adapter; the gaps will be confirmed by the tests.       |
+| MySQL, MariaDB       | What the database supports runs there, and the rest runs in Node with a cap. |
+| SQL Server, Oracle   | Adapters with their own spatial functions.                                   |
+| SQLite + SpatiaLite  | Development and tests.                                                       |
 
 ## Status
 
-- [x] Architecture designed and documented (decisions D-001 to D-039)
+- [x] Architecture designed and documented
 - [x] Directus internals verified in the source code (version 12.4.1)
 - [x] Design reviewed against the glossary and the decisions
 - [x] Implementation plan, in phases
-- [ ] Foundation: permitted queries, adapters, tiles and the capability matrix
+- [x] Foundation: the bundle answers on `/geospatial/capabilities`, and every pull request runs the integration
+      suite on Directus 11.17 and 12, with PostGIS and with SQLite
+- [ ] Permitted queries, database adapters, tiles and the capability matrix
 - [ ] Studio surfaces, operations, time and movement
 - [ ] Evidence reports, starting with the geofence template
 - [ ] First public release on npm and the Directus Marketplace
@@ -162,14 +169,22 @@ Full detail, with the reasoning behind each choice, in [`docs/arquitetura.md`](d
 
 The design documents are currently in Portuguese. English user, admin, API and SDK documentation
 will ship with the first release. The phase-by-phase implementation plan is kept by the maintainer in a
-private repository, and the Status above follows it.
+private repository, and the Status above follows it. The phase ids (F00), issue ids (F00-06) and
+finding ids (A-001) in the documents refer to that plan.
 
-| Document | Contents |
-|---|---|
-| [`CONTEXT.md`](CONTEXT.md) | Domain glossary, Portuguese and English |
-| [`docs/arquitetura.md`](docs/arquitetura.md) | The full architecture |
-| [`docs/decisoes.md`](docs/decisoes.md) | Every decision, with the reason and the alternatives ruled out |
+| Document                                       | Contents                                                                                       |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [`CONTEXT.md`](CONTEXT.md)                     | Domain glossary, Portuguese and English                                                        |
+| [`docs/arquitetura.md`](docs/arquitetura.md)   | The full architecture                                                                          |
+| [`docs/decisoes.md`](docs/decisoes.md)         | Every decision, with the reason and the alternatives ruled out                                 |
 | [`docs/verificacoes.md`](docs/verificacoes.md) | Facts verified in the source code of Directus, PostGIS and the other tools, and pending checks |
+| [`docs/padroes/`](docs/padroes/README.md)      | How the code is written, tested and delivered                                                  |
+
+## Contributing
+
+The extension is not ready for outside code yet. [`CONTRIBUTING.md`](CONTRIBUTING.md) says what helps
+now and how to run the project, and [`SECURITY.md`](SECURITY.md) says how to report a vulnerability.
+Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Author
 

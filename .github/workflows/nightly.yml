@@ -1,0 +1,26 @@
+# The checks of CI every night on develop, the default branch, with the newest PostGIS added to the integration suite
+# (D-037). It also runs by hand, from the Actions tab.
+name: Nightly
+
+on:
+  schedule:
+    # 03:00 in São Paulo.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: CI with the combinations of the night
+    uses: $/.github/workflows/ci.yml
+    # A called workflow can only ask for the permissions its caller gives. The coverage job of CI asks for id-token to
+    # send to Codecov, which it only does on a push or a pull request, so the night never uses it.
+    permissions:
+      contents: read # checks out the repository
+      id-token: write # asked for by the coverage job of CI
+    with:
+      combinations: nightly
+    secrets:
+      DIRECTUS_LICENSE_KEY: ${{ secrets.DIRECTUS_LICENSE_KEY }}
