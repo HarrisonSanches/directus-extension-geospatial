@@ -11,6 +11,8 @@ geofence. Every spatial operation runs in the database, and every answer respect
 permissions.
 
 ![status](https://img.shields.io/badge/status-in%20development-F2B33D?style=flat-square)
+[![CI](https://img.shields.io/github/actions/workflow/status/HarrisonSanches/directus-extension-geospatial/ci.yml?branch=develop&style=flat-square&label=CI)](https://github.com/HarrisonSanches/directus-extension-geospatial/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/HarrisonSanches/directus-extension-geospatial?style=flat-square&label=OpenSSF%20Scorecard)](https://scorecard.dev/viewer/?uri=github.com/HarrisonSanches/directus-extension-geospatial)
 ![Directus](https://img.shields.io/badge/Directus-11.17%20%C2%B7%2012-0C1622?style=flat-square)
 ![PostGIS](https://img.shields.io/badge/PostGIS-reference-336791?style=flat-square&logo=postgresql&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-engine%20%C2%B7%20SDK-3178C6?style=flat-square&logo=typescript&logoColor=white)
