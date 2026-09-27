@@ -70,6 +70,10 @@
 						"integration_id": 15368
 					},
 					{
+						"context": "Renovate configuration (renovate-config-validator)",
+						"integration_id": 15368
+					},
+					{
 						"context": "Title in the commit standard (commitlint)",
 						"integration_id": 15368
 					},

@@ -167,6 +167,7 @@ GitHub Actions desde a F00, crescendo com as fases:
 | Cobertura: a do diff pelo Codecov, e a catraca da cobertura somada                                    | F00              | A cada push; à noite, só a catraca                                              |
 | Análise do SonarQube Cloud, com o quality gate no pull request                                        | F00              | A cada push                                                                     |
 | `gitleaks`, `pnpm audit`, OSV-Scanner e o zizmor nos workflows                                        | F00              | A cada push                                                                     |
+| A configuração do Renovate (`renovate-config-validator`)                                              | F00              | A cada push                                                                     |
 | Título do pull request no padrão de commit (commitlint)                                               | F00              | Em pull request, bloqueando o merge desde a abertura                            |
 | Integração no PostGIS (a versão mínima) e no SQLite, no Directus 11.17 e no 12, um job por combinação | F00              | A cada push                                                                     |
 | O PostGIS na versão mais nova                                                                         | F00              | Toda noite                                                                      |
@@ -189,8 +190,8 @@ Os workflows ficam em `.github/workflows/`:
 
 - **`ci.yml`**, a cada push e pull request do `develop` e do `main`: a verificação do `pnpm check`, sem a integração;
   a integração, com um job por combinação, na lista que o `node test/combinations.ts` imprime; o `gitleaks` sobre o
-  histórico inteiro; o `pnpm audit` e o OSV-Scanner; e o zizmor. Um push novo num pull request cancela a rodada
-  anterior.
+  histórico inteiro; o `pnpm audit` e o OSV-Scanner; o zizmor; e o validador da configuração do Renovate. Um push
+  novo num pull request cancela a rodada anterior.
 - **`pr-title.yml`**, em pull request: o título pelo commitlint, de novo a cada edição, sem rodar o resto.
 - **`nightly.yml`**, às 03:00 de São Paulo e à mão (`workflow_dispatch`): chama o `ci.yml` com as combinações da
   noite, que acrescentam o PostGIS mais novo.
@@ -198,7 +199,8 @@ Os workflows ficam em `.github/workflows/`:
 As regras dos workflows:
 
 - Toda action fixada pelo commit da tag, com a tag num comentário, e toda imagem pelo digest; o workflow do próprio
-  repositório pelo `$/`, que o GitHub trata como fixado (V-129).
+  repositório pelo `$/`, que o GitHub trata como fixado (V-129). O Renovate atualiza as duas coisas, e uma versão
+  que ele não lê sozinho, como a do zizmor, fica sob um comentário `# renovate:` que diz de onde ela vem (D-046).
 - `permissions: contents: read` no workflow, e o checkout sem guardar a credencial (`persist-credentials: false`).
 - Um valor de fora, como o título do pull request, entra no script só por variável de ambiente, nunca por `${{ }}`.
 - O segredo `DIRECTUS_LICENSE_KEY` vai só para o job do Directus 12 com PostGIS (D-044), e um pull request de fork,

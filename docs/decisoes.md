@@ -743,3 +743,19 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Códigos sem prefixo, no estilo do Directus: os de limite e de tempo esgotado precisariam de nomes que desviassem dos dele, e um código novo do Directus poderia colidir com um nosso a qualquer versão.
   - Usar o `SERVICE_UNAVAILABLE` do Directus para o banco fora: o cliente não distinguiria o banco da extensão de outro serviço, e o código não seria da extensão, como a F00-08 pedia.
 - **Consequências:** o SDK e quem consome a API reconhecem um erro da extensão pelo prefixo. Depois da primeira publicação, mudar um código quebra cliente, então um código só muda numa versão major (`docs/padroes/api-e-contrato.md`).
+
+## D-046 — O Renovate atualiza as dependências, e a correção de segurança não espera os 3 dias
+
+- **Estado:** aceita em 27/09/2026.
+- **Onde:** `docs/padroes/seguranca-e-dependencias.md` · `.github/renovate.json5` · D-037 · D-041 · V-75 · V-139 · V-140.
+- **Contexto:** a F00 deixou a atualização automática como decisão da fase, e os padrões recomendavam o Renovate. As versões ficam no catálogo do pnpm, nas actions fixadas pelo commit, nas imagens da CI e do ambiente de desenvolvimento, e nas imagens do Directus e do PostGIS de `test/combinations.ts`, que alimentam o canário da F02.
+- **Decisão:**
+  - O Renovate, pelo app hospedado da Mend, instalado só neste repositório, com a configuração em `.github/renovate.json5`, que a CI valida. Os pull requests vão para o `develop`, e nenhum entra sozinho: o merge é do mantenedor.
+  - A mesma idade mínima do pnpm, 3 dias, conferida sempre que o registro informa a data da versão.
+  - Os minor e patch num pull request por semana, na segunda-feira, e cada major à parte. As imagens do Directus chegam a qualquer hora, com o patch separado da minor, porque uma minor nova entra na matriz ao lado do piso (D-037).
+  - A correção de um alerta do Dependabot chega na hora, sem os 3 dias, e o Renovate a registra no `minimumReleaseAgeExclude` do pnpm. O Dependabot só alerta: o Dependabot security updates fica desligado.
+- **Alternativas descartadas:**
+  - O Dependabot version updates: já vem no GitHub, mas não tem gerenciador por regex e não enxergaria as imagens do Directus no TypeScript, de que o canário depende.
+  - A correção de segurança esperando os 3 dias, como o resto: enquanto a vulnerabilidade existe, o `pnpm audit` da CI reprova todo pull request, e a versão corrigida quase sempre já passou dos 3 dias quando o alerta sai. Chegar na hora é também o padrão do Renovate e do Dependabot.
+  - O Renovate por uma action no próprio repositório, com um token ou um app nosso: mais um segredo para guardar e mais um workflow para manter, sem ganho num repositório público.
+- **Consequências:** o Scorecard passa a reconhecer a ferramenta de atualização. Uma versão fixada fora dos gerenciadores do Renovate precisa de uma regra por regex ou de um comentário `# renovate:`, senão ela fica parada sem aviso. Uma minor ou major nova do Directus não se aplica como veio: ela ganha combinações na matriz. A entrada que o Renovate acrescenta no `minimumReleaseAgeExclude` vale só para aquela versão e pode sair quando ela passar dos 3 dias.

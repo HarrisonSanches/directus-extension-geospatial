@@ -58,7 +58,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   Vitest (A-020). O Codecov recebe um envio por push, por OIDC, e exige 90% do patch; o SonarQube Cloud, no plano
   Free, analisa os pull requests para o `develop`, com o quality gate. Os dois status são obrigatórios no `develop`,
   e o pull request de fork vem para um ramo do repositório (V-137, V-138).
-- Próximo passo: `/implement-issue F00-11`, as dependências atualizadas e vigiadas.
+- F00-11 feita em 27/09/2026: o Renovate abre os pull requests das dependências contra o `develop`, com os 3 dias do
+  pnpm, os minor e patch numa rodada por semana e as imagens do Directus a qualquer hora, com o patch separado da
+  minor nova, que entra na matriz ao lado do piso. A CI valida a configuração, e a correção de um alerta do
+  Dependabot chega na hora. O Renovate não lê a idade mínima do pnpm, e sem a data da versão a espera seria eterna
+  (D-046, V-139, V-140).
+- Próximo passo: com o app do Renovate instalado e o primeiro pull request dele conferido, `/fechar-fase F00`.
 
 ## Documentação
 
