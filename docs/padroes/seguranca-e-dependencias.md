@@ -14,7 +14,8 @@ confiança se constrói no repositório.
   variáveis do container, e a tira das mensagens de erro. No `pnpm dev`, ela se aplica pelo Studio, e o Directus a
   guarda no banco do volume (V-119).
 - `gitleaks` na integração contínua e, antes da abertura do repositório, na F00 (D-040), sobre o histórico
-  inteiro. Depois da abertura, o secret scanning do GitHub também vigia o repositório (V-75).
+  inteiro. Depois da abertura, o secret scanning do GitHub também vigia o repositório, e a proteção de push recusa
+  o push que traz um segredo conhecido (V-75, V-136).
 - Segredo nunca em log, mensagem de erro, URL ou resposta da API.
 
 ## Dependências
