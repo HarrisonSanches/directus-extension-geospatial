@@ -10,7 +10,7 @@ Fase: **$ARGUMENTS**, ou a que está "em andamento" no índice `../directus-exte
 
 O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
-**Git pelas regras do `CLAUDE.md`:** você faz os commits do fechamento e o push, no `main` do plano e no `develop` do produto. **A promoção para o `main` do produto e a tag são do mantenedor:** você só prepara o texto do pull request. As mensagens seguem o padrão de `docs/padroes/git-e-entrega.md`: a do produto termina com a linha de coautoria do agente, e a do repositório do plano não tem coautoria.
+**Git pelas regras do `CLAUDE.md`:** você faz os commits do fechamento e o push no `main` do plano e, no produto, num ramo `chore/` com pull request para o `develop`, que o mantenedor mergeia antes da promoção. **A promoção para o `main` do produto e a tag são do mantenedor:** você só prepara o texto do pull request. As mensagens seguem o padrão de `docs/padroes/git-e-entrega.md`: no produto, os commits do ramo saem sem coautoria, e a descrição do pull request termina com ela; no repositório do plano, sem coautoria.
 
 ## 1. Conferir, e parar se algo faltar
 

@@ -59,11 +59,10 @@ módulo (`tiles`, `cache`, `queue`, `live`, `reports`, `internals`), o pacote (`
   a mudança quebra cliente. Isso só acontece em versão major, com o aviso de descontinuação antes
   ([`api-e-contrato.md`](api-e-contrato.md));
 - `Co-Authored-By: <modelo> <noreply@anthropic.com>`, na última linha, quando um agente de IA trabalhou na
-  mudança: nos commits dele direto no `develop` e no fim da descrição do pull request, que vira o commit do
-  `develop` no squash. Os commits dos ramos das issues saem sem ela, porque, com a linha neles, o GitHub acrescenta
-  na caixa do squash um bloco `---------` que repete o `Co-authored-by` (V-92). A mensagem do squash termina nos
-  rodapés da descrição, com uma linha só de coautoria, e o agente confere isso pelo `viewerMergeBodyText` da API do
-  GitHub antes de entregar o pull request.
+  mudança: no fim da descrição do pull request, que vira o commit do `develop` no squash. Os commits dos ramos saem
+  sem ela, porque, com a linha neles, o GitHub acrescenta na caixa do squash um bloco `---------` que repete o
+  `Co-authored-by` (V-92). A mensagem do squash termina nos rodapés da descrição, com uma linha só de coautoria, e
+  o agente confere isso pelo `viewerMergeBodyText` da API do GitHub antes de entregar o pull request.
 
 **O tipo não decide a versão.** Quem decide é o changeset do pull request (veja Versões). O tipo e o `!` servem a
 quem lê o histórico e a quem procura uma mudança.
@@ -142,8 +141,14 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
   por issue.
 - **Do `develop` para o `main`, merge commit,** num pull request no fim da fase, com a tag da fase no `main`
   (`f00-done`). É o único merge commit do projeto: o squash e o rebase fariam os dois ramos divergirem.
-- Os dois ramos são protegidos desde a abertura do repositório, na F00 (D-040): sem push direto, com a
-  integração contínua e o título do pull request obrigatórios, e com o tipo de merge fixado em cada um (P-23).
+- Os dois ramos são protegidos desde a abertura do repositório, na F00 (D-040), pelos rulesets de
+  [`.github/rulesets/`](../../.github/rulesets/): sem push direto nem forçado e sem apagar o ramo, com os jobs da
+  CI e o título do pull request obrigatórios, e com o tipo de merge fixado em cada um (V-134).
+  - Ninguém fica na lista de exceção, nem o dono. Toda mudança, também a só de docs, entra por pull request.
+  - No `develop`, o ramo do pull request precisa estar atualizado com ele antes do merge. No `main`, não, porque o
+    merge commit da fase fica só nele, e o `develop` nunca estaria atualizado.
+  - Um job novo na CI, ou uma combinação nova da suíte, entra na lista de checks dos dois arquivos. Uma mudança
+    no ruleset se faz no arquivo e se aplica pela API, para o arquivo e o GitHub não divergirem.
 - **Nenhum dos dois recebe push forçado.** No GitHub, o histórico reescrito continua visível pelo hash e na página
   Activity (V-78); o que entrou se corrige com um commit novo, ou com `revert`.
 
@@ -160,7 +165,7 @@ GitHub Actions desde a F00, crescendo com as fases:
 | Título do pull request no padrão de commit (commitlint)                                               | F00              | Em pull request, bloqueando o merge desde a abertura                            |
 | Integração no PostGIS (a versão mínima) e no SQLite, no Directus 11.17 e no 12, um job por combinação | F00              | A cada push                                                                     |
 | O PostGIS na versão mais nova                                                                         | F00              | Toda noite                                                                      |
-| CodeQL, secret scanning e Scorecard                                                                   | F00, na abertura | Pelo GitHub, e o Scorecard num workflow a cada push no ramo padrão, o `develop` |
+| CodeQL, secret scanning e Scorecard                                                                   | F00, na abertura | Pelo GitHub (V-136), o Scorecard a cada push no `develop` e toda semana (V-135) |
 | Paridade de permissão, contrato da API, lint do OpenAPI                                               | F02              | A cada push                                                                     |
 | As camadas do motor no lint (zonas do `import-x`)                                                     | F02              | A cada push                                                                     |
 | Build sem código do `@directus/api`, e o aviso de licenças de terceiros gerado                        | F02              | A cada push                                                                     |

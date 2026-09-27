@@ -48,7 +48,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   desenvolvimento. As denúncias de conduta vão pelo relato privado do GitHub até existir o e-mail do projeto, antes
   da F16. A abertura passou para antes da cobertura e das dependências (D-040), e o relato privado de
   vulnerabilidade do GitHub só existe no repositório público (V-131 a V-133).
-- Próximo passo: `/implement-issue F00-13`, a abertura do repositório.
+- F00-13 feita em 27/09/2026: o repositório está público. O `develop` e o `main` têm rulesets, versionados em
+  `.github/rulesets/`: sem push direto nem forçado, com os jobs da CI e o título obrigatórios, só squash no `develop`
+  e só merge commit no `main`, e ninguém na exceção, então toda mudança, também a só de docs, entra por pull request.
+  O CodeQL, o secret scanning com a proteção de push e o relato privado estão ligados, e o Scorecard publica a nota
+  no README, ao lado do badge de CI (V-134 a V-136).
+- Próximo passo: `/implement-issue F00-10`, a cobertura do diff e o quality gate, já com o repositório público.
 
 ## Documentação
 
@@ -82,10 +87,10 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 
 - **Princípios** em [arquitetura §2](docs/arquitetura.md#2-princípios). A regra de ouro das permissões é a D-001, e uma porta de mão única nunca muda sem uma decisão nova.
 - **Git:**
-  - a coautoria do agente, `Co-Authored-By: <modelo> <noreply@anthropic.com>`, com o nome do modelo da sessão, é a última linha de todo commit que ele faz direto no `develop` do produto e da descrição do pull request, que vira o commit do `develop` no squash. Os commits dos ramos das issues saem sem ela: com a linha neles, o GitHub acrescenta na caixa do squash um bloco `---------` que repete o `Co-authored-by` (V-92). A mensagem do squash termina nos rodapés da descrição, `Refs:` e `Co-Authored-By:`, com uma linha só de coautoria, e o agente confere isso pelo `viewerMergeBodyText` da API do GitHub antes de entregar o pull request. No repositório do plano, sem coautoria;
+  - a coautoria do agente, `Co-Authored-By: <modelo> <noreply@anthropic.com>`, com o nome do modelo da sessão, é a última linha da descrição do pull request, que vira o commit do `develop` no squash. Os commits dos ramos das issues saem sem ela: com a linha neles, o GitHub acrescenta na caixa do squash um bloco `---------` que repete o `Co-authored-by` (V-92). A mensagem do squash termina nos rodapés da descrição, `Refs:` e `Co-Authored-By:`, com uma linha só de coautoria, e o agente confere isso pelo `viewerMergeBodyText` da API do GitHub antes de entregar o pull request. No repositório do plano, sem coautoria;
   - ramos (D-041): cada issue num ramo a partir do `develop` atualizado, criado **antes da primeira edição**, com o nome no padrão de mercado de [docs/padroes/git-e-entrega.md](docs/padroes/git-e-entrega.md) (`<tipo>/<id>-<descrição>`); o pull request volta para o `develop` com squash, e o `develop` vai para o `main` no fim de cada fase;
   - mensagens em inglês, no padrão Conventional Commits, com as regras de [docs/padroes/git-e-entrega.md](docs/padroes/git-e-entrega.md);
-  - **o que o agente faz sozinho:** commit nos dois repositórios; criar o ramo de cada issue; push no ramo da issue, no `develop` do produto e no `main` do plano; abrir o pull request para o `develop`. O código de uma issue entra no `develop` só pelo pull request; o push direto no `develop` é para mudança de docs e de processo;
+  - **o que o agente faz sozinho:** commit nos dois repositórios; criar o ramo de cada issue; push no ramo da issue e no `main` do plano; abrir o pull request para o `develop`. Tudo entra no `develop` por pull request, também a mudança só de docs ou de processo, que vai num ramo `chore/`: desde a abertura, o ruleset recusa o push direto de qualquer um (D-041);
   - **o que fica com o mantenedor:** o merge dos pull requests no `develop`, depois da revisão, e tudo o que vai para o `main` do produto. O agente nunca toca o `main` do produto: nem push, nem pull request, nem tag;
   - nunca push forçado nem reescrita de histórico (V-78);
   - antes de cada push, o agente lê o diff inteiro, procurando segredo, dado pessoal e arquivo que não devia ir.
