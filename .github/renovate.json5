@@ -24,6 +24,10 @@
 	minimumReleaseAge: '3 days',
 	// The ruleset of develop requires the branch to be up to date with it (V-134).
 	rebaseWhen: 'behind-base-branch',
+	// The body of a pull request becomes the commit of develop in the squash (V-64), so it carries the table of the
+	// versions, with the links to each diff, and the notes of the rules, without the release notes, which reached
+	// 40 KB in the first pull request (V-139). The default, without {{{changelogs}}}.
+	prBodyTemplate: '{{{header}}}{{{table}}}{{{warnings}}}{{{notes}}}{{{configDescription}}}{{{controls}}}{{{footer}}}',
 	// Refreshes the whole lockfile, for the indirect dependencies, which pnpm resolves within its 3 days.
 	lockFileMaintenance: {
 		enabled: true,
