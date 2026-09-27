@@ -1,0 +1,158 @@
+// Renovate keeps the dependencies up to date (D-046). It reads each version pinned in the repository and, when a new
+// one comes out, opens a pull request against develop, the default branch. The CI of the pull request is the filter,
+// and the maintainer merges: nothing merges by itself. The CI also checks this file, with renovate-config-validator.
+{
+	$schema: 'https://docs.renovatebot.com/renovate-schema.json',
+	extends: [
+		'config:recommended',
+		// A new action comes pinned by the commit of its tag, as every action already is (V-74).
+		'helpers:pinGitHubActionDigests',
+		// A setting that Renovate renames comes back as a pull request with the new name.
+		':configMigration',
+		// The minor and patch updates in one pull request a week, and each major on its own.
+		'group:allNonMajor',
+	],
+	// config:recommended skips the test folders, and test/combinations.ts holds the images of the integration suite.
+	ignorePaths: ['**/node_modules/**'],
+	semanticCommits: 'enabled',
+	labels: ['dependencies'],
+	// Mondays, the whole day: the hosted app runs once a day until one of its pull requests is merged (V-139).
+	timezone: 'America/Sao_Paulo',
+	schedule: ['* * * * 1'],
+	// The 3 days of the minimumReleaseAge of pnpm (4320 minutes), which Renovate does not read (V-139). pnpm refuses a
+	// younger version in the lockfile, and Renovate waits 30 minutes more by default because of that.
+	minimumReleaseAge: '3 days',
+	// The ruleset of develop requires the branch to be up to date with it (V-134).
+	rebaseWhen: 'behind-base-branch',
+	// Refreshes the whole lockfile, for the indirect dependencies, which pnpm resolves within its 3 days.
+	lockFileMaintenance: {
+		enabled: true,
+		schedule: ['* * * * 1'],
+	},
+	// The fix of a Dependabot alert comes at once, without the schedule and the 3 days (D-046). Renovate lets its version
+	// through pnpm with an entry in the minimumReleaseAgeExclude of pnpm-workspace.yaml (V-139).
+	vulnerabilityAlerts: {
+		labels: ['dependencies', 'security'],
+	},
+	customManagers: [
+		// The images of Directus in the integration suite, each pinned by the digest of its tag, with its version beside
+		// it. Renovate replaces the version in both places of the match, and the digest with it (V-139).
+		{
+			customType: 'regex',
+			managerFilePatterns: ['/^test/combinations\\.ts$/'],
+			matchStrings: [
+				"version: '(?<currentValue>[^']+)',\\s+image: '(?<depName>directus/directus):[^@']+@(?<currentDigest>sha256:[a-f0-9]{64})'",
+			],
+			datasourceTemplate: 'docker',
+		},
+		// The newest PostGIS, of the night. The minimum follows the support policy of Postgres and PostGIS (D-037), so it
+		// changes by hand.
+		{
+			customType: 'regex',
+			managerFilePatterns: ['/^test/combinations\\.ts$/'],
+			matchStrings: [
+				"const postgisNewest = \\{ client: 'postgres', image: '(?<depName>postgis/postgis):(?<currentValue>[^']+)' \\}",
+			],
+			datasourceTemplate: 'docker',
+		},
+		// The versions in the workflows that no manager reads, each under a comment that names its source.
+		{
+			customType: 'regex',
+			managerFilePatterns: ['/^\\.github/workflows/[^/]+\\.ya?ml$/'],
+			matchStrings: [
+				'# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\w+: (?:[^\\s:]+:)?(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?',
+			],
+		},
+	],
+	packageRules: [
+		// Renovate reads the release date of an image only on Docker Hub, and without a login only for its last 1000 tags,
+		// so ghcr.io, redis and Renovate itself come without one, as do the GitHub runners (V-139). Without a date, an
+		// update would wait forever: these wait for the 3 days only when the date is known, as it is for Directus and
+		// PostGIS. The images of the CI stay pinned by their digest, and the CI runs them before the merge.
+		{
+			matchDatasources: ['docker', 'github-runners'],
+			minimumReleaseAgeBehaviour: 'timestamp-optional',
+		},
+		// An override pins a fixed version in the line that the package pulling it asks for, so it keeps its major.
+		{
+			matchDepTypes: ['pnpm-workspace.overrides'],
+			matchUpdateTypes: ['major'],
+			enabled: false,
+		},
+		// The images of Directus come at any time, because each new tag is the signal of the canary (F02). A patch
+		// replaces the version the matrix runs, and a new minor or major comes on its own.
+		{
+			matchDatasources: ['docker'],
+			matchPackageNames: ['directus/directus'],
+			groupName: 'Directus images',
+			schedule: ['at any time'],
+			separateMinorPatch: true,
+		},
+		{
+			matchDatasources: ['docker'],
+			matchPackageNames: ['directus/directus'],
+			matchUpdateTypes: ['minor', 'major'],
+			prBodyNotes: [
+				'A new minor or major of Directus joins the matrix as the newest version, and the floor stays (D-037): add its combinations to test/combinations.ts instead of replacing the ones there.',
+			],
+		},
+		// 11.17 is the last minor of Directus 11 (V-35), which stays in the range while the matrix passes on it (D-037).
+		{
+			matchDatasources: ['docker'],
+			matchPackageNames: ['directus/directus'],
+			matchCurrentValue: '/^11\\./',
+			allowedVersions: '/^11\\./',
+		},
+		// @directus/extensions-sdk depends on exact versions of the other packages of Directus, such as @directus/types,
+		// so they come together, majors included.
+		{
+			matchPackageNames: ['@directus/**'],
+			groupName: 'Directus packages',
+			separateMajorMinor: false,
+			prBodyNotes: [
+				'@directus/types names exact versions of knex and pino as its peers, and the catalog keeps them at those versions by hand.',
+			],
+		},
+		// The peers of @directus/types, which follow it and not their latest version.
+		{
+			matchPackageNames: ['knex', 'pino'],
+			enabled: false,
+		},
+		// The coverage libraries are the ones @vitest/coverage-v8 uses, so a major of any of them comes with Vitest.
+		{
+			matchPackageNames: ['vitest', '@vitest/**', 'ast-v8-to-istanbul'],
+			matchUpdateTypes: ['major'],
+			groupName: 'Vitest',
+		},
+		// The tools run on the Node of .node-version, the 24 (V-79), and the code of the extension on the Node of the
+		// Directus images, the 22 (V-80). Each catalog stays on its line, and a new line is a decision.
+		{
+			matchPackageNames: ['@types/node'],
+			matchDepTypes: ['pnpm.catalog.default'],
+			allowedVersions: '<25',
+		},
+		{
+			matchPackageNames: ['@types/node'],
+			matchDepTypes: ['pnpm.catalog.node22'],
+			allowedVersions: '<23',
+		},
+		// The tags of PostGIS are <Postgres major>-<PostGIS major>.<PostGIS minor>, with or without -alpine. A new PostGIS
+		// comes as a patch, and a new Postgres as a major.
+		{
+			matchDatasources: ['docker'],
+			matchPackageNames: ['postgis/postgis'],
+			versioning: 'regex:^(?<major>\\d+)-(?<minor>\\d+)\\.(?<patch>\\d+)(?<compatibility>-alpine)?$',
+			groupName: 'PostGIS',
+			prBodyNotes: [
+				'The CI of a pull request does not run the newest PostGIS, and the nightly run does: run it on this branch before the merge, in Actions, Nightly, Run workflow.',
+			],
+		},
+		// Until typescript-eslint supports TypeScript 7 (P-25).
+		{
+			matchPackageNames: ['typescript-eslint', '@typescript-eslint/**'],
+			prBodyNotes: [
+				'P-25: once typescript-eslint supports TypeScript 7 (typescript-eslint issue 10940), the typescript of the catalog moves to 7, and the @typescript/native alias goes.',
+			],
+		},
+	],
+}

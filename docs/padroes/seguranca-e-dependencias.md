@@ -35,15 +35,27 @@ confiança se constrói no repositório.
     falha quando aparece um script que ninguém revisou (`strictDepBuilds`, V-85);
   - dependência que não roda no Node em uso não instala (`engineStrict`, V-93);
   - versão recém-publicada só entra depois de 3 dias (`minimumReleaseAge` de 4320 minutos, no pnpm e no
-    Renovate), para dar tempo de um pacote comprometido ser descoberto;
+    Renovate), para dar tempo de um pacote comprometido ser descoberto. A exceção é a correção de um alerta do
+    Dependabot, que chega na hora (D-046);
   - `pnpm audit` e OSV-Scanner na CI. Uma vulnerabilidade com correção sai por atualização ou, quando quem a puxa
     prende a versão exata, por um `overrides` com a faixa vulnerável no nome. A que não tem correção vira exceção,
     com o motivo, no `auditConfig.ignoreGhsas` do `pnpm-workspace.yaml` e no `osv-scanner.toml`, este com a data de
     revisão (`ignoreUntil`): passada a data, o OSV-Scanner falha e as duas listas são revistas (V-128);
-  - o Dependabot alerts ligado, para a vulnerabilidade nova aparecer mesmo sem push (V-75);
+  - o Dependabot alerts ligado, para a vulnerabilidade nova aparecer mesmo sem push (V-75, V-140). O Dependabot
+    security updates fica desligado, porque a correção vem pelo Renovate;
   - os workflows do GitHub Actions passam pelo zizmor (V-74).
-- Atualizações pelo Renovate, agrupadas, com a integração contínua como filtro. As tags do Directus também, e o
-  canário roda nelas.
+- **Atualizações pelo Renovate** (D-046), com a configuração em `.github/renovate.json5`, que a CI valida:
+  - os minor e patch num pull request por semana, na segunda-feira, e cada major à parte. Nenhum entra sozinho, e
+    a integração contínua é o filtro;
+  - as imagens do Directus a qualquer hora, com o patch separado da minor. O patch troca a versão da matriz, e a
+    minor ou a major nova entra nela ao lado do piso (D-037). O canário roda nelas;
+  - o que só anda junto vem num grupo: os pacotes do Directus, que o `@directus/extensions-sdk` prende em versões
+    exatas, e, no major, o Vitest com as bibliotecas de cobertura;
+  - o que segue outra coisa fica parado: o `knex` e o `pino`, peers exatos do `@directus/types`; o `@types/node` de
+    cada catálogo, na linha do Node dele; o override, no major em que está; e o PostGIS mínimo, que segue a política
+    de suporte;
+  - uma versão fixada fora dos gerenciadores do Renovate ganha uma regra por regex ou um comentário `# renovate:`
+    com a origem, senão fica parada sem aviso (V-139).
 
 ## Publicação
 

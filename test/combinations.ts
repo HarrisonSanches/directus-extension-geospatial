@@ -1,5 +1,6 @@
 // The Directus versions of the range (D-037). Each official image is pinned by the digest of its tag, so the
-// combinations of one version run the same build, which the image with SpatiaLite starts from.
+// combinations of one version run the same build, which the image with SpatiaLite starts from. Renovate moves the
+// version, the tag and the digest together (.github/renovate.json5).
 const directus = {
 	'11.17': {
 		version: '11.17.4',
@@ -12,10 +13,10 @@ const directus = {
 };
 
 // The oldest PostGIS the PostGIS project maintains, on the oldest supported Postgres, in its official image, which
-// stopped being rebuilt in 2022 (V-113).
+// stopped being rebuilt in 2022 (V-113). It follows the support policy, so it changes by hand.
 const postgis = { client: 'postgres', image: 'postgis/postgis:14-3.2-alpine' } as const;
 
-// The newest PostGIS, on the newest Postgres (V-104).
+// The newest PostGIS, on the newest Postgres (V-104), which Renovate follows.
 const postgisNewest = { client: 'postgres', image: 'postgis/postgis:18-3.6-alpine' } as const;
 
 // SQLite runs inside Directus, in the file its image points to, with SpatiaLite loaded by test/spatialite/ (V-121).
