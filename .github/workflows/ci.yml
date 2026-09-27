@@ -213,7 +213,7 @@ jobs:
       # Without the Advanced Security of the private repository, the findings go to the log and fail the job (V-74).
       - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
         with:
-          # renovate: datasource=pypi depName=zizmor
+          # Renovate knows this action, and reads its version as the image ghcr.io/zizmorcore/zizmor (V-139).
           version: 1.30.1
           advanced-security: false
 

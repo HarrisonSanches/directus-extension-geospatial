@@ -200,7 +200,7 @@ As regras dos workflows:
 
 - Toda action fixada pelo commit da tag, com a tag num comentário, e toda imagem pelo digest; o workflow do próprio
   repositório pelo `$/`, que o GitHub trata como fixado (V-129). O Renovate atualiza as duas coisas, e uma versão
-  que ele não lê sozinho, como a do zizmor, fica sob um comentário `# renovate:` que diz de onde ela vem (D-046).
+  que ele não lê sozinho, como a do gitleaks, fica sob um comentário `# renovate:` que diz de onde ela vem (D-046).
 - `permissions: contents: read` no workflow, e o checkout sem guardar a credencial (`persist-credentials: false`).
 - Um valor de fora, como o título do pull request, entra no script só por variável de ambiente, nunca por `${{ }}`.
 - O segredo `DIRECTUS_LICENSE_KEY` vai só para o job do Directus 12 com PostGIS (D-044), e um pull request de fork,

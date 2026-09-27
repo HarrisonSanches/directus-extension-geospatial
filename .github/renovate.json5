@@ -65,10 +65,10 @@
 		},
 	],
 	packageRules: [
-		// Renovate reads the release date of an image only on Docker Hub, and without a login only for its last 1000 tags,
-		// so ghcr.io, redis and Renovate itself come without one, as do the GitHub runners (V-139). Without a date, an
-		// update would wait forever: these wait for the 3 days only when the date is known, as it is for Directus and
-		// PostGIS. The images of the CI stay pinned by their digest, and the CI runs them before the merge.
+		// Renovate reads the release date of an image only on Docker Hub, and, without a login, as on a machine, only for
+		// its last 1000 tags. ghcr.io and the GitHub runners never give one (V-139). Without a date, an update would wait
+		// forever: these wait for the 3 days only when the date is known, as it is for Directus and PostGIS. The images
+		// of the CI stay pinned by their digest, and the CI runs them before the merge.
 		{
 			matchDatasources: ['docker', 'github-runners'],
 			minimumReleaseAgeBehaviour: 'timestamp-optional',
