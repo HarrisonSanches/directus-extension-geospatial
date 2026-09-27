@@ -40,7 +40,8 @@ confiança se constrói no repositório.
   - `pnpm audit` e OSV-Scanner na CI. Uma vulnerabilidade com correção sai por atualização ou, quando quem a puxa
     prende a versão exata, por um `overrides` com a faixa vulnerável no nome. A que não tem correção vira exceção,
     com o motivo, no `auditConfig.ignoreGhsas` do `pnpm-workspace.yaml` e no `osv-scanner.toml`, este com a data de
-    revisão (`ignoreUntil`): passada a data, o OSV-Scanner falha e as duas listas são revistas (V-128);
+    revisão (`ignoreUntil`): passada a data, o OSV-Scanner falha e as duas listas são revistas (V-128). O alerta
+    dela no GitHub é dispensado com o mesmo motivo, senão o Renovate tenta a correção que não existe (V-140);
   - o Dependabot alerts ligado, para a vulnerabilidade nova aparecer mesmo sem push (V-75, V-140). O Dependabot
     security updates fica desligado, porque a correção vem pelo Renovate;
   - os workflows do GitHub Actions passam pelo zizmor (V-74).
