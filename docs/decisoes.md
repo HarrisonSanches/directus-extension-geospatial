@@ -651,7 +651,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-041 — Ramos com o `develop`: as issues voltam para ele, e ele vai para o `main` no fim de cada fase
 
 - **Estado:** aceita em 25/09/2026. Muda o fluxo de ramos do `git-e-entrega.md`, que era baseado no tronco.
-- **Onde:** `docs/padroes/git-e-entrega.md` · V-64 · V-72 · V-83 · V-134 · P-22.
+- **Onde:** `docs/padroes/git-e-entrega.md` · V-64 · V-72 · V-83 · V-134 · V-138.
 - **Contexto:** o padrão previa o desenvolvimento no tronco: cada issue num ramo curto, com pull request direto para o `main`. O mantenedor preferiu um ramo de integração, o `develop`, criado em 25/09/2026, para as issues se juntarem nele antes de chegar ao `main`.
 - **Decisão:**
   - Cada issue nasce num ramo a partir do `develop` atualizado, antes da primeira edição, com o nome no padrão Conventional Branch (V-83), e volta para o `develop` por pull request, com squash. O `develop` fica com um commit por issue.
@@ -660,7 +660,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Alternativa descartada:** o tronco só com o `main`, que era o padrão. É mais simples, mas o `main` receberia cada issue assim que ela entrasse, sem um ponto de fechamento por fase.
 - **Consequências:**
   - O `develop` passa a ser o ramo padrão do GitHub, para os pull requests nascerem apontando para ele.
-  - O SonarQube Cloud gratuito só analisa o pull request cujo destino é o branch principal do projeto (V-72), então o branch principal dele passa a ser o `develop` (P-22).
+  - O SonarQube Cloud gratuito só analisa o pull request cujo destino é o branch principal do projeto (V-72), então o branch principal dele passa a ser o `develop`. Com o repositório público, o plano OSS analisa qualquer ramo, e o `develop` continua o principal, por ser o ramo padrão (V-138).
   - O tipo de merge fica fixado por ramo, só squash no `develop` e só merge commit no `main`, pelos rulesets depois da abertura (V-134). Até lá, vale a disciplina.
   - A CI roda nos pushes e nos pull requests dos dois ramos, a noite roda no `develop`, e o Renovate abre os pull requests contra o `develop`.
   - Na F16, a publicação decide como o Changesets anda entre os dois ramos, inclusive a volta do `main` para o `develop` depois do commit de versão.

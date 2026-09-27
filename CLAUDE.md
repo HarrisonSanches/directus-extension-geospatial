@@ -53,7 +53,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   e só merge commit no `main`, e ninguém na exceção, então toda mudança, também a só de docs, entra por pull request.
   O CodeQL, o secret scanning com a proteção de push e o relato privado estão ligados, e o Scorecard publica a nota
   no README, ao lado do badge de CI (V-134 a V-136).
-- Próximo passo: `/implement-issue F00-10`, a cobertura do diff e o quality gate, já com o repositório público.
+- F00-10 feita em 27/09/2026: a cobertura decide o merge. Um job da CI soma a dos unitários e a de cada combinação e
+  a confere contra a catraca de `test/coverage-thresholds.json`, que o `pnpm check` sobe na máquina, e não contra o
+  Vitest (A-020). O Codecov recebe um envio por push, por OIDC, e exige 90% do patch; o SonarQube Cloud, no plano
+  Free, analisa os pull requests para o `develop`, com o quality gate. Os dois status são obrigatórios no `develop`,
+  e o pull request de fork vem para um ramo do repositório (V-137, V-138).
+- Próximo passo: `/implement-issue F00-11`, as dependências atualizadas e vigiadas.
 
 ## Documentação
 
