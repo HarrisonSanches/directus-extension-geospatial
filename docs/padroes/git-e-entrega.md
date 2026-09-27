@@ -145,6 +145,11 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
   [`.github/rulesets/`](../../.github/rulesets/): sem push direto nem forçado e sem apagar o ramo, com os jobs da
   CI e o título do pull request obrigatórios, e com o tipo de merge fixado em cada um (V-134).
   - Ninguém fica na lista de exceção, nem o dono. Toda mudança, também a só de docs, entra por pull request.
+  - Também são obrigatórios o job de cobertura e o `codecov/patch`, e, no `develop`, o quality gate do SonarQube
+    Cloud (V-137, V-138). No `main`, o gate não é exigido, porque o plano Free só analisa os pull requests para o
+    ramo principal, o `develop`, e o pull request da fase só leva código que já passou por ele. O pull request de
+    fork não recebe o segredo do SonarQube Cloud, então, pronto para o merge, ele vem para um ramo do repositório,
+    com os commits de quem o escreveu.
   - No `develop`, o ramo do pull request precisa estar atualizado com ele antes do merge. No `main`, não, porque o
     merge commit da fase fica só nele, e o `develop` nunca estaria atualizado.
   - Um job novo na CI, ou uma combinação nova da suíte, entra na lista de checks dos dois arquivos. Uma mudança
@@ -159,7 +164,7 @@ GitHub Actions desde a F00, crescendo com as fases:
 | Etapa                                                                                                 | Entra na         | Roda                                                                            |
 | ----------------------------------------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------- |
 | Formatação, lint (com o `no-cycle` do `import-x`), tipos, Knip e unitários                            | F00              | A cada push                                                                     |
-| Cobertura: a do diff pelo Codecov, e a catraca da total pelo Vitest                                   | F00              | A cada push                                                                     |
+| Cobertura: a do diff pelo Codecov, e a catraca da cobertura somada                                    | F00              | A cada push; à noite, só a catraca                                              |
 | Análise do SonarQube Cloud, com o quality gate no pull request                                        | F00              | A cada push                                                                     |
 | `gitleaks`, `pnpm audit`, OSV-Scanner e o zizmor nos workflows                                        | F00              | A cada push                                                                     |
 | Título do pull request no padrão de commit (commitlint)                                               | F00              | Em pull request, bloqueando o merge desde a abertura                            |

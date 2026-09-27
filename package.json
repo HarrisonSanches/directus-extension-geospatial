@@ -3,7 +3,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test && pnpm test:integration",
+		"check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test:coverage",
 		"dev": "node dev/env.ts && pnpm --filter directus-extension-geospatial build && docker compose --file dev/compose.yaml up --detach --wait && pnpm --filter directus-extension-geospatial dev",
 		"dev:down": "docker compose --file dev/compose.yaml down",
 		"dev:logs": "docker compose --file dev/compose.yaml logs --follow",
@@ -14,7 +14,7 @@
 		"prepare": "husky",
 		"test": "vitest run --project unit",
 		"test:bind-license": "node test/bind-license.ts",
-		"test:coverage": "vitest run --project unit --coverage && pnpm test:integration && node test/coverage.ts",
+		"test:coverage": "vitest run --project unit --coverage && pnpm test:integration && node test/coverage.ts && node test/ratchet.ts",
 		"test:integration": "pnpm --filter directus-extension-geospatial build --no-minify --sourcemap && vitest run --project \"integration:*\"",
 		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension"
 	},

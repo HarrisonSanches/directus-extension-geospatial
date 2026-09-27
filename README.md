@@ -12,6 +12,8 @@ permissions.
 
 ![status](https://img.shields.io/badge/status-in%20development-F2B33D?style=flat-square)
 [![CI](https://img.shields.io/github/actions/workflow/status/HarrisonSanches/directus-extension-geospatial/ci.yml?branch=develop&style=flat-square&label=CI)](https://github.com/HarrisonSanches/directus-extension-geospatial/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![Coverage](https://img.shields.io/codecov/c/github/HarrisonSanches/directus-extension-geospatial/develop?style=flat-square&label=coverage)](https://app.codecov.io/gh/HarrisonSanches/directus-extension-geospatial)
+[![Quality gate](https://img.shields.io/sonar/quality_gate/HarrisonSanches_directus-extension-geospatial?server=https%3A%2F%2Fsonarcloud.io&style=flat-square&label=quality%20gate)](https://sonarcloud.io/summary/new_code?id=HarrisonSanches_directus-extension-geospatial)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/HarrisonSanches/directus-extension-geospatial?style=flat-square&label=OpenSSF%20Scorecard)](https://scorecard.dev/viewer/?uri=github.com/HarrisonSanches/directus-extension-geospatial)
 ![Directus](https://img.shields.io/badge/Directus-11.17%20%C2%B7%2012-0C1622?style=flat-square)
 ![PostGIS](https://img.shields.io/badge/PostGIS-reference-336791?style=flat-square&logo=postgresql&logoColor=white)

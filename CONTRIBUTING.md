@@ -64,7 +64,10 @@ The standards are in [`docs/padroes/`](docs/padroes/README.md), including what "
 - **The pull request goes to `develop`** and is merged with squash, so its title becomes the commit: it follows
   the same standard. The description says why the change is needed and ends with the footers of the template:
   `Refs:` with the issue (`Refs: #12`), and `Co-Authored-By:` only when an AI agent worked on the change.
-- **The CI has to pass.** Pull requests from forks get no secrets, so their Directus 12 jobs run on the Core tier.
+- **The CI has to pass,** with the coverage of the patch and the quality gate of SonarQube Cloud. Pull requests
+  from forks get no secrets, so their Directus 12 jobs run on the Core tier, and SonarQube Cloud cannot analyze
+  them. When a pull request from a fork is ready, the maintainer brings its commits into a branch of the repository,
+  with you still as their author, and the analysis runs there.
 
 ## License
 

@@ -1,0 +1,10 @@
+# Codecov decides the coverage of the code a pull request adds or changes: at least 90% of its lines (D-017), in the
+# codecov/patch status that the ruleset of develop requires. The total never falls because of the ratchet of
+# test/coverage.ts, so the status of the whole project stays off.
+coverage:
+  status:
+    project:
+      default: false
+    patch:
+      default:
+        target: 90%

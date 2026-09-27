@@ -72,6 +72,18 @@
 					{
 						"context": "Title in the commit standard (commitlint)",
 						"integration_id": 15368
+					},
+					{
+						"context": "Coverage (ratchet, Codecov and SonarQube Cloud)",
+						"integration_id": 15368
+					},
+					{
+						"context": "codecov/patch",
+						"integration_id": 254
+					},
+					{
+						"context": "SonarCloud Code Analysis",
+						"integration_id": 12526
 					}
 				]
 			}

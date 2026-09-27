@@ -69,18 +69,33 @@ export const collectCoverage = async (root: string, output: URL): Promise<void> 
 	await writeFile(output, JSON.stringify(coverage.toJSON()));
 };
 
-// Sums the coverage of the unit tests and of the integration suite, and prints it. Only the files of the unit
-// coverage count, which are the ones the Vitest configuration includes.
+// The coverage of each run of the integration suite: one file for the whole run on a machine, and one for each job
+// of the CI, which the coverage job downloads into a folder of its own.
+const integrationFiles = async (): Promise<URL[]> => {
+	const folder = new URL('integration/', coverageDir);
+	const files = (await readdir(folder, { recursive: true })).filter((file) => file.endsWith('coverage-final.json'));
+
+	// Without it, the sum would be the unit coverage alone.
+	if (files.length === 0) {
+		throw new Error(`No coverage of the integration suite in ${fileURLToPath(folder)}.`);
+	}
+
+	return files.map((file) => new URL(file, folder));
+};
+
+// Sums the coverage of the unit tests and of the integration suite, prints it and writes the reports that Codecov,
+// SonarQube Cloud and the ratchet of test/ratchet.ts read. Only the files of the unit coverage count, which are the
+// ones the Vitest configuration includes.
 if (import.meta.main) {
 	const coverage = createCoverageMap(await readJson<CoverageMapData>(new URL('unit/coverage-final.json', coverageDir)));
-	const integration = createCoverageMap(
-		await readJson<CoverageMapData>(new URL('integration/coverage-final.json', coverageDir)),
-	);
-
 	const included = new Set(coverage.files());
 
-	integration.filter((file) => included.has(file));
-	coverage.merge(integration);
+	for (const file of await integrationFiles()) {
+		const integration = createCoverageMap(await readJson<CoverageMapData>(file));
+
+		integration.filter((name) => included.has(name));
+		coverage.merge(integration);
+	}
 
 	const context = createContext({ dir: fileURLToPath(new URL('all', coverageDir)), coverageMap: coverage });
 
