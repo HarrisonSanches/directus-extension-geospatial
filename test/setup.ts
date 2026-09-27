@@ -6,7 +6,7 @@ import type { TestProject } from 'vitest/node';
 import { type Combination, combinations } from './combinations.ts';
 import { collectCoverage } from './coverage.ts';
 import { connect, type Directus } from './directus.ts';
-import { log, newSecret, seconds, startEnvironment } from './environment.ts';
+import { log, newSecret, openCoverage, seconds, startEnvironment } from './environment.ts';
 import { readLicenseKey } from './license.ts';
 import { seed } from './seed.ts';
 
@@ -60,9 +60,10 @@ const start = async (combination: Combination, coverage: string, licenseKey: str
 // the same time the combinations of every project of the run. Each project finds its own by name (test/directus.ts).
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
 	const selected = project.vitest.projects.flatMap(({ config }) => config.provide.combination ?? []);
+	const [first] = selected;
 
 	// A run of the unit tests alone starts nothing.
-	if (selected.length === 0) {
+	if (first === undefined) {
 		return () => Promise.resolve();
 	}
 
@@ -85,6 +86,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 	return async () => {
 		try {
 			await Promise.all(started.map(({ stop }) => stop()));
+			await openCoverage(coverage, combinations[first].directus.image);
 			await collectCoverage(coverage, new URL('../coverage/integration/coverage-final.json', import.meta.url));
 		} finally {
 			await rm(coverage, { recursive: true, force: true });

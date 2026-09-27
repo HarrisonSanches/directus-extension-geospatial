@@ -31,7 +31,8 @@ os bancos em containers, nas mesmas imagens dos testes do Directus (V-28). Um mo
 entre dialetos, que é exatamente onde o risco mora.
 
 **Cada teste de integração roda em todas as combinações** de versão do Directus e banco (`test/combinations.ts`),
-um projeto do Vitest por combinação, e a variável `INTEGRATION` escolhe algumas. O que difere entre as versões fica
+um projeto do Vitest por combinação. O `pnpm test:integration` roda as do pull request, com o PostGIS mínimo, e a
+variável `INTEGRATION` escolhe outras, como as `-postgis-newest`, que a noite acrescenta. O que difere entre as versões fica
 no ajudante (`test/directus.ts`): o teste pergunta ao ajudante o que o Directus aceita, e nunca a versão. O
 Directus 12 roda com a chave do Open Innovation Grant, ativada sempre no mesmo projeto (D-044), e, sem ela, no tier
 Core, que recusa as regras próprias de permissão (V-114). Um teste que depende delas, como os da Maria, roda com

@@ -1,0 +1,150 @@
+# The checks of every push and pull request of develop and main (D-041), which the nightly run calls with the
+# combinations of the night. Every action is pinned by the commit of its tag, and every image by its digest.
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_call:
+    inputs:
+      combinations:
+        description: The combinations of the integration suite, pull-request or nightly (test/combinations.ts).
+        type: string
+        default: pull-request
+    secrets:
+      DIRECTUS_LICENSE_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels the run of the one before, which spares the minutes of the private
+# repository (V-77). The runs of develop and main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Format, lint, types, Knip and unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The version comes from packageManager in package.json.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm knip
+      - run: pnpm test
+
+  combinations:
+    name: Combinations of the integration suite
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      names: ${{ steps.list.outputs.names }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      # test/combinations.ts lists them, so a new combination gets its job without a change here.
+      - id: list
+        env:
+          COMBINATIONS: ${{ inputs.combinations || 'pull-request' }}
+        run: echo "names=$(node test/combinations.ts "$COMBINATIONS")" >> "$GITHUB_OUTPUT"
+
+  integration:
+    name: Integration (${{ matrix.combination }})
+    needs: combinations
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        combination: ${{ fromJSON(needs.combinations.outputs.names) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:integration
+        env:
+          INTEGRATION: ${{ matrix.combination }}
+          # Only the Directus 12 with PostGIS takes the key, under the project of the tests (D-044). A pull request from
+          # a fork gets no secrets, so its Directus 12 runs on the Core tier (D-043).
+          DIRECTUS_LICENSE_KEY: ${{ startsWith(matrix.combination, '12-postgis') && secrets.DIRECTUS_LICENSE_KEY || '' }}
+
+  secrets:
+    name: Secrets in the history (gitleaks)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # The whole history, so a secret that a later commit removed is still found.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The git of the image refuses the checkout, which has another owner, unless safe.directory allows it. And
+      # gitleaks exits with 0 when git fails, having scanned nothing (V-127), so the step also fails on an error in its
+      # log or on no commit scanned. The bash shell adds pipefail, so the exit code of gitleaks survives the tee.
+      - name: gitleaks
+        shell: bash
+        env:
+          IMAGE: ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+        run: |
+          docker run --rm --volume "$PWD:/repo:ro" --workdir /repo \
+            --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/repo \
+            "$IMAGE" git --redact --no-banner --no-color --verbose 2>&1 | tee "$RUNNER_TEMP/gitleaks.log"
+          if grep -Eq ' ERR | 0 commits scanned' "$RUNNER_TEMP/gitleaks.log"; then exit 1; fi
+
+  dependencies:
+    name: Vulnerable dependencies (pnpm audit and OSV-Scanner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      # Both read the lockfile, so nothing is installed. The advisories they ignore, each with its reason, are in
+      # pnpm-workspace.yaml and in osv-scanner.toml.
+      - run: pnpm audit
+      - uses: docker://ghcr.io/google/osv-scanner:v2.6.0@sha256:afd838850ac1a0fcc15ff4a041dc9ba11123c3f0d2666217a5f0fcf9222b55fa
+        with:
+          args: scan source --lockfile pnpm-lock.yaml --config osv-scanner.toml
+
+  workflows:
+    name: Workflows (zizmor)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Without the Advanced Security of the private repository, the findings go to the log and fail the job (V-74).
+      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          version: 1.30.1
+          advanced-security: false

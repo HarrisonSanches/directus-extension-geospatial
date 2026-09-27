@@ -174,6 +174,28 @@ Até a abertura, os minutos das Actions são uma cota (V-77), e o Codecov aceita
 isso o pull request roda o conjunto mínimo, com a cobertura num envio só, e a noite, o resto. Depois da abertura,
 os runners padrão são grátis, e a divisão entre pull request e noite fica pelo tempo de espera.
 
+Os workflows ficam em `.github/workflows/`:
+
+- **`ci.yml`**, a cada push e pull request do `develop` e do `main`: a verificação do `pnpm check`, sem a integração;
+  a integração, com um job por combinação, na lista que o `node test/combinations.ts` imprime; o `gitleaks` sobre o
+  histórico inteiro; o `pnpm audit` e o OSV-Scanner; e o zizmor. Um push novo num pull request cancela a rodada
+  anterior.
+- **`pr-title.yml`**, em pull request: o título pelo commitlint, de novo a cada edição, sem rodar o resto.
+- **`nightly.yml`**, às 03:00 de São Paulo e à mão (`workflow_dispatch`): chama o `ci.yml` com as combinações da
+  noite, que acrescentam o PostGIS mais novo.
+
+As regras dos workflows:
+
+- Toda action fixada pelo commit da tag, com a tag num comentário, e toda imagem pelo digest; o workflow do próprio
+  repositório pelo `$/`, que o GitHub trata como fixado (V-129).
+- `permissions: contents: read` no workflow, e o checkout sem guardar a credencial (`persist-credentials: false`).
+- Um valor de fora, como o título do pull request, entra no script só por variável de ambiente, nunca por `${{ }}`.
+- O segredo `DIRECTUS_LICENSE_KEY` vai só para o job do Directus 12 com PostGIS (D-044), e um pull request de fork,
+  que não recebe segredos, roda o 12 no Core.
+- Uma ferramenta que pode passar sem ter olhado nada falha fechada: o passo do `gitleaks` reprova o job com um erro
+  no log ou nenhum commit varrido (V-127).
+- O zizmor não aponta nada em nenhuma persona; para conferir antes do push, ele roda pela imagem fixada.
+
 ## Revisão
 
 - Antes de pedir revisão (do mantenedor, de um agente ou de si mesmo), ler o próprio diff inteiro.
