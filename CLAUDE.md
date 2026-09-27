@@ -63,7 +63,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   minor nova, que entra na matriz ao lado do piso. A CI valida a configuração, e a correção de um alerta do
   Dependabot chega na hora. O Renovate não lê a idade mínima do pnpm, e sem a data da versão a espera seria eterna
   (D-046, V-139, V-140).
-- Próximo passo: com o app do Renovate instalado e o primeiro pull request dele conferido, `/fechar-fase F00`.
+- F00 concluída em 27/09/2026: o critério de saída foi conferido de novo, com o `pnpm check` num clone limpo, sem a
+  chave, em 186 s, e o `pnpm dev` só em `127.0.0.1`. A CI leva uns 3 min por push, e o Scorecard está em 6,2. Os passos
+  da F02 esperam o resultado das provas da F01, e o Scorecard fica como está até a F16 (A-019, A-022, no plano).
+- Próximo passo: `/to-issues F01`, as provas técnicas, depois da promoção do `develop` para o `main` com a tag
+  `f00-done`.
 
 ## Documentação
 
