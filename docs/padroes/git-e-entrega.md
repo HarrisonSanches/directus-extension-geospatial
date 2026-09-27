@@ -146,10 +146,10 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
   CI e o título do pull request obrigatórios, e com o tipo de merge fixado em cada um (V-134).
   - Ninguém fica na lista de exceção, nem o dono. Toda mudança, também a só de docs, entra por pull request.
   - Também são obrigatórios o job de cobertura e o `codecov/patch`, e, no `develop`, o quality gate do SonarQube
-    Cloud (V-137, V-138). No `main`, o gate não é exigido, porque o plano Free só analisa os pull requests para o
-    ramo principal, o `develop`, e o pull request da fase só leva código que já passou por ele. O pull request de
-    fork não recebe o segredo do SonarQube Cloud, então, pronto para o merge, ele vem para um ramo do repositório,
-    com os commits de quem o escreveu.
+    Cloud (V-137, V-138). No `main`, o gate não é exigido, porque o pull request da fase só leva código que já passou
+    por ele no `develop`; o SonarQube Cloud analisa mesmo assim esse pull request e o push no `main`, como um ramo de
+    vida curta (V-138). O pull request de fork não recebe o segredo do SonarQube Cloud, então, pronto para o merge,
+    ele vem para um ramo do repositório, com os commits de quem o escreveu.
   - No `develop`, o ramo do pull request precisa estar atualizado com ele antes do merge. No `main`, não, porque o
     merge commit da fase fica só nele, e o `develop` nunca estaria atualizado.
   - Um job novo na CI, ou uma combinação nova da suíte, entra na lista de checks dos dois arquivos. Uma mudança
