@@ -26,7 +26,7 @@ permissions.
 ---
 
 > [!NOTE]
-> **Status: in development.** The foundation is being built, and no spatial operation works yet.
+> **Status: in development.** The foundation is in place, and no spatial operation works yet.
 > Nothing is published on npm or the Directus Marketplace. This page describes what the extension
 > will do.
 
@@ -158,8 +158,8 @@ Full detail, with the reasoning behind each choice, in [`docs/arquitetura.md`](d
 - [x] Directus internals verified in the source code (version 12.4.1)
 - [x] Design reviewed against the glossary and the decisions
 - [x] Implementation plan, in phases
-- [ ] Foundation, in progress: the bundle answers on `/geospatial/capabilities`, and every pull request runs the
-      integration suite on Directus 11.17 and 12, with PostGIS and with SQLite
+- [x] Foundation: the bundle answers on `/geospatial/capabilities`, and every pull request runs the integration
+      suite on Directus 11.17 and 12, with PostGIS and with SQLite
 - [ ] Permitted queries, database adapters, tiles and the capability matrix
 - [ ] Studio surfaces, operations, time and movement
 - [ ] Evidence reports, starting with the geofence template
