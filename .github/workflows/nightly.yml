@@ -15,6 +15,11 @@ jobs:
   ci:
     name: CI with the combinations of the night
     uses: $/.github/workflows/ci.yml
+    # A called workflow can only ask for the permissions its caller gives. The coverage job of CI asks for id-token to
+    # send to Codecov, which it only does on a push or a pull request, so the night never uses it.
+    permissions:
+      contents: read # checks out the repository
+      id-token: write # asked for by the coverage job of CI
     with:
       combinations: nightly
     secrets:

@@ -46,7 +46,14 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm knip
-      - run: pnpm test
+      # The coverage job sums the unit coverage with the one of the integration suite.
+      - run: pnpm test --coverage
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-unit
+          path: coverage/unit/coverage-final.json
+          if-no-files-found: error
+          retention-days: 1
 
   combinations:
     name: Combinations of the integration suite
@@ -92,6 +99,61 @@ jobs:
           # Only the Directus 12 with PostGIS takes the key, under the project of the tests (D-044). A pull request from
           # a fork gets no secrets, so its Directus 12 runs on the Core tier (D-043).
           DIRECTUS_LICENSE_KEY: ${{ startsWith(matrix.combination, '12-postgis') && secrets.DIRECTUS_LICENSE_KEY || '' }}
+      # The coverage recorded inside the Directus of the combination, for the coverage job.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-integration-${{ matrix.combination }}
+          path: coverage/integration/coverage-final.json
+          if-no-files-found: error
+          retention-days: 1
+
+  coverage:
+    name: Coverage (ratchet, Codecov and SonarQube Cloud)
+    needs: [check, integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read # checks out the repository
+      id-token: write # authenticates the upload to Codecov, with no token stored in the repository
+    steps:
+      # The whole history, which SonarQube Cloud reads to tell the new code from the old.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage-unit
+          path: coverage/unit
+      # Each combination lands in a folder of its own, under coverage/integration.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: coverage-integration-*
+          path: coverage/integration
+      # Sums the coverage, writes the lcov report and holds the sum against test/coverage-thresholds.json.
+      - run: node test/coverage.ts
+      # One upload for each push and pull request. The night runs on a commit that its push already sent.
+      - if: github.event_name == 'push' || github.event_name == 'pull_request'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: coverage/all/lcov.info
+          disable_search: true
+          fail_ci_if_error: true
+          use_oidc: true
+      # A pull request from a fork gets no secrets, so SonarQube Cloud cannot analyze it here, and the maintainer
+      # brings it into a branch of the repository, as CONTRIBUTING.md says.
+      - if: >-
+          github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   secrets:
     name: Secrets in the history (gitleaks)
