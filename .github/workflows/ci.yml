@@ -136,7 +136,7 @@ jobs:
         with:
           pattern: coverage-integration-*
           path: coverage/integration
-      # Sums the coverage, writes the lcov report and holds the sum against test/coverage-thresholds.json.
+      # Sums the coverage and writes the reports.
       - run: node test/coverage.ts
       # One upload for each push and pull request. The night runs on a commit that its push already sent.
       - if: github.event_name == 'push' || github.event_name == 'pull_request'
@@ -154,6 +154,9 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # Holds the sum against test/coverage-thresholds.json. It comes last, so a pull request that lowers the coverage
+      # still reaches Codecov and SonarQube Cloud, which show the lines no test runs.
+      - run: node test/ratchet.ts
 
   secrets:
     name: Secrets in the history (gitleaks)

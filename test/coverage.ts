@@ -69,18 +69,6 @@ export const collectCoverage = async (root: string, output: URL): Promise<void> 
 	await writeFile(output, JSON.stringify(coverage.toJSON()));
 };
 
-// The ratchet of the summed coverage: the floor of each measure, which a run on a machine raises when the coverage
-// rises and the CI only checks.
-const thresholdsFile = new URL('coverage-thresholds.json', import.meta.url);
-const measures = ['lines', 'statements', 'functions', 'branches'] as const;
-
-type Thresholds = Record<(typeof measures)[number], number>;
-
-// Rounded down to one decimal, so the limit never sits above what a run measured. istanbul says Unknown for a
-// measure with nothing to count, which is fully covered.
-const floor = (pct: number | 'Unknown'): number =>
-	pct === 'Unknown' ? 100 : Math.floor(Math.round(pct * 100) / 10) / 10;
-
 // The coverage of each run of the integration suite: one file for the whole run on a machine, and one for each job
 // of the CI, which the coverage job downloads into a folder of its own.
 const integrationFiles = async (): Promise<URL[]> => {
@@ -95,9 +83,9 @@ const integrationFiles = async (): Promise<URL[]> => {
 	return files.map((file) => new URL(file, folder));
 };
 
-// Sums the coverage of the unit tests and of the integration suite, prints it and writes the reports that Codecov and
-// SonarQube Cloud read. Only the files of the unit coverage count, which are the ones the Vitest configuration
-// includes. Then it holds the sum against the ratchet.
+// Sums the coverage of the unit tests and of the integration suite, prints it and writes the reports that Codecov,
+// SonarQube Cloud and the ratchet of test/ratchet.ts read. Only the files of the unit coverage count, which are the
+// ones the Vitest configuration includes.
 if (import.meta.main) {
 	const coverage = createCoverageMap(await readJson<CoverageMapData>(new URL('unit/coverage-final.json', coverageDir)));
 	const included = new Set(coverage.files());
@@ -113,28 +101,5 @@ if (import.meta.main) {
 
 	for (const report of [create('text'), create('json'), create('lcovonly')]) {
 		report.execute(context);
-	}
-
-	// A run of some combinations measures less than the sum of all of them, so only a full run counts.
-	if (process.env.INTEGRATION !== undefined && process.env.INTEGRATION.trim() !== '') {
-		process.stdout.write('INTEGRATION picks some combinations, so the ratchet of the coverage is not checked.\n');
-	} else {
-		const summary = coverage.getCoverageSummary();
-		const current = Object.fromEntries(measures.map((measure) => [measure, floor(summary[measure].pct)])) as Thresholds;
-		const limits = await readJson<Thresholds>(thresholdsFile);
-		const fallen = measures.filter((measure) => current[measure] < limits[measure]);
-		const risen = measures.filter((measure) => current[measure] > limits[measure]);
-
-		if (fallen.length > 0) {
-			const lines = fallen.map((measure) => `${measure} ${String(current[measure])}% < ${String(limits[measure])}%`);
-
-			process.stderr.write(`The coverage fell below the ratchet: ${lines.join(', ')}.\n`);
-			process.exitCode = 1;
-		} else if (risen.length > 0 && process.env.CI === undefined) {
-			await writeFile(thresholdsFile, `${JSON.stringify(current, null, '\t')}\n`);
-			process.stdout.write(`The coverage rose, and the ratchet moved up to ${JSON.stringify(current)}.\n`);
-		} else if (risen.length > 0) {
-			process.stdout.write('The coverage rose. A run of pnpm test:coverage on a machine moves the ratchet up.\n');
-		}
 	}
 }

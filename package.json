@@ -14,7 +14,7 @@
 		"prepare": "husky",
 		"test": "vitest run --project unit",
 		"test:bind-license": "node test/bind-license.ts",
-		"test:coverage": "vitest run --project unit --coverage && pnpm test:integration && node test/coverage.ts",
+		"test:coverage": "vitest run --project unit --coverage && pnpm test:integration && node test/coverage.ts && node test/ratchet.ts",
 		"test:integration": "pnpm --filter directus-extension-geospatial build --no-minify --sourcemap && vitest run --project \"integration:*\"",
 		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension"
 	},
