@@ -1,0 +1,39 @@
+{
+	"name": "directus-extension-geospatial-spikes-hook",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Another extension for the proofs of F01, whose hook changes the query of a collection of its own.",
+	"license": "MIT",
+	"type": "module",
+	"directus:extension": {
+		"type": "bundle",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"entries": [
+			{
+				"type": "hook",
+				"name": "geospatial-spikes-hook",
+				"source": "src/hook.ts"
+			},
+			{
+				"type": "endpoint",
+				"name": "geospatial-spikes-hook-calls",
+				"source": "src/endpoint.ts"
+			}
+		],
+		"host": "^11.17.0 || ^12.4.0"
+	},
+	"scripts": {
+		"build": "directus-extension build --no-minify"
+	},
+	"devDependencies": {
+		"@directus/errors": "catalog:",
+		"@directus/extensions-sdk": "catalog:",
+		"@directus/types": "catalog:",
+		"@types/node": "catalog:node22",
+		"knex": "catalog:",
+		"pino": "catalog:"
+	}
+}

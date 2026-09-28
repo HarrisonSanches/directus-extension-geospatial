@@ -21,6 +21,23 @@ declare module '@directus/api/utils/get-schema' {
 	export const getSchema: ApiExtensionContext['getSchema'];
 }
 
+// The emitter of the core events, where the filter of each hook registers (api/src/emitter.ts). The emitter in the
+// context of an extension is another one, only for events between extensions.
+declare module '@directus/api/emitter' {
+	import type { EventContext } from '@directus/types';
+
+	const emitter: {
+		emitFilter<T>(
+			event: string | string[],
+			payload: T,
+			meta: Record<string, unknown>,
+			context?: EventContext | null,
+		): Promise<T>;
+	};
+
+	export default emitter;
+}
+
 // The tree of fields Directus reads a collection by (api/src/types/ast.ts). The spikes only look at the root and at
 // the type of each node, and hand the rest back to Directus as it came.
 declare module '@directus/api/types/ast' {

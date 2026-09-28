@@ -28,13 +28,13 @@ export default defineConfig({
 					testTimeout: 30_000,
 				},
 			})),
-			// The proofs of F01, in the same combinations, with their extension loaded beside the extension. Only pnpm spike
-			// runs them, and they leave when the phase closes.
+			// The proofs of F01, in the same combinations, with their extensions loaded beside the extension. Only pnpm
+			// spike runs them, and they leave when the phase closes.
 			...selectCombinations(process.env.INTEGRATION).map((combination) => ({
 				test: {
 					name: `spike:${combination}`,
 					include: ['spikes/*.test.ts'],
-					provide: { combination, extensions: ['spikes/extension'] },
+					provide: { combination, extensions: ['spikes/extension', 'spikes/hook'] },
 					testTimeout: 30_000,
 				},
 			})),

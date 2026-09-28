@@ -32,7 +32,7 @@ describe('a extensão de prova e os internos do Directus (F01-01)', () => {
 	it('o bundle importa o @directus/api e não traz o código dele (V-60)', async () => {
 		const code = await readFile(bundle, 'utf8');
 
-		for (const path of ['database/index', 'services/items', 'utils/get-schema']) {
+		for (const path of ['database/index', 'emitter', 'services/items', 'utils/get-schema']) {
 			expect(code).toContain(`from '@directus/api/${path}'`);
 		}
 
