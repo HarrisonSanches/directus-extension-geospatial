@@ -105,10 +105,10 @@ const aroundTheSides: Omit<Occurrence, 'id'>[] = sides.flatMap(([[ax, ay], [bx, 
 	}),
 );
 
-const envelopeOf = (client: Client, page: Page = {}) =>
+const envelopeOf = (client: Client, page: Page = {}, collection = 'occurrences') =>
 	client.request(
 		customEndpoint<Envelope>({
-			path: '/geospatial-spikes/envelope/occurrences',
+			path: `/geospatial-spikes/envelope/${collection}`,
 			method: 'GET',
 			params: { polygon, ...page },
 		}),
@@ -155,6 +155,11 @@ const paging: Record<DialectName, { sorted: RegExp; limited: RegExp }> = {
 	mssql: {
 		sorted: /^select top \(\?\) .* order by \[occurrences\]\.\[id\] desc$/,
 		limited: /^select top \(\?\) .* order by \[occurrences\]\.\[id\] desc$/,
+	},
+	// Knex takes the limit on Oracle as a rownum around the query.
+	oracle: {
+		sorted: /order by "occurrences"\."id" desc$/,
+		limited: /^select \* from \(.* order by "occurrences"\."id" desc\) where rownum <= \?$/,
 	},
 };
 
@@ -277,6 +282,41 @@ const findings: Record<DialectName, () => void> = {
 			'Spatial indexes do not support the comparator supplied in the predicate',
 		);
 	},
+	// Oracle Database Free 23.26, on 28/09/2026 (V-154): the column in SRID 4326 without the spatial metadata, which
+	// Oracle takes as geodetic, and spatial operators that answer without a spatial index (P-05), which the index then
+	// serves on the column, and never on the text of the permitted query.
+	oracle: () => {
+		expect(probeOf('version').output).toMatch(/^23\.26\.3\./);
+		// 15 significant digits, a few nanometers of a coordinate, where SpatiaLite keeps 6 decimals (A-026).
+		expect(probeOf('asText').output).toBe('POINT (-46.7123456789012 -23.6123456789012)');
+		expect(probeOf('column').output).toBe('SDO_GEOMETRY Y');
+		expect(probeOf('storedSrid').output).toBe('4326');
+		expect(probeOf('metadata').output).toBe('0');
+		// Near the side, the plane and the ellipsoid disagree.
+		expect(probeOf('cartesianSide').output).toBe('FALSE');
+		expect(probeOf('geodeticSide').output).toBe('TRUE');
+		expect(probeOf('nullText').output).toBe('NULL');
+
+		const { s12 } = geographiclib.Geodesic.WGS84.Inverse(-23.65, -46.7, -23.6, -46.6);
+		const geodetic = Number(probeOf('geodeticDistance').output);
+
+		log(`${dialect}: SDO_DISTANCE gave ${String(geodetic)} m, and GeographicLib ${String(s12)} m`);
+		expect(Math.abs(geodetic - (s12 ?? 0))).toBeLessThan(0.001);
+
+		expect(probeOf('operatorWithoutIndex')).toMatchObject({ exitCode: 0, output: '2' });
+		expect(probeOf('spatialIndex')).toMatchObject({ exitCode: 0, output: '' });
+		expect(probeOf('indexStatus').output).toBe('DOMAIN VALID VALID');
+		// The index registers the spatial metadata by itself, with the names in quotes and the SRID of the values.
+		expect(probeOf('metadataAfterIndex').output).toBe('"occurrences" "geometry" 4326');
+		expect(probeOf('columnPlan').output).toContain('DOMAIN INDEX');
+		expect(probeOf('textPlan').output).not.toContain('DOMAIN INDEX');
+		// The three nearest occurrences of the seed, which SQL*Plus puts to the right of the column.
+		expect(
+			probeOf('nearest')
+				.output.split('\n')
+				.map((line) => line.trim()),
+		).toEqual(['1', '2', '3']);
+	},
 };
 
 describe(`o envelope sobre a query permitida, no ${dialect} (F01-08)`, () => {
@@ -301,8 +341,8 @@ describe(`o envelope sobre a query permitida, no ${dialect} (F01-08)`, () => {
 		const { executed, countAs } = await envelopeOf(as('maria'));
 
 		expect(executed).toHaveLength(2);
-		// ST_Intersects, and STIntersects in SQL Server.
-		expect(executed.every((sql) => /ST_?Intersects/.test(sql))).toBe(true);
+		// ST_Intersects, STIntersects in SQL Server, and sdo_geom.relate in Oracle.
+		expect(executed.every((sql) => /ST_?Intersects|sdo_geom\.relate/.test(sql))).toBe(true);
 		expect(executed[0]).toMatch(/^select count\(\*\)/);
 
 		for (const sql of executed) {
@@ -457,7 +497,126 @@ describe(`com um filtro por uma relação o2m, a query permitida envolve outra, 
 		expect(expected.length).toBeLessThan((await expectedFor(admin, page)).length);
 		// The inner query keeps its top and its order, which choose the page.
 		expect(permitted.sql).toMatch(/order by .inner.\.\S+ desc$/);
-		expect(executed.every((sql) => /order by .occurrences.\..id. desc( limit \S+)?\) as .inner./.test(sql))).toBe(true);
+		expect(
+			executed.every((sql) =>
+				/order by .occurrences.\..id. desc( limit \S+)?\)( where rownum <= \S+\))? (as )?.inner./.test(sql),
+			),
+		).toBe(true);
+	});
+});
+
+// A place of a collection whose field is of type geometry, the only one the spatial filters of Directus take (V-123),
+// and whether it touches the polygon, by its construction.
+interface Place {
+	name: string;
+	geometry: { type: 'Point' | 'LineString' | 'Polygon'; coordinates: unknown };
+	touches: boolean;
+}
+
+const squareAround = ([x, y]: Position, half: number): Place['geometry'] => ({
+	type: 'Polygon',
+	coordinates: [
+		[
+			[x - half, y - half],
+			[x + half, y - half],
+			[x + half, y + half],
+			[x - half, y + half],
+			[x - half, y - half],
+		],
+	],
+});
+
+// The _intersects filter of Directus on Oracle is sdo_overlapbdyintersect (V-49), without a spatial index (P-05) and
+// with one, on places that touch the polygon inside it, on its boundary, across it and around it (P-12). The envelope
+// answers on the plane whether each one touches.
+describe.runIf(dialect === 'oracle')('o filtro _intersects do Directus no Oracle (P-05, P-12)', () => {
+	const admin = as('admin');
+	const sql = (statement: string) => runSql(dialect, database, statement);
+
+	const places: Place[] = [
+		{ name: 'point inside', geometry: { type: 'Point', coordinates: center }, touches: true },
+		{ name: 'point on a corner', geometry: { type: 'Point', coordinates: [-46.62, -23.72] }, touches: true },
+		{ name: 'point outside', geometry: { type: 'Point', coordinates: [-46.9, -23.9] }, touches: false },
+		{
+			name: 'line from inside to outside',
+			geometry: { type: 'LineString', coordinates: [center, [-46.8, -23.65]] },
+			touches: true,
+		},
+		{ name: 'polygon inside', geometry: squareAround(center, 0.01), touches: true },
+		// Around the middle of the west side.
+		{ name: 'polygon across a side', geometry: squareAround([-46.735, -23.64], 0.01), touches: true },
+		{ name: 'polygon around', geometry: squareAround(center, 0.5), touches: true },
+	];
+
+	const touching = places.filter(({ touches }) => touches).map(({ name }) => name);
+	const area = { type: 'Polygon', coordinates: [[...corners, ...corners.slice(0, 1)]] };
+
+	// The client of the tests knows only the occurrences.
+	const read = (params: Record<string, unknown>) =>
+		admin.request(
+			customEndpoint<{ id: number; name: string }[]>({
+				path: '/items/places',
+				method: 'GET',
+				params: { fields: ['id', 'name'], limit: -1, ...params },
+			}),
+		);
+
+	const namesOf = (rows: { name: string }[]) => rows.map(({ name }) => name).sort();
+
+	const touchingByTheEnvelope = async () => {
+		const names = new Map((await read({})).map(({ id, name }) => [id, name]));
+		const { ids } = await envelopeOf(admin, {}, 'places');
+
+		return ids.map((id) => names.get(id) ?? '').sort();
+	};
+
+	beforeAll(async () => {
+		await admin.request(
+			createCollection({
+				collection: 'places',
+				schema: {},
+				meta: {},
+				fields: [
+					{ field: 'id', type: 'integer', schema: { is_primary_key: true, has_auto_increment: true } },
+					{ field: 'name', type: 'string', schema: {} },
+					{ field: 'geometry', type: 'geometry', schema: {} },
+				],
+			}),
+		);
+		await admin.request(
+			customEndpoint({
+				path: '/items/places',
+				method: 'POST',
+				body: JSON.stringify(places.map(({ name, geometry }) => ({ name, geometry }))),
+			}),
+		);
+	});
+
+	it('sem índice espacial, o _intersects do Directus responde, e só com o que cruza a borda (P-05, P-12)', async () => {
+		const filter = { geometry: { _intersects: area } };
+		const filtered = namesOf(await read({ filter }));
+		// The same chain as the /items builds the SQL of the filter, which the envelope hands back (F01-03).
+		const { permitted } = await envelopeOf(admin, { filter }, 'places');
+
+		log(`${dialect}: without a spatial index, the _intersects of Directus gave ${JSON.stringify(filtered)}`);
+		log(`${dialect}: Directus built the filter as ${permitted.sql}, with ${JSON.stringify(permitted.bindings)}`);
+		expect(permitted.sql).toContain('sdo_overlapbdyintersect("places"."geometry", sdo_geometry(?, 4326)) = \'TRUE\'');
+		expect(filtered).toEqual(['polygon across a side']);
+		expect(await touchingByTheEnvelope()).toEqual([...touching].sort());
+	});
+
+	it('com o índice espacial, sem os metadados, o _intersects do Directus devolve o mesmo (P-12)', async () => {
+		const index = await sql(
+			'create index "places_geometry_index" on "places" ("geometry") indextype is mdsys.spatial_index_v2',
+		);
+
+		expect(index).toEqual({ exitCode: 0, output: '' });
+
+		const filtered = namesOf(await read({ filter: { geometry: { _intersects: area } } }));
+
+		log(`${dialect}: with a spatial index, the _intersects of Directus gave ${JSON.stringify(filtered)}`);
+		expect(filtered).toEqual(['polygon across a side']);
+		expect(await touchingByTheEnvelope()).toEqual([...touching].sort());
 	});
 });
 

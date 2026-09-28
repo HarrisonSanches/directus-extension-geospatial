@@ -36,6 +36,12 @@ const predicates: Readonly<Record<string, string>> = {
 	// SQL Server reads the text as the type of the column, geometry, on the plane and with the SRID Directus writes
 	// (V-27). Its predicates are methods of the type that answer a bit (V-49).
 	Client_MSSQL: 'geometry::STGeomFromText(??, 4326).STIntersects(geometry::STGeomFromText(?, 4326)) = 1',
+	// Oracle takes SRID 4326 as geodetic, with the sides of a polygon along geodesics, so the envelope compares on the
+	// plane, without an SRID, as PostGIS does on a geometry, with a tolerance in the units of the coordinates. The text
+	// goes through from_wktgeometry, since the constructor of sdo_geometry takes no null SRID, and the function answers
+	// the name of the relation (V-154).
+	Client_Oracledb:
+		"sdo_geom.relate(sdo_util.from_wktgeometry(??), 'anyinteract', sdo_util.from_wktgeometry(?), 0.000000001) = 'TRUE'",
 };
 
 // Knex keeps the limit and the offset of a builder in _single, which its compilers read and its types leave out.

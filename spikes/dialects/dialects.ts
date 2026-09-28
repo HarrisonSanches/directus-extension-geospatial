@@ -25,6 +25,21 @@ interface Dialect {
 	probes: Readonly<Record<string, string>>;
 }
 
+// Starts the container of a database, and, when it stops before it is ready, fails with the last lines it printed,
+// which go with the container.
+const startPrinting = async (container: GenericContainer, name: string): Promise<StartedTestContainer> => {
+	const printed: string[] = [];
+
+	return container
+		.withLogConsumer((stream) => stream.on('data', (line) => printed.push(String(line))))
+		.start()
+		.catch((error: unknown) => {
+			throw new Error(`${name} stopped before it was ready, after printing:\n${printed.slice(-150).join('')}`, {
+				cause: error,
+			});
+		});
+};
+
 // The point of the probes, in the south zone of the seed, and the tile of zoom 10 that holds it.
 const point = "st_geomfromtext('POINT(-46.7 -23.65)', 4326)";
 const tile = 'st_tileenvelope(10, 379, 581)';
@@ -254,24 +269,18 @@ const mssql: Dialect = {
 		const clientEnvironment = { SQLCMDPASSWORD: password };
 
 		// The edition and the data of the sandbox of Directus: Express, which is free, in memory. The image starts only
-		// with its license accepted, as the tests of Directus accept it.
-		// What SQL Server printed, for the error when it stops before it is ready, since the container goes with it.
-		const printed: string[] = [];
-
-		const container = await new GenericContainer(mssql.image)
-			.withNetwork(network)
-			.withNetworkAliases('database')
-			.withEnvironment({ ACCEPT_EULA: 'Y', MSSQL_PID: 'Express', MSSQL_SA_PASSWORD: password })
-			.withTmpFs({ '/var/opt/mssql/data': 'rw' })
-			.withLogConsumer((stream) => stream.on('data', (line) => printed.push(String(line))))
-			.withWaitStrategy(Wait.forLogMessage(/Recovery is complete/))
-			.withStartupTimeout(180_000)
-			.start()
-			.catch((error: unknown) => {
-				throw new Error(`SQL Server stopped before it was ready, after printing:\n${printed.slice(-30).join('')}`, {
-					cause: error,
-				});
-			});
+		// with its license accepted, as the tests of Directus accept it. Twice in eleven runs, sqlservr crashed before it
+		// was ready (V-153).
+		const container = await startPrinting(
+			new GenericContainer(mssql.image)
+				.withNetwork(network)
+				.withNetworkAliases('database')
+				.withEnvironment({ ACCEPT_EULA: 'Y', MSSQL_PID: 'Express', MSSQL_SA_PASSWORD: password })
+				.withTmpFs({ '/var/opt/mssql/data': 'rw' })
+				.withWaitStrategy(Wait.forLogMessage(/Recovery is complete/))
+				.withStartupTimeout(180_000),
+			'SQL Server',
+		);
 
 		// Directus takes a database that exists, and the image has only the ones of the system.
 		const created = await container.exec([...sqlcmd, '-Q', 'create database directus'], { env: clientEnvironment });
@@ -339,7 +348,108 @@ const mssql: Dialect = {
 	},
 };
 
-export const dialects = { cockroachdb, mysql, mariadb, mssql } as const;
+// What SQL*Plus prints: only the values, one row per line and the columns apart by tabs, the numbers and the text
+// whole, no variable read from an ampersand, and an exit with an error when a statement fails.
+const sqlplus = [
+	'whenever sqlerror exit failure',
+	'whenever oserror exit failure',
+	'set heading off feedback off verify off define off pagesize 0 linesize 32767 trimout on tab off',
+	'set long 1000000 longchunksize 1000000 numwidth 40',
+	"set colsep '\t'",
+].join('\n');
+
+// The plane, where the envelope compares, as PostGIS does on a geometry, and the ellipsoid, since Oracle takes SRID 4326
+// as geodetic, with the sides of a polygon along geodesics. The constructor of sdo_geometry takes no null SRID, which
+// more than one of its signatures would match, and the text without an SRID goes through from_wktgeometry.
+const cartesianOf = (wkt: string) => `sdo_util.from_wktgeometry('${wkt}')`;
+const geodeticOf = (wkt: string) => `sdo_geometry('${wkt}', 4326)`;
+
+// A band of 1° along the parallel of -23.6, whose south side bows as a geodesic 89 m south of the straight line in the
+// middle (GeographicLib), and a point 22 m south of the middle of the straight line, turning counterclockwise.
+const band = 'POLYGON((-47 -23.6, -46 -23.6, -46 -23.5, -47 -23.5, -47 -23.6))';
+const southOfTheSide = 'POINT(-46.5 -23.6002)';
+
+// The plan Oracle takes for a statement, in its basic format.
+const planOf = (statement: string) =>
+	`explain plan for ${statement};\nselect plan_table_output from table(dbms_xplan.display(format => 'BASIC'))`;
+
+const onTheColumn = `select count(*) from "occurrences" where sdo_anyinteract("geometry", ${geodeticOf(band)}) = 'TRUE'`;
+const onTheText = `select count(*) from "occurrences" o where sdo_anyinteract(sdo_geometry(sdo_util.to_wktgeometry(o."geometry"), 4326), ${geodeticOf(band)}) = 'TRUE'`;
+
+const oracle: Dialect = {
+	// The newest release of Oracle Database Free 23, the one 23-slim names in the docker-compose.yml of Directus 12.4.1,
+	// in the regular flavor. The slim flavor, the one Directus names there and in the sandbox of its end-to-end tests,
+	// uninstalls Oracle Spatial, and Directus cannot create a column of sdo_geometry on it (V-154).
+	image: 'gvenzl/oracle-free:23.26.3@sha256:7ed34d0ade89c91a553c9cbe9d42457c758fa29a762aaaa3137541ff30a2d1cb',
+	start: async (network) => {
+		// Oracle takes a password that starts with a letter.
+		const password = `D${randomBytes(16).toString('hex')}`;
+
+		// The configuration of the sandbox of Directus: a random password for the system, and a user of its own in the
+		// pluggable database FREEPDB1. The image prints its line once that user exists.
+		const container = await startPrinting(
+			new GenericContainer(oracle.image)
+				.withNetwork(network)
+				.withNetworkAliases('database')
+				.withEnvironment({ ORACLE_RANDOM_PASSWORD: 'yes', APP_USER: 'directus', APP_USER_PASSWORD: password })
+				.withWaitStrategy(Wait.forLogMessage(/DATABASE IS READY TO USE!/))
+				.withStartupTimeout(300_000),
+			'Oracle',
+		);
+
+		return {
+			container,
+			environment: {
+				DB_CLIENT: 'oracledb',
+				DB_HOST: 'database',
+				DB_PORT: '1521',
+				DB_DATABASE: 'FREEPDB1',
+				DB_USER: 'directus',
+				DB_PASSWORD: password,
+			},
+			clientEnvironment: { SQL_USER: 'directus', SQL_PASSWORD: password },
+		};
+	},
+	// SQL*Plus of the image, which reads the user and the password from the environment of its own process, through its
+	// input, and never from its command.
+	sqlCommand: (statement) => [
+		'bash',
+		'-c',
+		'printf "%s\\n" "$1" "connect $SQL_USER/\\"$SQL_PASSWORD\\"@//localhost/FREEPDB1" "$2;" exit | sqlplus -S -L /nolog',
+		'sqlplus',
+		sqlplus,
+		statement,
+	],
+	// What Directus writes to Oracle: the column, the SRID of the values, and the text the permitted query reads the
+	// geometry through, with no spatial metadata. Then a point near a side, on the plane and on the ellipsoid, a text
+	// that a case when of the permitted query leaves null, and the distance on the ellipsoid. Then a spatial operator
+	// without an index, the index without the metadata and what it registers of them, and the plans of the operator on
+	// the column and on the text of the permitted query, with the nearest items.
+	probes: {
+		version: "select version_full from product_component_version where product like 'Oracle%'",
+		// A point with 15 decimals, as the text of the permitted query would carry it.
+		asText: `select sdo_util.to_wktgeometry(${geodeticOf('POINT(-46.712345678901234 -23.612345678901234)')}) from dual`,
+		column:
+			"select data_type || ' ' || nullable from user_tab_columns where table_name = 'occurrences' and column_name = 'geometry'",
+		storedSrid: 'select distinct o."geometry".sdo_srid from "occurrences" o',
+		metadata: 'select count(*) from user_sdo_geom_metadata',
+		cartesianSide: `select sdo_geom.relate(${cartesianOf(southOfTheSide)}, 'anyinteract', ${cartesianOf(band)}, 0.000000001) from dual`,
+		geodeticSide: `select sdo_geom.relate(${geodeticOf(southOfTheSide)}, 'anyinteract', ${geodeticOf(band)}, 0.005) from dual`,
+		nullText: `select nvl(sdo_geom.relate(sdo_util.from_wktgeometry(to_clob(null)), 'anyinteract', ${cartesianOf('POINT(0 0)')}, 0.000000001), 'NULL') from dual`,
+		geodeticDistance: `select sdo_geom.sdo_distance(${geodeticOf(text.point)}, ${geodeticOf(text.near)}, 0.005, 'unit=M') from dual`,
+		operatorWithoutIndex: onTheColumn,
+		spatialIndex:
+			'create index "occurrences_geometry_index" on "occurrences" ("geometry") indextype is mdsys.spatial_index_v2',
+		indexStatus:
+			"select index_type || ' ' || status || ' ' || domidx_opstatus from user_indexes where index_name = 'occurrences_geometry_index'",
+		metadataAfterIndex: "select table_name || ' ' || column_name || ' ' || srid from user_sdo_geom_metadata",
+		columnPlan: planOf(onTheColumn),
+		textPlan: planOf(onTheText),
+		nearest: `select "id" from "occurrences" where sdo_nn("geometry", ${geodeticOf(text.point)}, 'sdo_num_res=3') = 'TRUE'`,
+	},
+};
+
+export const dialects = { cockroachdb, mysql, mariadb, mssql, oracle } as const;
 
 export type DialectName = keyof typeof dialects;
 
