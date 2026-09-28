@@ -108,12 +108,6 @@ pmOnFail: ignore
 engineStrict: true
 
 # Advisories that pnpm audit ignores, each one reviewed. osv-scanner.toml ignores the same ones until a date, and when
-# it passes, the OSV-Scanner of the CI fails and asks for the review of both lists.
+# it passes, the OSV-Scanner of the CI fails and asks for the review of both lists. None is ignored today (V-149).
 auditConfig:
-  ignoreGhsas:
-    # unhead, through the themes of the extensions SDK of Directus, which pin @unhead/vue at 1.11.20, the last of the
-    # 1.x line. The fixes only exist in 2.x. The SDK uses it to build the Studio parts of an extension, and the bundle
-    # has none yet, so the sanitization these advisories bypass never runs.
-    - GHSA-5339-hvwr-7582
-    - GHSA-g5xx-pwrp-g3fv
-    - GHSA-95h2-gj7x-gx9w
+  ignoreGhsas: []
