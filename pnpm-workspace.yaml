@@ -29,6 +29,8 @@ catalog:
   '@vitest/istanbul-lib-report': 1.0.1
   ast-v8-to-istanbul: 1.0.7
   eslint: 10.11.0
+  # The geodesics of Karney, the same calculation as PostGIS on the ellipsoid (V-42), for the answers the tests expect.
+  geographiclib-geodesic: 2.2.0
   eslint-config-prettier: 10.1.8
   eslint-plugin-import-x: 4.17.1
   husky: 9.1.7

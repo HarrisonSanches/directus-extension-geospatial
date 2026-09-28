@@ -37,6 +37,7 @@
 		"directus-geospatial-contract": "workspace:*",
 		"eslint": "catalog:",
 		"eslint-config-prettier": "catalog:",
+		"geographiclib-geodesic": "catalog:",
 		"eslint-plugin-import-x": "catalog:",
 		"husky": "catalog:",
 		"jiti": "catalog:",

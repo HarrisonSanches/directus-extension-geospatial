@@ -20,3 +20,102 @@ declare module '@directus/api/utils/get-schema' {
 
 	export const getSchema: ApiExtensionContext['getSchema'];
 }
+
+// The tree of fields Directus reads a collection by (api/src/types/ast.ts). The spikes only look at the root and at
+// the type of each node, and hand the rest back to Directus as it came.
+declare module '@directus/api/types/ast' {
+	import type { Filter, Query } from '@directus/types';
+
+	export interface Node {
+		type: string;
+	}
+
+	export interface AST {
+		type: 'root';
+		name: string;
+		children: Node[];
+		query: Query;
+		// The rules of each policy, which the read permissions point to by their position.
+		cases: Filter[];
+	}
+}
+
+declare module '@directus/api/database/get-ast-from-query/get-ast-from-query' {
+	import type { AST } from '@directus/api/types/ast';
+	import type { Accountability, ApiExtensionContext, Query, SchemaOverview } from '@directus/types';
+
+	export function getAstFromQuery(
+		options: { collection: string; query: Query; accountability: Accountability | null },
+		context: { schema: SchemaOverview; knex: ApiExtensionContext['database'] },
+	): Promise<AST>;
+}
+
+declare module '@directus/api/permissions/modules/process-ast/process-ast' {
+	import type { AST } from '@directus/api/types/ast';
+	import type { Accountability, ApiExtensionContext, PermissionsAction, SchemaOverview } from '@directus/types';
+
+	export function processAst(
+		options: { ast: AST; action: PermissionsAction; accountability: Accountability | null },
+		context: { schema: SchemaOverview; knex: ApiExtensionContext['database'] },
+	): Promise<AST>;
+}
+
+declare module '@directus/api/database/run-ast/lib/parse-current-level' {
+	import type { Node } from '@directus/api/types/ast';
+	import type { Query, SchemaOverview } from '@directus/types';
+
+	export function parseCurrentLevel(
+		schema: SchemaOverview,
+		collection: string,
+		children: Node[],
+		query: Query,
+	): Promise<{ fieldNodes: Node[]; nestedCollectionNodes: Node[]; primaryKeyField: string }>;
+}
+
+declare module '@directus/api/permissions/lib/fetch-policies' {
+	import type { Accountability, ApiExtensionContext, SchemaOverview } from '@directus/types';
+
+	export function fetchPolicies(
+		accountability: Pick<Accountability, 'user' | 'roles' | 'ip'>,
+		context: { schema: SchemaOverview; knex: ApiExtensionContext['database'] },
+	): Promise<string[]>;
+}
+
+declare module '@directus/api/permissions/lib/fetch-permissions' {
+	import type {
+		Accountability,
+		ApiExtensionContext,
+		Permission,
+		PermissionsAction,
+		SchemaOverview,
+	} from '@directus/types';
+
+	export function fetchPermissions(
+		options: {
+			action?: PermissionsAction;
+			policies: string[];
+			collections?: string[];
+			accountability?: Pick<Accountability, 'user' | 'role' | 'roles' | 'app' | 'share' | 'ip'>;
+		},
+		context: { schema: SchemaOverview; knex: ApiExtensionContext['database'] },
+	): Promise<Permission[]>;
+}
+
+// Builds the query of one level of the tree, without running it (V-21).
+declare module '@directus/api/database/run-ast/lib/get-db-query' {
+	import type { Node } from '@directus/api/types/ast';
+	import type { ApiExtensionContext, Filter, Permission, Query, SchemaOverview } from '@directus/types';
+	import type { Knex } from 'knex';
+
+	export function getDBQuery(
+		options: {
+			table: string;
+			fieldNodes: Node[];
+			o2mNodes: Node[];
+			query: Query;
+			cases: Filter[];
+			permissions: Permission[];
+		},
+		context: { schema: SchemaOverview; knex: ApiExtensionContext['database'] },
+	): Knex.QueryBuilder;
+}
