@@ -10,12 +10,12 @@ catalog:
   '@commitlint/lint': 21.2.3
   '@commitlint/load': 21.2.3
   '@commitlint/types': 21.2.3
-  '@directus/errors': 2.5.1
-  '@directus/extensions-sdk': 18.0.4
+  '@directus/errors': 2.5.2
+  '@directus/extensions-sdk': 18.0.5
   # The version released with Directus 12.4.1, which the integration suite runs.
   '@directus/sdk': 26.0.0
   # The version the extensions SDK depends on, so both read the same types.
-  '@directus/types': 16.2.0
+  '@directus/types': 17.0.0
   '@eslint/js': 10.0.1
   '@hey-api/openapi-ts': 0.99.0
   '@testcontainers/postgresql': 12.1.0
