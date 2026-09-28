@@ -5,7 +5,7 @@ import { combinations } from '../../test/combinations.ts';
 import { connect } from '../../test/directus.ts';
 import { copiesOf, log, newSecret, seconds, urlOf } from '../../test/environment.ts';
 import { seed } from '../../test/seed.ts';
-import { dialects, type OnDialect } from './dialects.ts';
+import { dialects, type OnDialect, runSql } from './dialects.ts';
 
 // The Directus of the proofs of the envelope: the 11.17 of the suite, where the row rule of Maria needs no key. On
 // Directus 12, Maria would take the key on a database of another project, and another activation (D-043, D-044).
@@ -39,7 +39,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 		stops.push(() => network.stop());
 
 		const startedAt = performance.now();
-		const { container: database, environment } = await dialect.start(network);
+		const { container: database, environment, clientEnvironment } = await dialect.start(network);
 
 		stops.push(() => database.stop());
 		log(`${name}: the database started in ${seconds(startedAt)} s`);
@@ -75,12 +75,13 @@ export default async function setup(project: TestProject): Promise<() => Promise
 
 		// One after the other, since a probe may depend on what an earlier one created, as the index.
 		const probes: OnDialect['probes'] = {};
+		const reach = { id: database.getId(), clientEnvironment };
 
 		for (const [probe, statement] of Object.entries(dialect.probes)) {
-			probes[probe] = { statement, ...(await dialect.sql(database, statement)) };
+			probes[probe] = { statement, ...(await runSql(name, reach, statement)) };
 		}
 
-		project.provide('onDialect', { url, tokens: { admin: token, ...tokens }, probes });
+		project.provide('onDialect', { url, tokens: { admin: token, ...tokens }, database: reach, probes });
 	} catch (error) {
 		await stop();
 		throw error;

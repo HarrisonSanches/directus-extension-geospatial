@@ -98,7 +98,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   tudo sozinho. No CockroachDB 25.4, o envelope do PostGIS serve sem mudança: a contagem e os ids da Maria batem com o
   gabarito, também com o `LIMIT` da página dentro da subconsulta. Faltam o `ST_AsMVT` e os mais próximos sem um raio.
   Os testes de ponta a ponta do Directus usam o 25.3, que parou em janeiro, e a V-28 foi corrigida (V-148, P-06 em parte).
-- Próximo passo: `/implement-issue F01-09`, o envelope no MySQL.
+- F01-09 feita em 28/09/2026: no MySQL 9.7, o envelope do CockroachDB serve no plano, com o polígono também sem SRID,
+  porque o Directus grava a geometria com SRID 0 e um predicado entre SRIDs falha. No SRID 4326, o MySQL lê a latitude
+  primeiro. Com a coluna `NOT NULL SRID 0`, o índice espacial passa a valer e o Directus segue gravando, mas recusa o
+  item sem geometria (V-151, resolve a P-04).
+- Próximo passo: `/implement-issue F01-10`, o envelope no MariaDB.
 
 ## Documentação
 

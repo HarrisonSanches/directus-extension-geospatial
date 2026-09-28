@@ -1,14 +1,25 @@
-import { GenericContainer, type StartedNetwork, type StartedTestContainer, Wait } from 'testcontainers';
+import { randomBytes } from 'node:crypto';
+import {
+	GenericContainer,
+	getContainerRuntimeClient,
+	type StartedNetwork,
+	type StartedTestContainer,
+	Wait,
+} from 'testcontainers';
 
 // A database outside the suite, which the proofs of the envelope run Directus 11.17 on (F01-08).
 interface Dialect {
 	// The image of the database, as the tests of Directus run it (V-28), pinned by the digest of its tag.
 	image: string;
 	// Starts the database on the network of the run, under the name database, and returns what Directus needs to reach
-	// it.
-	start: (network: StartedNetwork) => Promise<{ container: StartedTestContainer; environment: Record<string, string> }>;
-	// Runs one statement inside the container of the database, and returns what the client of the database printed.
-	sql: (container: StartedTestContainer, statement: string) => Promise<{ exitCode: number; output: string }>;
+	// it, and what the client of the database needs inside the container.
+	start: (network: StartedNetwork) => Promise<{
+		container: StartedTestContainer;
+		environment: Record<string, string>;
+		clientEnvironment: Record<string, string>;
+	}>;
+	// The command of the client of the database that runs one statement inside its container.
+	sqlCommand: (statement: string) => string[];
 	// Statements about the gaps of the database for the catalog of the extension, which the run answers once Directus
 	// created and filled the occurrences.
 	probes: Readonly<Record<string, string>>;
@@ -48,21 +59,18 @@ const cockroachdb: Dialect = {
 				DB_DATABASE: 'defaultdb',
 				DB_USER: 'root',
 			},
+			clientEnvironment: {},
 		};
 	},
-	sql: async (container, statement) => {
-		const { exitCode, output } = await container.exec([
-			'cockroach',
-			'sql',
-			'--insecure',
-			'--database=defaultdb',
-			'--format=tsv',
-			'--execute',
-			statement,
-		]);
-
-		return { exitCode, output: output.trim() };
-	},
+	sqlCommand: (statement) => [
+		'cockroach',
+		'sql',
+		'--insecure',
+		'--database=defaultdb',
+		'--format=tsv',
+		'--execute',
+		statement,
+	],
 	// The gaps of P-06: the functions of a vector tile, the nearest items by the index, and whether a predicate on the
 	// column itself, and not on the text of the permitted query, uses the index (A-023). Also the text the permitted
 	// query reads the geometry through, and how many digits it keeps.
@@ -84,7 +92,70 @@ const cockroachdb: Dialect = {
 	},
 };
 
-export const dialects = { cockroachdb } as const;
+// The point of the probes as Directus writes it to MySQL, without an SRID (V-27).
+const planePoint = "st_geomfromtext('POINT(-46.7 -23.65)')";
+
+const mysql: Dialect = {
+	// The LTS of MySQL, the one the docker-compose.yml of Directus 12.4.1 names. The sandbox of its end-to-end tests
+	// names 8.4, the LTS before it (V-151).
+	image: 'mysql:9.7.2@sha256:30a0abfa7b502a496e12339b54cd07aaa70363396dc4b8e8a72a92804a505cd6',
+	start: async (network) => {
+		const password = randomBytes(32).toString('hex');
+
+		// The command and the database of the sandbox of Directus, with the data in memory. The first server of the image
+		// only creates the database and listens on no port.
+		const container = await new GenericContainer(mysql.image)
+			.withNetwork(network)
+			.withNetworkAliases('database')
+			.withCommand(['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci'])
+			.withEnvironment({ MYSQL_ROOT_PASSWORD: password, MYSQL_DATABASE: 'directus' })
+			.withTmpFs({ '/var/lib/mysql': 'rw' })
+			.withWaitStrategy(Wait.forLogMessage(/ready for connections.*port: 3306/))
+			.withStartupTimeout(120_000)
+			.start();
+
+		return {
+			container,
+			environment: {
+				DB_CLIENT: 'mysql',
+				DB_HOST: 'database',
+				DB_PORT: '3306',
+				DB_DATABASE: 'directus',
+				DB_USER: 'root',
+				DB_PASSWORD: password,
+			},
+			// The client reads the password from the environment of its own process, and never from its command.
+			clientEnvironment: { MYSQL_PWD: password },
+		};
+	},
+	sqlCommand: (statement) => [
+		'mysql',
+		'--user=root',
+		'--database=directus',
+		'--batch',
+		'--show-warnings',
+		`--execute=${statement}`,
+	],
+	// What Directus writes to MySQL: the column, the SRID of the values, and the text the permitted query reads the
+	// geometry through. Then the order of the axes of SRID 4326, a predicate between two SRIDs, and the spatial index on
+	// the column as Directus creates it (P-04). None of them changes the table.
+	probes: {
+		version: 'select version()',
+		// A point with 15 decimals, as the text of the permitted query would carry it.
+		asText: "select st_astext(st_geomfromtext('POINT(-46.712345678901234 -23.612345678901234)')) as text",
+		column:
+			"select column_type, is_nullable from information_schema.columns where table_schema = database() and table_name = 'occurrences' and column_name = 'geometry'",
+		columnSrs:
+			"select coalesce(srs_id, 'none') as srs_id from information_schema.st_geometry_columns where table_schema = database() and table_name = 'occurrences' and column_name = 'geometry'",
+		storedSrid: 'select distinct st_srid(geometry) from occurrences',
+		axisOrder: `select st_latitude(st_geomfromtext('POINT(-46.7 -23.65)', 4326)) as srid_defined, st_latitude(st_geomfromtext('POINT(-46.7 -23.65)', 4326, 'axis-order=long-lat')) as long_lat`,
+		mixedSrids: `select st_intersects(geometry, st_geomfromtext('POINT(-46.7 -23.65)', 4326)) from occurrences limit 1`,
+		planeIntersects: `select count(*) from occurrences where st_intersects(geometry, st_buffer(${planePoint}, 0.05))`,
+		spatialIndex: 'create spatial index occurrences_geometry_index on occurrences (geometry)',
+	},
+};
+
+export const dialects = { cockroachdb, mysql } as const;
 
 export type DialectName = keyof typeof dialects;
 
@@ -107,9 +178,28 @@ export const selectDialects = (value: string | undefined): DialectName[] => {
 	});
 };
 
+// Runs one statement inside the container of the database, from the global setup or from a test, and returns what the
+// client of the database printed.
+export const runSql = async (
+	name: DialectName,
+	{ id, clientEnvironment }: OnDialect['database'],
+	statement: string,
+): Promise<{ exitCode: number; output: string }> => {
+	const client = await getContainerRuntimeClient();
+	const { exitCode, output } = await client.container.exec(
+		client.container.getById(id),
+		dialects[name].sqlCommand(statement),
+		{ env: clientEnvironment },
+	);
+
+	return { exitCode, output: output.trim() };
+};
+
 // What the global setup of the dialects hands to the tests about the Directus it started.
 export interface OnDialect {
 	url: string;
+	// The container of the database, and what its client needs, for a test to run a statement in it.
+	database: { id: string; clientEnvironment: Record<string, string> };
 	tokens: { admin: string; maria: string; twoPolicies: string };
 	// What each probe of the dialect answered, by its name.
 	probes: Record<string, { statement: string; exitCode: number; output: string }>;

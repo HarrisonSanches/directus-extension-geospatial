@@ -621,7 +621,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 
 - **PostgreSQL + PostGIS:** tudo, pois é a referência.
 - **CockroachDB:** o Directus usa o mesmo helper do Postgres, e o envelope sobre a query permitida é o mesmo do PostGIS. Tem os tipos e boa parte das funções do PostGIS. Na 25.4, falta o `ST_AsMVT`, que chega na 26.2, e os mais próximos só usam o índice dentro de um raio, porque o `<->` não aceita geometria (V-148). As outras lacunas do nosso catálogo serão confirmadas.
-- **MySQL:** o Directus grava a geometria sem SRID, e a coluna fica sem o atributo SRID. Nessa situação, o otimizador ignora os índices espaciais, e o índice ainda exige `NOT NULL`. A correção a testar é marcar a coluna como `NOT NULL SRID 0` e criar o índice.
+- **MySQL:** o Directus grava a geometria sem SRID, e a coluna fica sem o atributo SRID. Nessa situação, o otimizador ignora os índices espaciais, e o índice ainda exige `NOT NULL`. A correção é marcar a coluna como `NOT NULL SRID 0` e criar o índice: o Directus segue gravando e lendo a geometria, e passa a recusar o item sem ela (V-151). O envelope sobre a query permitida é o do PostGIS, no plano e sem SRID nos dois lados.
 - **MariaDB:** passa pelo mesmo helper do MySQL. O índice espacial exige `NOT NULL`. As distâncias são planas, e metros só com `ST_Distance_Sphere`.
 - **SQL Server:** a coluna é `geometry` (plano) com SRID 4326. Para medir em metros, os itens são convertidos para `geography` depois do filtro por caixa.
 - **Oracle:** a coluna é `sdo_geometry` com SRID 4326 (geodésico, em metros), e há busca de mais próximos com índice (`SDO_NN`). O filtro nativo do Directus usa um operador que provavelmente exige índice espacial; isso será confirmado.
