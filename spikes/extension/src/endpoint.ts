@@ -8,6 +8,7 @@ import { problemsOf } from './check.js';
 import { envelope, envelopeRequestOf } from './envelope.js';
 import { record, take } from './queries.js';
 import { radius, radiusRequestOf } from './radius.js';
+import { tile, tileRequestOf } from './tile.js';
 
 export default defineEndpoint({
 	id: 'geospatial-spikes',
@@ -93,6 +94,19 @@ export default defineEndpoint({
 					),
 				)
 				.then((data) => res.json({ data }))
+				.catch(next);
+		});
+
+		// The vector tile of the permitted query of whoever asks, with the items grouped by cells of the screen (F01-13).
+		router.get('/tile/:collection/:z/:x/:y', (req, res, next) => {
+			Promise.resolve()
+				.then(() =>
+					tile(
+						tileRequestOf(req.params.collection, req.params, req.query, req.sanitizedQuery, req.accountability),
+						context,
+					),
+				)
+				.then((data) => res.type('application/vnd.mapbox-vector-tile').send(data))
 				.catch(next);
 		});
 	},
