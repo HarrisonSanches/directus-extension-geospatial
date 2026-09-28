@@ -225,7 +225,121 @@ const mariadb: Dialect = {
 	},
 };
 
-export const dialects = { cockroachdb, mysql, mariadb } as const;
+// The client of SQL Server in its image, as the sandbox of Directus runs it: as sa, without requiring encryption. It
+// exits with an error when a statement fails, and quotes the names as Directus does, with the setting the spatial index
+// asks for.
+const sqlcmd = ['/opt/mssql-tools18/bin/sqlcmd', '-S', 'localhost', '-U', 'sa', '-No', '-b', '-I'];
+
+// The point of the probes, one 11.6 km from it, and a square near them, in the text both types of SQL Server read, with
+// the longitude first. The square turns counterclockwise, and then clockwise.
+const text = {
+	point: 'POINT(-46.7 -23.65)',
+	near: 'POINT(-46.6 -23.6)',
+	square: 'POLYGON((-46.6 -23.6, -46.5 -23.6, -46.5 -23.5, -46.6 -23.5, -46.6 -23.6))',
+	clockwise: 'POLYGON((-46.6 -23.6, -46.6 -23.5, -46.5 -23.5, -46.5 -23.6, -46.6 -23.6))',
+};
+
+// The plane, the type of the column Directus creates (V-27), and the ellipsoid, which measures in meters.
+const planeOf = (wkt: string) => `geometry::STGeomFromText('${wkt}', 4326)`;
+const ellipsoidOf = (wkt: string) => `geography::STGeomFromText('${wkt}', 4326)`;
+
+const mssql: Dialect = {
+	// The newest cumulative update of SQL Server 2025, the one 2025-latest names in the docker-compose.yml of Directus
+	// 12.4.1. The sandbox of its end-to-end tests names 2022 (V-153).
+	image:
+		'mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04@sha256:2b5b581621126574f3d1f75e78d3eebe8d05aedb59ad0cfdf9aa42cb0634d726',
+	start: async (network) => {
+		// SQL Server takes a password with three of the four kinds of characters.
+		const password = `${randomBytes(32).toString('hex')}-A`;
+		const clientEnvironment = { SQLCMDPASSWORD: password };
+
+		// The edition and the data of the sandbox of Directus: Express, which is free, in memory. The image starts only
+		// with its license accepted, as the tests of Directus accept it.
+		// What SQL Server printed, for the error when it stops before it is ready, since the container goes with it.
+		const printed: string[] = [];
+
+		const container = await new GenericContainer(mssql.image)
+			.withNetwork(network)
+			.withNetworkAliases('database')
+			.withEnvironment({ ACCEPT_EULA: 'Y', MSSQL_PID: 'Express', MSSQL_SA_PASSWORD: password })
+			.withTmpFs({ '/var/opt/mssql/data': 'rw' })
+			.withLogConsumer((stream) => stream.on('data', (line) => printed.push(String(line))))
+			.withWaitStrategy(Wait.forLogMessage(/Recovery is complete/))
+			.withStartupTimeout(180_000)
+			.start()
+			.catch((error: unknown) => {
+				throw new Error(`SQL Server stopped before it was ready, after printing:\n${printed.slice(-30).join('')}`, {
+					cause: error,
+				});
+			});
+
+		// Directus takes a database that exists, and the image has only the ones of the system.
+		const created = await container.exec([...sqlcmd, '-Q', 'create database directus'], { env: clientEnvironment });
+
+		if (created.exitCode !== 0) {
+			await container.stop();
+			throw new Error(`SQL Server did not create the database of Directus: ${created.output}`);
+		}
+
+		return {
+			container,
+			environment: {
+				DB_CLIENT: 'mssql',
+				DB_HOST: 'database',
+				DB_PORT: '1433',
+				DB_DATABASE: 'directus',
+				DB_USER: 'sa',
+				DB_PASSWORD: password,
+			},
+			// The client reads the password from the environment of its own process, and never from its command.
+			clientEnvironment,
+		};
+	},
+	// Only the values, one row per line and the columns apart by tabs, without the count of the rows.
+	sqlCommand: (statement) => [
+		...sqlcmd,
+		'-d',
+		'directus',
+		'-h',
+		'-1',
+		'-W',
+		'-s',
+		'\t',
+		'-Q',
+		`set nocount on; ${statement}`,
+	],
+	// What Directus writes to SQL Server: the column, the SRID of the values, and the text the permitted query reads the
+	// geometry through. Then the order of the axes of geography, the distances on the plane and on the ellipsoid, the
+	// ring of a polygon on the ellipsoid, and the spatial index, whose bounds a geometry index asks for. With the index
+	// forced, a plan that cannot take it fails.
+	probes: {
+		version: "select serverproperty('ProductVersion'), serverproperty('Edition')",
+		// A point with 15 decimals, as the text of the permitted query would carry it.
+		asText: `select ${planeOf('POINT(-46.712345678901234 -23.612345678901234)')}.STAsText()`,
+		column:
+			"select type_name(user_type_id), is_nullable from sys.columns where object_id = object_id('occurrences') and name = 'geometry'",
+		storedSrid: 'select distinct [geometry].STSrid from occurrences',
+		// The text puts the longitude first, and the Point method of geography the latitude.
+		ellipsoidLatitude: `select ${ellipsoidOf(text.point)}.Lat`,
+		ellipsoidPoint: 'select geography::Point(-23.65, -46.7, 4326).STAsText()',
+		planeDistance: `select ${planeOf(text.point)}.STDistance(${planeOf(text.near)})`,
+		// The geometry of the permitted query, as text, taken to the ellipsoid.
+		ellipsoidDistance: `select geography::STGeomFromText(${planeOf(text.point)}.STAsText(), 4326).STDistance(${ellipsoidOf(text.near)})`,
+		area: `select ${ellipsoidOf(text.square)}.STArea()`,
+		clockwiseArea: `select ${ellipsoidOf(text.clockwise)}.STArea()`,
+		spatialIndexWithoutBounds: 'create spatial index occurrences_geometry_index on occurrences ([geometry])',
+		spatialIndex:
+			'create spatial index occurrences_geometry_index on occurrences ([geometry]) with (bounding_box = (-180, -90, 180, 90))',
+		// A predicate on the column takes the index, and one on the text of the permitted query does not (A-023). The
+		// nearest items take it within a distance, and the hint does not take the form without one.
+		columnIntersects: `select id from occurrences with (index(occurrences_geometry_index)) where [geometry].STIntersects(${planeOf(text.point)}.STBuffer(0.05)) = 1`,
+		textIntersects: `select id from occurrences with (index(occurrences_geometry_index)) where geometry::STGeomFromText([geometry].STAsText(), 4326).STIntersects(${planeOf(text.point)}.STBuffer(0.05)) = 1`,
+		nearest: `select top (3) id from occurrences with (index(occurrences_geometry_index)) where [geometry].STDistance(${planeOf(text.point)}) is not null order by [geometry].STDistance(${planeOf(text.point)})`,
+		nearestWithin: `select top (3) id from occurrences with (index(occurrences_geometry_index)) where [geometry].STDistance(${planeOf(text.point)}) < 0.05 order by [geometry].STDistance(${planeOf(text.point)})`,
+	},
+};
+
+export const dialects = { cockroachdb, mysql, mariadb, mssql } as const;
 
 export type DialectName = keyof typeof dialects;
 

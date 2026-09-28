@@ -1,4 +1,15 @@
-import { createItem, createItems, customEndpoint, readField, readItem, readItems, updateItem } from '@directus/sdk';
+import {
+	createCollection,
+	createField,
+	createItem,
+	createItems,
+	createRelation,
+	customEndpoint,
+	readField,
+	readItem,
+	readItems,
+	updateItem,
+} from '@directus/sdk';
 import geographiclib from 'geographiclib-geodesic';
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 import { type Client, connect, type Occurrence } from '../../test/directus.ts';
@@ -131,6 +142,22 @@ const errorOf = async (request: Promise<unknown>) => {
 	throw new Error('The request did not fail.');
 };
 
+// Where the sort and the limit of the page land in the permitted query, as each database quotes the names: the limit
+// after the order, or, in SQL Server, as a top at the start of the select, which Directus also gives a page without a
+// limit (V-153).
+const paging: Record<DialectName, { sorted: RegExp; limited: RegExp }> = {
+	cockroachdb: {
+		sorted: /order by "occurrences"\."id" desc$/,
+		limited: /order by "occurrences"\."id" desc limit \?$/,
+	},
+	mysql: { sorted: /order by `occurrences`\.`id` desc$/, limited: /order by `occurrences`\.`id` desc limit \?$/ },
+	mariadb: { sorted: /order by `occurrences`\.`id` desc$/, limited: /order by `occurrences`\.`id` desc limit \?$/ },
+	mssql: {
+		sorted: /^select top \(\?\) .* order by \[occurrences\]\.\[id\] desc$/,
+		limited: /^select top \(\?\) .* order by \[occurrences\]\.\[id\] desc$/,
+	},
+};
+
 const probeOf = (name: string) => probes[name] ?? { statement: '', exitCode: -1, output: '' };
 
 // The first row of what a probe printed, below the header, which may repeat the expression of the statement.
@@ -202,6 +229,54 @@ const findings: Record<DialectName, () => void> = {
 		log(`${dialect}: ST_Distance_Sphere gave ${String(sphere)} m, and GeographicLib ${String(s12)} m`);
 		expect(Math.abs(sphere - (s12 ?? 0)) / (s12 ?? 1)).toBeLessThan(0.01);
 	},
+	// SQL Server 2025, on 28/09/2026 (V-153): the column on the plane with SRID 4326, geography on the ellipsoid, the
+	// latitude first only in its Point method, the ring of a polygon read by its orientation, and a spatial index that
+	// asks for its bounds and never takes the text of the permitted query.
+	mssql: () => {
+		expect(probeOf('version').output).toMatch(/^17\.0\.\d+\.\d+\tExpress Edition/);
+		// The shortest text that reads back as the same double, with a space after the type.
+		expect(probeOf('asText').output).toBe('POINT (-46.712345678901237 -23.612345678901235)');
+		expect(probeOf('column').output).toBe('geometry\t1');
+		expect(probeOf('storedSrid').output).toBe('4326');
+		expect(Number(probeOf('ellipsoidLatitude').output)).toBe(-23.65);
+		expect(probeOf('ellipsoidPoint').output).toBe('POINT (-46.7 -23.65)');
+		expect(Number(probeOf('planeDistance').output)).toBeCloseTo(Math.hypot(0.1, 0.05), 12);
+
+		// The ellipsoid of SQL Server against the one of GeographicLib, between the two points and on the square.
+		const { s12 } = geographiclib.Geodesic.WGS84.Inverse(-23.65, -46.7, -23.6, -46.6);
+		const ellipsoid = Number(probeOf('ellipsoidDistance').output);
+		const square = geographiclib.Geodesic.WGS84.Polygon(false);
+
+		for (const [longitude, latitude] of [
+			[-46.6, -23.6],
+			[-46.5, -23.6],
+			[-46.5, -23.5],
+			[-46.6, -23.5],
+		] as const) {
+			square.AddPoint(latitude, longitude);
+		}
+
+		const { area } = square.Compute(false, true);
+
+		log(`${dialect}: STDistance on geography gave ${String(ellipsoid)} m, and GeographicLib ${String(s12)} m`);
+		log(`${dialect}: STArea gave ${probeOf('area').output} m², and GeographicLib ${String(area)} m²`);
+		expect(Math.abs(ellipsoid - (s12 ?? 0))).toBeLessThan(0.001);
+		expect(Math.abs(Number(probeOf('area').output) - (area ?? 0)) / (area ?? 1)).toBeLessThan(1e-6);
+		// Clockwise, the same ring holds the rest of the Earth.
+		expect(Number(probeOf('clockwiseArea').output)).toBeGreaterThan(5e14);
+
+		expect(probeOf('spatialIndexWithoutBounds').exitCode).toBe(1);
+		expect(probeOf('spatialIndexWithoutBounds').output).toContain("missing the required parameter 'BOUNDING_BOX'");
+		expect(probeOf('spatialIndex').exitCode).toBe(0);
+		expect(probeOf('columnIntersects').exitCode).toBe(0);
+		expect(probeOf('textIntersects').exitCode).toBe(1);
+		expect(probeOf('textIntersects').output).toContain('Could not find required binary spatial method in a condition');
+		expect(probeOf('nearestWithin').exitCode).toBe(0);
+		expect(probeOf('nearest').exitCode).toBe(1);
+		expect(probeOf('nearest').output).toContain(
+			'Spatial indexes do not support the comparator supplied in the predicate',
+		);
+	},
 };
 
 describe(`o envelope sobre a query permitida, no ${dialect} (F01-08)`, () => {
@@ -226,7 +301,8 @@ describe(`o envelope sobre a query permitida, no ${dialect} (F01-08)`, () => {
 		const { executed, countAs } = await envelopeOf(as('maria'));
 
 		expect(executed).toHaveLength(2);
-		expect(executed.every((sql) => sql.includes('ST_Intersects'))).toBe(true);
+		// ST_Intersects, and STIntersects in SQL Server.
+		expect(executed.every((sql) => /ST_?Intersects/.test(sql))).toBe(true);
 		expect(executed[0]).toMatch(/^select count\(\*\)/);
 
 		for (const sql of executed) {
@@ -273,10 +349,26 @@ describe(`o envelope sobre a query permitida, no ${dialect} (F01-08)`, () => {
 		// The page leaves out items of Maria in the polygon that come before the last five.
 		expect(expected.length).toBeGreaterThan(0);
 		expect(expected.length).toBeLessThan((await expectedFor(as('maria'))).length);
-		// Postgres and CockroachDB quote the names with double quotes, and MySQL with backticks.
-		expect(permitted.sql).toMatch(/order by (["`])occurrences\1\.\1id\1 desc limit \?\)?$/);
+		expect(permitted.sql).toMatch(paging[dialect].limited);
+		expect(permitted.bindings).toContain(5);
 		log(
 			`${dialect}: with the sort and the limit of the page, the envelope reached the database as ${executed[1] ?? ''}`,
+		);
+	});
+
+	it('com o sort da página e sem o limit, o ORDER BY fica na subconsulta, e o envelope conta tudo', async () => {
+		const page = { sort: ['-id'] };
+		const expected = await expectedFor(as('maria'), page);
+		const { count, ids, permitted, executed } = await envelopeOf(as('maria'), page);
+
+		expect(ids).toEqual(expected);
+		expect(count).toBe(expected.length);
+		expect(expected).toEqual(await expectedFor(as('maria')));
+		expect(permitted.sql).toMatch(paging[dialect].sorted);
+		// Directus gives SQL Server the largest safe integer as the top, where the page has no limit.
+		expect(permitted.bindings.includes(Number.MAX_SAFE_INTEGER)).toBe(dialect === 'mssql');
+		log(
+			`${dialect}: with the sort of the page and no limit, the envelope reached the database as ${executed[1] ?? ''}`,
 		);
 	});
 
@@ -290,6 +382,82 @@ describe(`o envelope sobre a query permitida, no ${dialect} (F01-08)`, () => {
 
 	it('o que o banco respondeu às sondas é o que a verificação dele registra', () => {
 		findings[dialect]();
+	});
+});
+
+// A filter across a relation to many makes Directus build the permitted query as a wrapper around an inner one: the
+// inner one takes the limit and the order, and the wrapper repeats the order without a limit (getDBQuery). SQL Server
+// takes no order by in a subquery without a top or an offset (V-153).
+describe(`com um filtro por uma relação o2m, a query permitida envolve outra, no ${dialect} (F01-11)`, () => {
+	const admin = as('admin');
+	const page = { filter: { notes: { _some: { kind: { _eq: 'seen' } } } }, sort: ['-id'] };
+
+	beforeAll(async () => {
+		await admin.request(
+			createCollection({
+				collection: 'notes',
+				schema: {},
+				meta: {},
+				fields: [
+					{ field: 'id', type: 'integer', schema: { is_primary_key: true, has_auto_increment: true } },
+					{ field: 'occurrence', type: 'integer', schema: {} },
+					{ field: 'kind', type: 'string', schema: {} },
+				],
+			}),
+		);
+		await admin.request(createField('occurrences', { field: 'notes', type: 'alias', meta: { special: ['o2m'] } }));
+		await admin.request(
+			createRelation({
+				collection: 'notes',
+				field: 'occurrence',
+				related_collection: 'occurrences',
+				meta: { one_field: 'notes' },
+			}),
+		);
+
+		// One note on each occurrence, of the kind the filter asks for on two of every three, so it leaves some out on
+		// both sides of the polygon.
+		const occurrences = await admin.request(readItems('occurrences', { fields: ['id'], limit: -1 }));
+
+		// The client of the tests knows only the occurrences.
+		await admin.request(
+			customEndpoint({
+				path: '/items/notes',
+				method: 'POST',
+				body: JSON.stringify(occurrences.map(({ id }) => ({ occurrence: id, kind: id % 3 === 0 ? 'closed' : 'seen' }))),
+			}),
+		);
+	});
+
+	it('sem o limit da página, o envelope do admin bate com o gabarito', async () => {
+		const expected = await expectedFor(admin, page);
+		const { count, ids, permitted, executed } = await envelopeOf(admin, page);
+
+		expect(ids).toEqual(expected);
+		expect(count).toBe(expected.length);
+		expect(expected.length).toBeGreaterThan(0);
+		expect(expected.length).toBeLessThan((await expectedFor(admin)).length);
+		// The wrapper orders by what the inner one selects to sort, and the envelope takes that order out only on SQL
+		// Server, which would refuse it.
+		expect(permitted.sql).toMatch(/inner join/);
+		expect(permitted.sql).toMatch(/order by .inner.\.\S+ desc$/);
+		expect(executed.map((sql) => /order by .inner.\./.test(sql))).toEqual([dialect !== 'mssql', dialect !== 'mssql']);
+		log(`${dialect}: with a filter across a relation to many, the permitted query is ${permitted.sql}`);
+		log(`${dialect}: and the envelope reached the database as ${executed[1] ?? ''}`);
+	});
+
+	it('com o limit da página, a query de dentro limita, e o envelope do admin só conta a página', async () => {
+		const limited = { ...page, limit: 3 };
+		const expected = await expectedFor(admin, limited);
+		const { count, ids, permitted, executed } = await envelopeOf(admin, limited);
+
+		expect(ids).toEqual(expected);
+		expect(count).toBe(expected.length);
+		expect(expected.length).toBeGreaterThan(0);
+		expect(expected.length).toBeLessThan((await expectedFor(admin, page)).length);
+		// The inner query keeps its top and its order, which choose the page.
+		expect(permitted.sql).toMatch(/order by .inner.\.\S+ desc$/);
+		expect(executed.every((sql) => /order by .occurrences.\..id. desc( limit \S+)?\) as .inner./.test(sql))).toBe(true);
 	});
 });
 

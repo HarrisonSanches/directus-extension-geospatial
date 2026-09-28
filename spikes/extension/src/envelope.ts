@@ -1,5 +1,6 @@
 import { InvalidQueryError } from '@directus/errors';
 import type { Accountability, ApiExtensionContext, Query } from '@directus/types';
+import type { Knex } from 'knex';
 import { clientOf, isRow, permittedFor, type PermittedRequest, permittedRequestOf, watchQueries } from './request.js';
 
 export interface Envelope {
@@ -32,6 +33,27 @@ const predicates: Readonly<Record<string, string>> = {
 	// geometry without an SRID, so its SRID is 0, and in MySQL a predicate takes two geometries of the same SRID: the
 	// polygon goes without one too (V-151, V-152).
 	Client_MySQL2: 'ST_Intersects(ST_GeomFromText(??), ST_GeomFromText(?))',
+	// SQL Server reads the text as the type of the column, geometry, on the plane and with the SRID Directus writes
+	// (V-27). Its predicates are methods of the type that answer a bit (V-49).
+	Client_MSSQL: 'geometry::STGeomFromText(??, 4326).STIntersects(geometry::STGeomFromText(?, 4326)) = 1',
+};
+
+// Knex keeps the limit and the offset of a builder in _single, which its compilers read and its types leave out.
+const isPaged = (builder: Knex.QueryBuilder): boolean => {
+	const single: unknown = Reflect.get(builder, '_single');
+
+	return isRow(single) && (single.limit !== undefined || single.offset !== undefined);
+};
+
+// SQL Server takes no order by in a derived table without a top or an offset beside it (error 1033). Directus gives SQL
+// Server a top on the query that takes the limit, the largest safe integer where the page has none, but a filter across
+// a relation to many puts the limit on an inner query and the order on the wrapper around it (getDBQuery). An order
+// without a top or an offset beside it never changes the rows, so the envelope takes it out, as EF Core does when it
+// pushes a query down into a subquery (V-153).
+const dropLooseOrder = (builder: Knex.QueryBuilder, client: string): void => {
+	if (client === 'Client_MSSQL' && !isPaged(builder)) {
+		builder.clear('order');
+	}
 };
 
 // A driver may hand a bigint, such as a count, over as text.
@@ -80,9 +102,11 @@ export const envelope = async (request: EnvelopeRequest, context: ApiExtensionCo
 			limit: hooked.limit ?? -1,
 		}));
 
-		// Before the envelopes, which give the permitted query an alias of its own.
+		// Before the envelopes, which give the permitted query an alias of its own, and as Directus built it.
 		const { sql, bindings } = permitted.toSQL();
 		const values = ['p.geometry', request.polygon];
+
+		dropLooseOrder(permitted, clientOf(knex));
 
 		const counted: unknown[] = await knex.count('* as count').from(permitted.as('p')).whereRaw(predicate, values);
 		const rows: unknown[] = await knex

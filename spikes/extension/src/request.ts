@@ -57,12 +57,12 @@ export const permittedRequestOf = (
 });
 
 // Every query that reads the collection from now on, as it reached the database, until the stop. Postgres and
-// CockroachDB quote the names with double quotes, and SQLite with backticks.
+// CockroachDB quote the names with double quotes, SQLite, MySQL and MariaDB with backticks, and SQL Server with brackets.
 export const watchQueries = (knex: Knex, collection: string): { executed: string[]; stop: () => void } => {
 	const executed: string[] = [];
 
 	const record = ({ sql }: { sql: string }) => {
-		if (sql.includes(`"${collection}"`) || sql.includes(`\`${collection}\``)) {
+		if ([`"${collection}"`, `\`${collection}\``, `[${collection}]`].some((quoted) => sql.includes(quoted))) {
 			executed.push(sql);
 		}
 	};

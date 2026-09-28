@@ -99,7 +99,9 @@ export const seed = async (
 			meta: {},
 			fields: [
 				{ field: 'id', type: 'integer', schema: { is_primary_key: true, has_auto_increment: true } },
-				{ field: 'geometry', type: 'geometry.Point', schema: {} },
+				// On SQL Server, whose column is a geometry of any kind, Directus keeps the Point in its meta, and fails without
+				// one (V-153).
+				{ field: 'geometry', type: 'geometry.Point', schema: {}, meta: {} },
 				{ field: 'region', type: 'string', schema: {} },
 				{ field: 'category', type: 'string', schema: {} },
 				{ field: 'status', type: 'string', schema: {} },
