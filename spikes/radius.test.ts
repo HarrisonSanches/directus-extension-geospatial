@@ -181,8 +181,8 @@ const north = { region: { _eq: 'north' } };
 const everyFieldBut = (field: string) =>
 	['id', 'geometry', 'region', 'category', 'status', 'occurred_at'].filter((name) => name !== field);
 
-// The envelope of this spike is the one of PostGIS. SQLite has its own, in F01-07. The files of a project run in
-// parallel, so the tests that read these points stay in this file, one after the other.
+// The envelope of PostGIS, which the other spikes build on. SQLite has its own, below (F01-07). The files of a project
+// run in parallel, so the tests that read these points stay in this file, one after the other.
 describe.runIf(versions().database.client === 'postgres')('o raio sobre a query permitida, no PostGIS', () => {
 	beforeAll(async () => {
 		await as('admin').request(createItems('occurrences', aroundTheEdge));
@@ -473,3 +473,57 @@ describe.runIf(versions().database.client === 'postgres')('o raio sobre a query 
 		});
 	});
 });
+
+// The envelope of SpatiaLite, in the image of the suite, which loads it into every connection (V-121). Directus 12 on
+// SQLite runs on the Core tier, where Maria has no rule, so her test is skipped there (D-043, D-044).
+describe.runIf(versions().database.client === 'sqlite')(
+	'o raio sobre a query permitida, no SQLite com a SpatiaLite (F01-07)',
+	() => {
+		beforeAll(async () => {
+			await as('admin').request(createItems('occurrences', aroundTheEdge));
+		});
+
+		it.runIf(hasCustomPermissionRules())(
+			'o raio da Maria devolve os mesmos ids do gabarito da GeographicLib, num SQL só',
+			async () => {
+				const expected = await expectedFor(as('maria'));
+				const { ids, executed } = await radius(as('maria'));
+
+				expect(ids).toEqual(expected);
+				expect(expected.length).toBeGreaterThan(0);
+				expect(executed).toHaveLength(1);
+				expect(executed[0]).toMatch(/PtDistWithin/);
+				log(`${inject('combination')}: the envelope of Maria reached the database as ${executed[0] ?? ''}`);
+			},
+		);
+
+		it('o raio do admin devolve todas as ocorrências dentro do raio, sem filtro de permissão', async () => {
+			expect((await radius(as('admin'))).ids).toEqual(await expectedFor(as('admin')));
+		});
+
+		it('o público recebe do raio o mesmo erro do /items', async () => {
+			const items = await errorOf(as('public').request(readItems('occurrences')));
+
+			expect(await errorOf(radius(as('public')))).toEqual(items);
+			expect(items).toMatchObject([{ extensions: { code: 'FORBIDDEN' } }]);
+		});
+
+		// PtDistWithin agrees with GeographicLib to 1 mm, but the permitted query exposes the geometry through st_astext,
+		// which SpatiaLite writes with 6 decimals: up to 7.5 cm off, here (V-147).
+		it('a distância da SpatiaLite bate com a da GeographicLib a 10 cm da borda', async () => {
+			const within = (distance: number) =>
+				as('admin').request(
+					customEndpoint<Radius>({
+						path: '/geospatial-spikes/radius/occurrences',
+						method: 'GET',
+						params: { ...center, meters: distance },
+					}),
+				);
+
+			// Half of the points are 2 m inside the edge, 9998 m away by GeographicLib.
+			const [wider, narrower] = await Promise.all([within(meters - 2 + 0.1), within(meters - 2 - 0.1)]);
+
+			expect(wider.ids.filter((id) => !narrower.ids.includes(id))).toHaveLength(aroundTheEdge.length / 2);
+		});
+	},
+);

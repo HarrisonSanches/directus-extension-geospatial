@@ -66,9 +66,10 @@ const shapeProblemsOf = async (adapter: Adapter, context: Context): Promise<stri
 			context,
 		);
 
+		// The name alone, since Postgres quotes it with double quotes, and SQLite with backticks.
 		const { sql } = builder.toSQL();
 
-		return sql.includes(`"${collection}"`) ? [] : [`the chain built a query that does not read ${collection}: ${sql}`];
+		return sql.includes(collection) ? [] : [`the chain built a query that does not read ${collection}: ${sql}`];
 	} catch (error) {
 		return [`the chain failed on ${collection}: ${error instanceof Error ? error.message : String(error)}`];
 	}

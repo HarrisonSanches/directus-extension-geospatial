@@ -34,6 +34,22 @@ interface RadiusRequest {
 	adapter: string | undefined;
 }
 
+// Knex types its client as any. The name of its class tells the database, as getDatabaseClient of Directus reads it
+// (V-105).
+const clientOf = ({ client }: { client: unknown }): string =>
+	typeof client === 'object' && client !== null ? client.constructor.name : '';
+
+// The spatial part around the permitted query, in the dialect of each database, with the permitted geometry, the
+// longitude, the latitude and the meters as its values. Both read the geometry the permitted query exposes, as text,
+// and never the column itself (A-023).
+const envelopes: Readonly<Record<string, string>> = {
+	// PostGIS, over the ellipsoid through geography (F01-02).
+	Client_PG: 'ST_DWithin(ST_GeomFromText(??, 4326)::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)',
+	// SpatiaLite, over the ellipsoid with the last argument at 1. Directus creates no spatial metadata, and PtDistWithin is
+	// the distance in meters that needs none (V-147).
+	Client_SQLite3: 'PtDistWithin(ST_GeomFromText(??, 4326), MakePoint(?, ?, 4326), ?, 1)',
+};
+
 // Knex returns the rows untyped.
 const isRow = (row: unknown): row is Record<string, unknown> => typeof row === 'object' && row !== null;
 
@@ -77,10 +93,16 @@ export const radius = async (
 	context: ApiExtensionContext,
 ): Promise<Radius> => {
 	const knex = context.database;
+	const envelope = envelopes[clientOf(knex)];
 	const executed: string[] = [];
 
+	if (envelope === undefined) {
+		throw new Error(`The spikes have no envelope for the database of ${clientOf(knex)}.`);
+	}
+
+	// Postgres quotes the names with double quotes, and SQLite with backticks.
 	const record = ({ sql }: { sql: string }) => {
-		if (sql.includes(`"${collection}"`)) {
+		if (sql.includes(`"${collection}"`) || sql.includes(`\`${collection}\``)) {
 			executed.push(sql);
 		}
 	};
@@ -124,10 +146,7 @@ export const radius = async (
 		const rows: unknown[] = await knex
 			.select('p.*')
 			.from(permitted.as('p'))
-			.whereRaw(
-				'ST_DWithin(ST_GeomFromText(??, 4326)::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)',
-				['p.geometry', longitude, latitude, meters],
-			)
+			.whereRaw(envelope, ['p.geometry', longitude, latitude, meters])
 			.orderBy('p.id');
 
 		const items = rows.filter(isRow);
