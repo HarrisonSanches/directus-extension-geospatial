@@ -114,7 +114,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   é o `sdo_overlapbdyintersect`, que responde sem índice (P-05) e deixa de fora o ponto dentro do polígono (P-12), então
   a paridade no Oracle compara com o resultado calculado. As imagens slim dos testes do Directus não têm o Oracle
   Spatial, e a prova roda na regular (V-154).
-- Próximo passo: `/implement-issue F01-13`, um tile MVT em volta da query permitida.
+- F01-13 feita em 28/09/2026: o tile da Maria sai de um `ST_AsMVT` só em volta da query permitida, com o agrupamento
+  por células de uma grade do mundo inteiro. O MapLibre desenha todo tile vetorial em 512 px, e a célula de 60 px vira
+  9 de 56,9 px, então nenhuma célula atravessa a borda, e nenhum grupo se repete no tile vizinho. O tile decodificado é
+  o mesmo no 11.17 e no 12, com o PostGIS 3.2 e o 3.6. Um ponto a menos de meia unidade da borda sul ou leste fica na
+  borda, onde o MapLibre não põe o rótulo (V-155).
+- Próximo passo: `/implement-issue F01-14`, o MapLibre só chega quando o layout abre (P-01, P-03).
 
 ## Documentação
 

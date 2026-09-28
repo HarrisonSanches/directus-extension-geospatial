@@ -196,7 +196,7 @@ Recebem itens ou formas e produzem só formas. Servem de entrada para outra oper
 
 #### Zoom baixo: agrupamento no servidor
 
-- Dentro de cada tile, o servidor divide o quadrado em células de tamanho fixo na tela (por exemplo, 60 × 60 px), e a mesma regra vale em todos os tiles.
+- Dentro de cada tile, o servidor divide o quadrado em células de tamanho fixo na tela (por exemplo, 60 × 60 px), e a mesma regra vale em todos os tiles. O tile de 512 px, o tamanho em que o MapLibre desenha todo tile vetorial, tem um número inteiro de células, o mais perto da largura pedida (60 px viram 9 células de 56,9 px), numa grade do mundo inteiro em cada zoom. Cada item cai numa célula só, pela parte inteira da sua posição nessa grade, então um grupo nunca se repete em dois tiles vizinhos (V-155).
 - Uma célula com um item manda o próprio item, que continua clicável. Uma célula com vários manda um grupo com a contagem, na posição média dos itens, junto com o retângulo que os envolve. Clicar no grupo aproxima o mapa até esse retângulo.
 - Não existe zoom mínimo fixo: a regra se ajusta à densidade. No mesmo zoom, o centro da cidade aparece em grupos e a zona rural, em itens soltos. É o comportamento do supercluster, só que no servidor e para qualquer volume.
 - Há dois estilos a partir dos mesmos tiles: círculos com o número ou mapa de calor, com o peso dado pela contagem.
