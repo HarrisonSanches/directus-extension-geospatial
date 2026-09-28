@@ -1,14 +1,24 @@
-import { GenericContainer, type StartedNetwork, type StartedTestContainer, Wait } from 'testcontainers';
+import {
+	GenericContainer,
+	getContainerRuntimeClient,
+	type StartedNetwork,
+	type StartedTestContainer,
+	Wait,
+} from 'testcontainers';
 
 // A database outside the suite, which the proofs of the envelope run Directus 11.17 on (F01-08).
 interface Dialect {
 	// The image of the database, as the tests of Directus run it (V-28), pinned by the digest of its tag.
 	image: string;
 	// Starts the database on the network of the run, under the name database, and returns what Directus needs to reach
-	// it.
-	start: (network: StartedNetwork) => Promise<{ container: StartedTestContainer; environment: Record<string, string> }>;
-	// Runs one statement inside the container of the database, and returns what the client of the database printed.
-	sql: (container: StartedTestContainer, statement: string) => Promise<{ exitCode: number; output: string }>;
+	// it, and what the client of the database needs inside the container.
+	start: (network: StartedNetwork) => Promise<{
+		container: StartedTestContainer;
+		environment: Record<string, string>;
+		clientEnvironment: Record<string, string>;
+	}>;
+	// The command of the client of the database that runs one statement inside its container.
+	sqlCommand: (statement: string) => string[];
 	// Statements about the gaps of the database for the catalog of the extension, which the run answers once Directus
 	// created and filled the occurrences.
 	probes: Readonly<Record<string, string>>;
@@ -48,21 +58,18 @@ const cockroachdb: Dialect = {
 				DB_DATABASE: 'defaultdb',
 				DB_USER: 'root',
 			},
+			clientEnvironment: {},
 		};
 	},
-	sql: async (container, statement) => {
-		const { exitCode, output } = await container.exec([
-			'cockroach',
-			'sql',
-			'--insecure',
-			'--database=defaultdb',
-			'--format=tsv',
-			'--execute',
-			statement,
-		]);
-
-		return { exitCode, output: output.trim() };
-	},
+	sqlCommand: (statement) => [
+		'cockroach',
+		'sql',
+		'--insecure',
+		'--database=defaultdb',
+		'--format=tsv',
+		'--execute',
+		statement,
+	],
 	// The gaps of P-06: the functions of a vector tile, the nearest items by the index, and whether a predicate on the
 	// column itself, and not on the text of the permitted query, uses the index (A-023). Also the text the permitted
 	// query reads the geometry through, and how many digits it keeps.
@@ -107,9 +114,28 @@ export const selectDialects = (value: string | undefined): DialectName[] => {
 	});
 };
 
+// Runs one statement inside the container of the database, from the global setup or from a test, and returns what the
+// client of the database printed.
+export const runSql = async (
+	name: DialectName,
+	{ id, clientEnvironment }: OnDialect['database'],
+	statement: string,
+): Promise<{ exitCode: number; output: string }> => {
+	const client = await getContainerRuntimeClient();
+	const { exitCode, output } = await client.container.exec(
+		client.container.getById(id),
+		dialects[name].sqlCommand(statement),
+		{ env: clientEnvironment },
+	);
+
+	return { exitCode, output: output.trim() };
+};
+
 // What the global setup of the dialects hands to the tests about the Directus it started.
 export interface OnDialect {
 	url: string;
+	// The container of the database, and what its client needs, for a test to run a statement in it.
+	database: { id: string; clientEnvironment: Record<string, string> };
 	tokens: { admin: string; maria: string; twoPolicies: string };
 	// What each probe of the dialect answered, by its name.
 	probes: Record<string, { statement: string; exitCode: number; output: string }>;
