@@ -79,6 +79,11 @@ export const bindLicense = async (
 	return projectOf(database);
 };
 
+// Whether the database still has the project of the tests. A Directus 12 that restarts on it, or another one that starts
+// on it, reads the activation from the database without the key, and a new project would mean a new activation.
+export const hasProjectOfTests = async (database: StartedPostgreSqlContainer): Promise<boolean> =>
+	(await projectOf(database)) === project;
+
 // Applies the key to a Directus 12 that runs on the Core tier, under the project of the tests, which reuses their
 // activation (D-044).
 export const activateLicense = async (

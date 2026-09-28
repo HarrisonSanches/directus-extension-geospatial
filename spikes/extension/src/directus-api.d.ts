@@ -113,6 +113,8 @@ declare module '@directus/api/permissions/lib/fetch-permissions' {
 			policies: string[];
 			collections?: string[];
 			accountability?: Pick<Accountability, 'user' | 'role' | 'roles' | 'app' | 'share' | 'ip'>;
+			// The rules as the policies store them, with the dynamic variables, such as $NOW, left as they are.
+			bypassDynamicVariableProcessing?: boolean;
 		},
 		context: { schema: SchemaOverview; knex: ApiExtensionContext['database'] },
 	): Promise<Permission[]>;

@@ -18,6 +18,17 @@ interface Context {
 	knex: ApiExtensionContext['database'];
 }
 
+// Whether a read rule of the policies uses $NOW, which Directus turns into the time of each request, so the values of
+// the permitted query change every time (V-55). The rules as the policies store them, before Directus resolves them.
+const usesNow = async (policies: string[], accountability: Accountability, context: Context) => {
+	const rules = await fetchPermissions(
+		{ action: 'read', accountability, policies, bypassDynamicVariableProcessing: true },
+		context,
+	);
+
+	return rules.some(({ permissions }) => JSON.stringify(permissions ?? {}).includes('$NOW'));
+};
+
 // The query of what the accountability can read in a collection, built by the chain the ItemsService of Directus reads
 // with (readByQuery, in api/src/services/items.ts, and run, in api/src/database/run-ast/run-ast.ts), up to the
 // getDBQuery, which returns the builder without running it (V-21). The spikes read one level, with no relations.
@@ -27,7 +38,7 @@ interface Context {
 export const permittedQuery = async (
 	{ collection, query, accountability }: Request,
 	context: Context,
-): Promise<{ builder: Knex.QueryBuilder }> => {
+): Promise<{ builder: Knex.QueryBuilder; usesNow: boolean }> => {
 	// processAst refuses a field the accountability cannot read, and injects the rules of each policy as cases.
 	const ast = await processAst(
 		{ ast: await getAstFromQuery({ collection, query, accountability }, context), action: 'read', accountability },
@@ -43,11 +54,13 @@ export const permittedQuery = async (
 
 	// The admin reads with no permission at all, and so with no filter.
 	let permissions: Permission[] = [];
+	let now = false;
 
 	if (accountability !== null && !accountability.admin) {
 		const policies = await fetchPolicies(accountability, context);
 
 		permissions = await fetchPermissions({ action: 'read', accountability, policies }, context);
+		now = await usesNow(policies, accountability, context);
 	}
 
 	const builder = getDBQuery(
@@ -62,5 +75,5 @@ export const permittedQuery = async (
 		context,
 	);
 
-	return { builder };
+	return { builder, usesNow: now };
 };

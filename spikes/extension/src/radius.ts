@@ -13,6 +13,10 @@ export interface Radius {
 	executed: string[];
 	// The time to build the permitted query, the schema and the hooks included, in milliseconds.
 	buildMs: number;
+	// The permitted query as Knex compiles it, with the text and the values apart, the base of the cache key (F01-05).
+	permitted: { sql: string; bindings: unknown[] };
+	// Whether a read rule of whoever asks uses $NOW, which changes the values on each request (V-55).
+	usesNow: boolean;
 }
 
 interface RadiusRequest {
@@ -93,9 +97,15 @@ export const radius = async (
 		// The geometry goes by its name, so a role that cannot read it gets the error of the /items, instead of the field
 		// quietly missing from the *. The limit of -1 lifts QUERY_LIMIT_DEFAULT, which getDBQuery applies otherwise.
 		const query: Query = { ...hooked, fields: [...(hooked.fields ?? ['*']), 'geometry'], limit: -1 };
-		const { builder: permitted } = await permittedQuery({ collection, query, accountability }, { schema, knex });
+		const { builder: permitted, usesNow } = await permittedQuery(
+			{ collection, query, accountability },
+			{ schema, knex },
+		);
 
 		const buildMs = performance.now() - startedAt;
+
+		// Before the envelope, which gives the permitted query an alias of its own.
+		const { sql, bindings } = permitted.toSQL();
 
 		// The permitted query selects the geometry as text, through st_astext, and case whens that leave it null where a
 		// policy lets the item through without the field. The envelope reads that value, and never the column itself.
@@ -110,7 +120,7 @@ export const radius = async (
 
 		const items = rows.filter(isRow);
 
-		return { ids: items.map(idOf), items, executed, buildMs };
+		return { ids: items.map(idOf), items, executed, buildMs, permitted: { sql, bindings: [...bindings] }, usesNow };
 	} finally {
 		knex.off('query', record);
 	}

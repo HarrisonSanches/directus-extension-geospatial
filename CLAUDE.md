@@ -83,7 +83,10 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - F01-04 feita em 27/09/2026: o raio emite o `items.query` como o `ItemsService`, sobre a query da página e antes da
   cadeia, e o hook de outra extensão recebe dele o mesmo que recebe do `/items`. O `emitter` do `context` só leva
   eventos entre extensões, e o emissor dos hooks vem do `@directus/api` (V-144).
-- Próximo passo: `/implement-issue F01-05`, o mesmo pedido gera o mesmo SQL (P-08).
+- F01-05 feita em 27/09/2026: o mesmo pedido da Maria gera o mesmo SQL e os mesmos valores em chamadas seguidas,
+  depois de reiniciar o Directus e em duas instâncias, no 11.17 e no 12. A regra vai nos valores, e o `$NOW` muda os
+  valores a cada pedido, o que a chave do cache reconhece pelas regras cruas das políticas (V-145, resolve a P-08).
+- Próximo passo: `/implement-issue F01-06`, o código do 11.17 no 12 é detectado.
 
 ## Documentação
 
