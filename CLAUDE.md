@@ -109,7 +109,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   `ORDER BY` numa subconsulta sem `TOP`, e o Directus dá um a toda query, menos à de fora que monta num filtro por uma
   relação a vários: dela o envelope tira a ordem, que não muda as linhas, como o EF Core faz. O `geography` mede no
   elipsoide, como a GeographicLib, e o Directus não cria um campo `geometry.Point` sem `meta` no SQL Server (V-153).
-- Próximo passo: `/implement-issue F01-12`, o envelope no Oracle.
+- F01-12 feita em 28/09/2026: no Oracle 23.26, o envelope compara no plano, com o `sdo_geom.relate` e o texto sem
+  SRID, porque o Oracle trata o SRID 4326 como geodésico, com as arestas pelas geodésicas. O `_intersects` do Directus
+  é o `sdo_overlapbdyintersect`, que responde sem índice (P-05) e deixa de fora o ponto dentro do polígono (P-12), então
+  a paridade no Oracle compara com o resultado calculado. As imagens slim dos testes do Directus não têm o Oracle
+  Spatial, e a prova roda na regular (V-154).
+- Próximo passo: `/implement-issue F01-13`, um tile MVT em volta da query permitida.
 
 ## Documentação
 
