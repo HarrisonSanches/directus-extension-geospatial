@@ -105,7 +105,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - F01-10 feita em 28/09/2026: no MariaDB 12.3, o envelope do MySQL serve sem mudança. O Directus o trata como MySQL,
   pelo mesmo cliente, e a extensão vai reconhecê-lo pelo `version()`. Ele ignora o SRID e não troca os eixos, o índice
   espacial vale só com o `NOT NULL`, e o `ST_Distance_Sphere` só mede entre pontos, na esfera (V-152, resolve a P-07).
-- Próximo passo: `/implement-issue F01-11`, o envelope no SQL Server.
+- F01-11 feita em 28/09/2026: no SQL Server 2025, o envelope serve com o `STIntersects`, no plano. O SQL Server recusa o
+  `ORDER BY` numa subconsulta sem `TOP`, e o Directus dá um a toda query, menos à de fora que monta num filtro por uma
+  relação a vários: dela o envelope tira a ordem, que não muda as linhas, como o EF Core faz. O `geography` mede no
+  elipsoide, como a GeographicLib, e o Directus não cria um campo `geometry.Point` sem `meta` no SQL Server (V-153).
+- Próximo passo: `/implement-issue F01-12`, o envelope no Oracle.
 
 ## Documentação
 
