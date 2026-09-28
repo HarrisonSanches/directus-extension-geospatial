@@ -2,6 +2,7 @@ import { performance } from 'node:perf_hooks';
 import emitter from '@directus/api/emitter';
 import { InvalidQueryError } from '@directus/errors';
 import type { Accountability, ApiExtensionContext, Query } from '@directus/types';
+import { adapterFor } from './check.js';
 import { permittedQuery } from './permitted-query.js';
 
 export interface Radius {
@@ -17,6 +18,8 @@ export interface Radius {
 	permitted: { sql: string; bindings: unknown[] };
 	// Whether a read rule of whoever asks uses $NOW, which changes the values on each request (V-55).
 	usesNow: boolean;
+	// The adapter that built the permitted query (F01-06).
+	adapter: string;
 }
 
 interface RadiusRequest {
@@ -27,6 +30,8 @@ interface RadiusRequest {
 	// The fields, the filter and the search of the page, as the /items receives them (F01-03).
 	page: Query;
 	accountability: Accountability | null;
+	// The adapter the request forces, instead of the one the running Directus passes (F01-06).
+	adapter: string | undefined;
 }
 
 // Knex returns the rows untyped.
@@ -62,12 +67,13 @@ export const radiusRequestOf = (
 	meters: numberOf(query.meters, 'meters'),
 	page: page ?? {},
 	accountability: accountability ?? null,
+	adapter: typeof query.adapter === 'string' ? query.adapter : undefined,
 });
 
 // The items of the collection within a distance of a point, in meters over the ellipsoid, out of the permitted query
 // of whoever asks (D-001), in one SQL (F01-02).
 export const radius = async (
-	{ collection, longitude, latitude, meters, page, accountability }: RadiusRequest,
+	{ collection, longitude, latitude, meters, page, accountability, adapter: forced }: RadiusRequest,
 	context: ApiExtensionContext,
 ): Promise<Radius> => {
 	const knex = context.database;
@@ -84,6 +90,12 @@ export const radius = async (
 	try {
 		const startedAt = performance.now();
 		const schema = await context.getSchema();
+
+		// The internals of the running Directus pass the adapter before anything reads or builds a query, or the radius
+		// fails closed (§5, protection 2).
+		const adapter = await adapterFor(forced, { schema, knex }, context.logger);
+
+		await adapter.beforeHooks({ collection, accountability }, { schema, knex });
 
 		// The hooks of other extensions change the query as the ItemsService lets them, before the chain: the same
 		// events, in the same order, on the page as the /items hands it over (F01-04).
@@ -120,7 +132,15 @@ export const radius = async (
 
 		const items = rows.filter(isRow);
 
-		return { ids: items.map(idOf), items, executed, buildMs, permitted: { sql, bindings: [...bindings] }, usesNow };
+		return {
+			ids: items.map(idOf),
+			items,
+			executed,
+			buildMs,
+			permitted: { sql, bindings: [...bindings] },
+			usesNow,
+			adapter: adapter.name,
+		};
 	} finally {
 		knex.off('query', record);
 	}

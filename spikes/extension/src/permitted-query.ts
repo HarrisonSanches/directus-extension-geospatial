@@ -1,9 +1,4 @@
-import { getAstFromQuery } from '@directus/api/database/get-ast-from-query/get-ast-from-query';
-import { getDBQuery } from '@directus/api/database/run-ast/lib/get-db-query';
-import { parseCurrentLevel } from '@directus/api/database/run-ast/lib/parse-current-level';
-import { fetchPermissions } from '@directus/api/permissions/lib/fetch-permissions';
-import { fetchPolicies } from '@directus/api/permissions/lib/fetch-policies';
-import { processAst } from '@directus/api/permissions/modules/process-ast/process-ast';
+import type { fetchPermissions as FetchPermissions } from '@directus/api/permissions/lib/fetch-permissions';
 import type { Accountability, ApiExtensionContext, Permission, Query, SchemaOverview } from '@directus/types';
 import type { Knex } from 'knex';
 
@@ -13,14 +8,42 @@ interface Request {
 	accountability: Accountability | null;
 }
 
-interface Context {
+export interface Context {
 	schema: SchemaOverview;
 	knex: ApiExtensionContext['database'];
 }
 
+// The chain comes from the running Directus when it runs, and not when the extension loads. A static import of a
+// module or a function that a version lacks would stop the whole extension from loading, before the check of the
+// adapter could say what is missing (F01-06).
+const chain = async () => {
+	const [
+		{ getAstFromQuery },
+		{ processAst },
+		{ parseCurrentLevel },
+		{ fetchPolicies },
+		{ fetchPermissions },
+		{ getDBQuery },
+	] = await Promise.all([
+		import('@directus/api/database/get-ast-from-query/get-ast-from-query'),
+		import('@directus/api/permissions/modules/process-ast/process-ast'),
+		import('@directus/api/database/run-ast/lib/parse-current-level'),
+		import('@directus/api/permissions/lib/fetch-policies'),
+		import('@directus/api/permissions/lib/fetch-permissions'),
+		import('@directus/api/database/run-ast/lib/get-db-query'),
+	]);
+
+	return { getAstFromQuery, processAst, parseCurrentLevel, fetchPolicies, fetchPermissions, getDBQuery };
+};
+
 // Whether a read rule of the policies uses $NOW, which Directus turns into the time of each request, so the values of
 // the permitted query change every time (V-55). The rules as the policies store them, before Directus resolves them.
-const usesNow = async (policies: string[], accountability: Accountability, context: Context) => {
+const usesNow = async (
+	fetchPermissions: typeof FetchPermissions,
+	policies: string[],
+	accountability: Accountability,
+	context: Context,
+) => {
 	const rules = await fetchPermissions(
 		{ action: 'read', accountability, policies, bypassDynamicVariableProcessing: true },
 		context,
@@ -39,6 +62,8 @@ export const permittedQuery = async (
 	{ collection, query, accountability }: Request,
 	context: Context,
 ): Promise<{ builder: Knex.QueryBuilder; usesNow: boolean }> => {
+	const { getAstFromQuery, processAst, parseCurrentLevel, fetchPolicies, fetchPermissions, getDBQuery } = await chain();
+
 	// processAst refuses a field the accountability cannot read, and injects the rules of each policy as cases.
 	const ast = await processAst(
 		{ ast: await getAstFromQuery({ collection, query, accountability }, context), action: 'read', accountability },
@@ -60,7 +85,7 @@ export const permittedQuery = async (
 		const policies = await fetchPolicies(accountability, context);
 
 		permissions = await fetchPermissions({ action: 'read', accountability, policies }, context);
-		now = await usesNow(policies, accountability, context);
+		now = await usesNow(fetchPermissions, policies, accountability, context);
 	}
 
 	const builder = getDBQuery(
