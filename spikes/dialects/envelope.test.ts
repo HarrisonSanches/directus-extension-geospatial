@@ -1,8 +1,8 @@
-import { createItems, customEndpoint, readItems } from '@directus/sdk';
+import { createItem, createItems, customEndpoint, readField, readItem, readItems, updateItem } from '@directus/sdk';
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 import { type Client, connect, type Occurrence } from '../../test/directus.ts';
 import { log } from '../../test/environment.ts';
-import type { DialectName } from './dialects.ts';
+import { type DialectName, runSql } from './dialects.ts';
 
 // What the envelope route of the spike answers (spikes/extension/src/envelope.ts).
 interface Envelope {
@@ -25,7 +25,7 @@ interface Page {
 type Position = [number, number];
 
 const dialect = inject('dialect');
-const { url, tokens, probes } = inject('onDialect');
+const { url, tokens, probes, database } = inject('onDialect');
 
 const as = (role: keyof typeof tokens | 'public'): Client => connect(url, role === 'public' ? null : tokens[role]);
 
@@ -132,6 +132,9 @@ const errorOf = async (request: Promise<unknown>) => {
 
 const probeOf = (name: string) => probes[name] ?? { statement: '', exitCode: -1, output: '' };
 
+// The first row of what a probe printed, below the header, which may repeat the expression of the statement.
+const valueOf = (name: string) => probeOf(name).output.split('\n')[1];
+
 // What each database answered to its probes, which its verification records. A new dialect brings its own.
 const findings: Record<DialectName, () => void> = {
 	// CockroachDB 25.4, on 28/09/2026 (V-148): ST_AsMVTGeom without ST_AsMVT, and the nearest items by the index only
@@ -156,6 +159,21 @@ const findings: Record<DialectName, () => void> = {
 		}
 
 		expect(probeOf('nearestWithinPlan').output).toContain('top-k');
+	},
+	// MySQL 9.7, on 28/09/2026 (V-151): the column and its values without an SRID, the axes of SRID 4326 latitude first,
+	// and no spatial index on the column as Directus creates it (P-04).
+	mysql: () => {
+		// The shortest text that reads back as the same double: nothing of the coordinate is lost, unlike SQLite (A-026).
+		expect(valueOf('asText')).toBe('POINT(-46.71234567890124 -23.612345678901235)');
+		expect(probeOf('column').output).toContain('point\tYES');
+		expect(probeOf('columnSrs').output).toContain('none');
+		expect(probeOf('storedSrid').output).toMatch(/^0$/m);
+		expect(probeOf('axisOrder').output).toMatch(/^-46\.7\t-23\.65$/m);
+		expect(probeOf('mixedSrids').exitCode).toBe(1);
+		expect(probeOf('mixedSrids').output).toContain('given two geometries of different srids: 0 and 4326');
+		expect(probeOf('planeIntersects').exitCode).toBe(0);
+		expect(probeOf('spatialIndex').exitCode).toBe(1);
+		expect(probeOf('spatialIndex').output).toContain('All parts of a SPATIAL index must be NOT NULL');
 	},
 };
 
@@ -228,7 +246,8 @@ describe(`o envelope sobre a query permitida, no ${dialect} (F01-08)`, () => {
 		// The page leaves out items of Maria in the polygon that come before the last five.
 		expect(expected.length).toBeGreaterThan(0);
 		expect(expected.length).toBeLessThan((await expectedFor(as('maria'))).length);
-		expect(permitted.sql).toMatch(/order by "occurrences"\."id" desc limit \?\)?$/);
+		// Postgres and CockroachDB quote the names with double quotes, and MySQL with backticks.
+		expect(permitted.sql).toMatch(/order by (["`])occurrences\1\.\1id\1 desc limit \?\)?$/);
 		log(
 			`${dialect}: with the sort and the limit of the page, the envelope reached the database as ${executed[1] ?? ''}`,
 		);
@@ -244,5 +263,96 @@ describe(`o envelope sobre a query permitida, no ${dialect} (F01-08)`, () => {
 
 	it('o que o banco respondeu às sondas é o que a verificação dele registra', () => {
 		findings[dialect]();
+	});
+});
+
+// P-04: the column NOT NULL SRID 0, with a spatial index, under the writes of Directus. It changes the table, so it runs
+// after the envelope on the column as Directus creates it, in the same file, whose tests run one after the other.
+describe.runIf(dialect === 'mysql')('a coluna NOT NULL SRID 0 com índice espacial, no MySQL (P-04)', () => {
+	const sql = (statement: string) => runSql(dialect, database, statement);
+	const index = 'occurrences_geometry_index';
+	const where = `where st_intersects(geometry, st_geomfromtext('${polygon}'))`;
+
+	// The traditional format has the possible keys, which the tree format of MySQL 9 leaves out. With a few rows, the
+	// optimizer takes the table scan by cost, so the forced index says whether it can take the index at all.
+	const plansOf = async () => ({
+		chosen: await sql(`explain format=traditional select id from occurrences ${where}`),
+		forced: await sql(`explain format=traditional select id from occurrences force index (${index}) ${where}`),
+	});
+
+	// A column of the tab-separated rows the client prints, by the name in its header.
+	const columnOf = (output: string, name: string) => {
+		const [header = '', row = ''] = output.split('\n');
+
+		return row.split('\t')[header.split('\t').indexOf(name)];
+	};
+
+	it('sem o atributo SRID, o índice espacial nasce com um aviso, e o otimizador não o considera', async () => {
+		expect((await sql('alter table occurrences modify geometry point not null')).exitCode).toBe(0);
+
+		const created = await sql(`create spatial index ${index} on occurrences (geometry)`);
+		const { chosen, forced } = await plansOf();
+
+		expect((await sql(`drop index ${index} on occurrences`)).exitCode).toBe(0);
+		log(`${dialect}: the spatial index without an SRID answered ${created.output}`);
+		log(`${dialect}: without an SRID, the plan is ${chosen.output}, and with the index forced ${forced.output}`);
+		expect(created.exitCode).toBe(0);
+		expect(created.output).toContain('will not be used by the query optimizer');
+		expect(columnOf(chosen.output, 'possible_keys')).toBe('NULL');
+		expect(columnOf(forced.output, 'key')).toBe('NULL');
+	});
+
+	it('com o SRID 4326, a coluna recusa os valores que o Directus gravou, de SRID 0', async () => {
+		const altered = await sql('alter table occurrences modify geometry point not null srid 4326');
+
+		log(`${dialect}: the column with SRID 4326 answered ${altered.output}`);
+		expect(altered.exitCode).toBe(1);
+		expect(altered.output).toContain('SRID');
+	});
+
+	it('com o SRID 0, o índice espacial nasce sem aviso, e o otimizador o considera', async () => {
+		expect((await sql('alter table occurrences modify geometry point not null srid 0')).exitCode).toBe(0);
+
+		const created = await sql(`create spatial index ${index} on occurrences (geometry)`);
+		const { chosen, forced } = await plansOf();
+
+		log(`${dialect}: with SRID 0, the plan is ${chosen.output}, and with the index forced ${forced.output}`);
+		expect(created).toEqual({ exitCode: 0, output: '' });
+		expect(columnOf(chosen.output, 'possible_keys')).toBe(index);
+		expect(columnOf(forced.output, 'key')).toBe(index);
+		expect(columnOf(forced.output, 'type')).toBe('range');
+	});
+
+	it('o Directus segue gravando e lendo a geometria, e recusa o item sem ela', async () => {
+		const admin = as('admin');
+
+		// The schema of Directus lives in its system cache, which does not see a change made outside it.
+		await admin.request(customEndpoint({ path: '/utils/cache/clear', method: 'POST', params: { system: true } }));
+
+		const geometry: Occurrence['geometry'] = { type: 'Point', coordinates: [-46.68, -23.64] };
+		const moved: Occurrence['geometry'] = { type: 'Point', coordinates: [-46.69, -23.63] };
+		const item = { region: 'south', category: 'theft', status: 'open', occurred_at: '2026-09-11T10:00:00Z' };
+		const { id } = await admin.request(createItem('occurrences', { ...item, geometry }));
+
+		expect((await admin.request(readItem('occurrences', id))).geometry).toEqual(geometry);
+
+		await admin.request(updateItem('occurrences', id, { geometry: moved }));
+		expect((await admin.request(readItem('occurrences', id))).geometry).toEqual(moved);
+
+		const refused = await errorOf(admin.request(createItem('occurrences', item)));
+		const field = await admin.request(readField('occurrences', 'geometry'));
+
+		log(`${dialect}: an item without a geometry got ${JSON.stringify(refused)}`);
+		log(`${dialect}: Directus reads the field as ${JSON.stringify({ type: field.type, schema: field.schema })}`);
+		expect(refused).toBeDefined();
+		expect(field).toMatchObject({ type: 'geometry.Point', schema: { is_nullable: false } });
+	});
+
+	it('o envelope da Maria continua batendo com o gabarito sobre a coluna nova', async () => {
+		const expected = await expectedFor(as('maria'));
+		const { count, ids } = await envelopeOf(as('maria'));
+
+		expect(ids).toEqual(expected);
+		expect(count).toBe(expected.length);
 	});
 });
