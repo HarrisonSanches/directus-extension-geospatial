@@ -1,4 +1,5 @@
 import { configDefaults, defineConfig } from 'vitest/config';
+import { selectDialects } from './spikes/dialects/dialects.ts';
 import { selectCombinations } from './test/combinations.ts';
 
 export default defineConfig({
@@ -35,6 +36,18 @@ export default defineConfig({
 					name: `spike:${combination}`,
 					include: ['spikes/*.test.ts'],
 					provide: { combination, extensions: ['spikes/extension', 'spikes/hook'] },
+					testTimeout: 30_000,
+				},
+			})),
+			// The proof of the envelope on each database outside the suite, on Directus 11.17, with a global setup of its
+			// own, which the one at the root leaves alone (F01-08). Only pnpm spike:dialects runs them, and DIALECTS picks
+			// some of them.
+			...selectDialects(process.env.DIALECTS).map((dialect) => ({
+				test: {
+					name: `spike-dialect:${dialect}`,
+					include: ['spikes/dialects/*.test.ts'],
+					globalSetup: ['spikes/dialects/setup.ts'],
+					provide: { dialect },
 					testTimeout: 30_000,
 				},
 			})),

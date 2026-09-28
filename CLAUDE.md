@@ -94,7 +94,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   elipsoide, num SQL só, e bate com a GeographicLib na Maria do 11.17 e no admin e no público do 12, no Core. O Directus
   não cria os metadados espaciais, então não há índice nem `ST_Distance` em metros, e o `st_astext` da query permitida
   tem 6 casas, o que limita o raio a uns 7,5 cm (V-147, A-026, no plano).
-- Próximo passo: `/implement-issue F01-08`, o envelope no CockroachDB.
+- F01-08 feita em 28/09/2026: o `pnpm spike:dialects` sobe o Directus 11.17 sobre um banco de fora da suíte e derruba
+  tudo sozinho. No CockroachDB 25.4, o envelope do PostGIS serve sem mudança: a contagem e os ids da Maria batem com o
+  gabarito, também com o `LIMIT` da página dentro da subconsulta. Faltam o `ST_AsMVT` e os mais próximos sem um raio.
+  Os testes de ponta a ponta do Directus usam o 25.3, que parou em janeiro, e a V-28 foi corrigida (V-148, P-06 em parte).
+- Próximo passo: `/implement-issue F01-09`, o envelope no MySQL.
 
 ## Documentação
 
