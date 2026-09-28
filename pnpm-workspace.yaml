@@ -23,7 +23,7 @@ catalog:
   # TypeScript runs side by side (V-90): this alias is the TypeScript 7 behind tsc, and the typescript name below
   # serves the 6.0 API that typescript-eslint loads, until typescript-eslint supports TypeScript 7 (P-25).
   '@typescript/native': npm:typescript@7.0.2
-  '@vitest/coverage-v8': 5.0.1
+  '@vitest/coverage-v8': 5.0.2
   # The coverage libraries @vitest/coverage-v8 5.0.1 uses, so the coverage from inside Directus is converted and summed
   # the same way as the one from the unit tests.
   '@vitest/istanbul-lib-coverage': 1.0.1
@@ -46,7 +46,7 @@ catalog:
   typescript: npm:@typescript/typescript6@6.0.2
   typescript-eslint: 8.70.1
   vite: 8.3.1
-  vitest: 5.0.1
+  vitest: 5.0.2
   yaml: 2.9.1
 
 catalogs:
