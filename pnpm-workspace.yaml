@@ -24,7 +24,7 @@ catalog:
   # serves the 6.0 API that typescript-eslint loads, until typescript-eslint supports TypeScript 7 (P-25).
   '@typescript/native': npm:typescript@7.0.2
   '@vitest/coverage-v8': 5.0.2
-  # The coverage libraries @vitest/coverage-v8 5.0.1 uses, so the coverage from inside Directus is converted and summed
+  # The coverage libraries @vitest/coverage-v8 5.0.2 uses, so the coverage from inside Directus is converted and summed
   # the same way as the one from the unit tests.
   '@vitest/istanbul-lib-coverage': 1.0.1
   '@vitest/istanbul-lib-report': 1.0.1
@@ -75,7 +75,7 @@ allowBuilds:
   # Its postinstall only warns when a dependent declares an incompatible version scheme of it.
   protobufjs: false
 
-# The extensions SDK of Directus 18.0.4 ships Vite 8 with @vitejs/plugin-vue 6.0.1, which accepts Vite only up to 7.
+# The extensions SDK of Directus 18.0.5 ships Vite 8 with @vitejs/plugin-vue 6.0.1, which accepts Vite only up to 7.
 # The plugin declares Vite 8 from 6.0.5 on, in the same 6.0 line.
 overrides:
   '@directus/extensions-sdk>@vitejs/plugin-vue': 6.0.9
@@ -108,12 +108,6 @@ pmOnFail: ignore
 engineStrict: true
 
 # Advisories that pnpm audit ignores, each one reviewed. osv-scanner.toml ignores the same ones until a date, and when
-# it passes, the OSV-Scanner of the CI fails and asks for the review of both lists.
+# it passes, the OSV-Scanner of the CI fails and asks for the review of both lists. None is ignored today (V-149).
 auditConfig:
-  ignoreGhsas:
-    # unhead, through the themes of the extensions SDK of Directus, which pin @unhead/vue at 1.11.20, the last of the
-    # 1.x line. The fixes only exist in 2.x. The SDK uses it to build the Studio parts of an extension, and the bundle
-    # has none yet, so the sanitization these advisories bypass never runs.
-    - GHSA-5339-hvwr-7582
-    - GHSA-g5xx-pwrp-g3fv
-    - GHSA-95h2-gj7x-gx9w
+  ignoreGhsas: []
