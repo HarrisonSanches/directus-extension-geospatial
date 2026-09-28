@@ -84,7 +84,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-005 — Agrupamento no servidor por células de tela
 
 - **Estado:** aceita em 23/09/2026.
-- **Onde:** §7.1.
+- **Onde:** §7.1 · V-155.
 - **Contexto:** em zoom baixo, um tile pode ter centenas de milhares de pontos.
 - **Decisão:**
   - Uma grade de células medidas em pixels (por exemplo, 60 px), com a mesma regra em todos os tiles.
