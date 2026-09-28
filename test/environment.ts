@@ -21,7 +21,7 @@ export const extension = 'packages/extension';
 const repository = new URL('../', import.meta.url);
 
 // A copy of each built package, as an installation has it, in the folder of its name, where Directus loads it from.
-const copiesOf = async (packages: readonly string[]) =>
+export const copiesOf = async (packages: readonly string[]) =>
 	Promise.all(
 		packages.map(async (folder) => {
 			const source = new URL(`${folder}/`, repository);

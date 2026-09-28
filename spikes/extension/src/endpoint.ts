@@ -5,6 +5,7 @@ import { ForbiddenError } from '@directus/errors';
 import { defineEndpoint } from '@directus/extensions-sdk';
 import { adapters, candidates } from './adapters.js';
 import { problemsOf } from './check.js';
+import { envelope, envelopeRequestOf } from './envelope.js';
 import { record, take } from './queries.js';
 import { radius, radiusRequestOf } from './radius.js';
 
@@ -77,6 +78,19 @@ export default defineEndpoint({
 			Promise.resolve()
 				.then(() =>
 					radius(radiusRequestOf(req.params.collection, req.query, req.sanitizedQuery, req.accountability), context),
+				)
+				.then((data) => res.json({ data }))
+				.catch(next);
+		});
+
+		// The minimal envelope over the permitted query of whoever asks, on a database outside the suite (F01-08).
+		router.get('/envelope/:collection', (req, res, next) => {
+			Promise.resolve()
+				.then(() =>
+					envelope(
+						envelopeRequestOf(req.params.collection, req.query, req.sanitizedQuery, req.accountability),
+						context,
+					),
 				)
 				.then((data) => res.json({ data }))
 				.catch(next);
