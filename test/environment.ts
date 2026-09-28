@@ -7,7 +7,7 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { GenericContainer, Network, type StartedTestContainer, Wait } from 'testcontainers';
 import { type Combination, combinations } from './combinations.ts';
 import type { Client, DatabaseVersions } from './directus.ts';
-import { activateLicense, publicUrl } from './license.ts';
+import { activateLicense, hasProjectOfTests, publicUrl } from './license.ts';
 import { versionsOf as postgresVersionsOf } from './postgres.ts';
 import { directusWithSpatialite, versionsOf as sqliteVersionsOf } from './sqlite.ts';
 
@@ -54,6 +54,8 @@ interface Backend {
 	// Applies the key of the tests, which only goes to the PostGIS database, under the project the key is bound to. Any
 	// other database would be another project, and another activation of the key (D-043, D-044).
 	activate?: (admin: Client, key: string) => Promise<void>;
+	// Whether the database still has the project of the tests, after a restart of Directus or another one on it.
+	hasProjectOfTests?: () => Promise<boolean>;
 	stop: () => Promise<void>;
 }
 
@@ -81,6 +83,7 @@ const withPostgis = async (directus: string, image: string): Promise<Backend> =>
 		database,
 		versions: () => postgresVersionsOf(database),
 		activate: (admin, key) => activateLicense(admin, database, key),
+		hasProjectOfTests: () => hasProjectOfTests(database),
 		stop: async () => {
 			await database.stop();
 			await network.stop();
@@ -98,11 +101,17 @@ const withSqlite = async (combination: Combination): Promise<Backend> => {
 	return { directus, environment: {}, versions: sqliteVersionsOf, stop: () => Promise.resolve() };
 };
 
+// Where the suite reaches a Directus, by the port Docker mapped, which changes when the container restarts.
+export const urlOf = (directus: StartedTestContainer): string =>
+	`http://${directus.getHost()}:${String(directus.getMappedPort(8055))}`;
+
 export interface Environment {
 	directus: StartedTestContainer;
 	url: string;
 	admin: { email: string; password: string; token: string };
 	backend: Backend;
+	// Starts another Directus on the same database, with the same configuration, as an installation that scales.
+	another: () => Promise<StartedTestContainer>;
 	stop: () => Promise<void>;
 }
 
@@ -130,9 +139,8 @@ export const startEnvironment = async (
 
 	const admin = { email: 'admin@example.com', password: newSecret(), token: newSecret() };
 	const copies = await copiesOf(packages);
-	const startedAt = performance.now();
 
-	const directus = await backend.directus
+	const container = backend.directus
 		.withEnvironment({
 			...backend.environment,
 			SECRET: newSecret(),
@@ -156,19 +164,38 @@ export const startEnvironment = async (
 		.withExposedPorts(8055)
 		// /server/health refuses a request without a session from Directus 12 on (V-110).
 		.withWaitStrategy(Wait.forHttp('/server/ping', 8055))
-		.withStartupTimeout(180_000)
-		.start();
+		.withStartupTimeout(180_000);
 
-	log(`${name}: Directus started in ${seconds(startedAt)} s`);
+	const instances: StartedTestContainer[] = [];
+
+	const start = async (label: string) => {
+		const startedAt = performance.now();
+		const instance = await container.start();
+
+		instances.push(instance);
+		log(`${label}: Directus started in ${seconds(startedAt)} s`);
+
+		return instance;
+	};
+
+	const directus = await start(name);
 
 	return {
 		directus,
-		url: `http://${directus.getHost()}:${String(directus.getMappedPort(8055))}`,
+		url: urlOf(directus),
 		admin,
 		backend,
+		another: () => {
+			// SQLite keeps its database inside the container of Directus, so another one would have another database.
+			if (backend.database === undefined) {
+				return Promise.reject(new Error('Only a database in a container of its own takes another Directus.'));
+			}
+
+			return start(`${name}, instance ${String(instances.length + 1)}`);
+		},
 		stop: async () => {
 			// Time for Directus to shut down and for Node to write the coverage. Without it, Docker kills the container at once.
-			await directus.stop({ timeout: 60_000 });
+			await Promise.all(instances.map((instance) => instance.stop({ timeout: 60_000 })));
 			await backend.stop();
 		},
 	};
