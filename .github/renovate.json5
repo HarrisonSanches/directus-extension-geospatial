@@ -32,6 +32,9 @@
 	lockFileMaintenance: {
 		enabled: true,
 		schedule: ['* * * * 1'],
+		// A refresh of the lockfile has no release date, and without one the stability-days status stays pending forever.
+		// pnpm already holds each version for its 3 days (V-150).
+		minimumReleaseAgeBehaviour: 'timestamp-optional',
 	},
 	// The fix of a Dependabot alert comes at once, without the schedule and the 3 days (D-046). Renovate lets its version
 	// through pnpm with an entry in the minimumReleaseAgeExclude of pnpm-workspace.yaml (V-139).

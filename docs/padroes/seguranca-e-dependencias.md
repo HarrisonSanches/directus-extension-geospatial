@@ -58,6 +58,9 @@ confiança se constrói no repositório.
     de suporte;
   - uma versão fixada fora dos gerenciadores do Renovate ganha uma regra por regex ou um comentário `# renovate:`
     com a origem, senão fica parada sem aviso (V-139).
+  - o lock file maintenance regenera o lockfile toda segunda-feira, com as dependências indiretas. Ele não tem data de
+    publicação, e por isso não espera pelo status `renovate/stability-days`: os 3 dias vêm do pnpm, que recusa a versão
+    mais nova ao resolver (V-150).
 
 ## Publicação
 
