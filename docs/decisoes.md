@@ -351,7 +351,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-023 — "Dentro" quer dizer "toca", com as opções "inteiramente dentro" e "fora"
 
 - **Estado:** aceita em 23/09/2026.
-- **Onde:** §6, §7.4 (testes) · V-49, V-50, V-51 · P-12.
+- **Onde:** §6, §7.4 (testes) · V-49, V-50, V-51 · V-154.
 - **Contexto:** o desenho usava "itens dentro" com dois sentidos. A área desenhada tinha como referência o `ST_Within`, que exige o item inteiro dentro e deixa de fora o ponto na borda. O raio, o corredor e o entorno usam o `ST_DWithin`, que pega o item se qualquer parte dele estiver a até a distância. Em pontos, a diferença fica só na borda; em linhas e polígonos, uma rua que atravessa a área entra num sentido e fica de fora no outro.
 - **Decisão:**
   - Em toda operação que pega itens por área ou distância, "dentro" quer dizer "toca" por padrão: qualquer parte do item na área ou a até a distância, com a borda incluída (`ST_Intersects`, `ST_DWithin`).
@@ -362,7 +362,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Um sentido para cada operação: a mesma palavra mudaria de significado de uma operação para outra.
   - Todos os predicados do padrão OGC (cruza, sobrepõe, encosta, contém): demais para um painel de operação. "Toca", "inteiramente dentro" e "fora" cobrem o catálogo e os relatórios.
 - **Consequências:**
-  - O teste de paridade compara "toca" com o `_intersects` e "fora" com o `_nintersects` do Directus. No Oracle, isso depende da P-12.
+  - O teste de paridade compara "toca" com o `_intersects` e "fora" com o `_nintersects` do Directus. No Oracle, o `_intersects` não faz a mesma pergunta, e a paridade compara com o resultado calculado (V-154).
   - A opção escolhida faz parte da consulta registrada, então entra no id e na chave do cache.
 
 ## D-024 — Nomes públicos das operações: o termo canônico do glossário
