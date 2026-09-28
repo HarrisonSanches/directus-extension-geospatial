@@ -76,7 +76,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   executar, e a envolve num `ST_DWithin`, num SQL só, com os ids da GeographicLib no 11.17 e no 12. A cadeia é a
   mesma nas duas versões, e montar a query custa uns 10 ms. A geometria sai como texto, dentro de um `CASE WHEN`, e
   o envelope a lê assim, sem o índice (V-142, A-023, no plano). O builder do Knex roda se sair de uma função `async`.
-- Próximo passo: `/implement-issue F01-03`, os outros papéis e o que a página manda.
+- F01-03 feita em 27/09/2026: o raio lê o `req.sanitizedQuery`, a mesma query do `/items`, e bate com ele no filtro e na
+  busca da página, no papel com duas políticas e no admin, e dá os mesmos erros ao público e ao campo sem permissão.
+  A geometria vai pelo nome, e o item que uma política deixa ver sem ela fica fora do raio: lendo a coluna, seis itens
+  do norte vazariam (V-143).
+- Próximo passo: `/implement-issue F01-04`, o hook `items.query` de outra extensão.
 
 ## Documentação
 

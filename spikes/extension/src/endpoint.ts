@@ -32,7 +32,9 @@ export default defineEndpoint({
 		// goes to the error handler of Directus.
 		router.get('/radius/:collection', (req, res, next) => {
 			Promise.resolve()
-				.then(() => radius(radiusRequestOf(req.params.collection, req.query, req.accountability), context))
+				.then(() =>
+					radius(radiusRequestOf(req.params.collection, req.query, req.sanitizedQuery, req.accountability), context),
+				)
 				.then((data) => res.json({ data }))
 				.catch(next);
 		});

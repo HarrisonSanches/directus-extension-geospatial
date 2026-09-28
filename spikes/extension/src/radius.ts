@@ -1,11 +1,13 @@
 import { performance } from 'node:perf_hooks';
 import { InvalidQueryError } from '@directus/errors';
-import type { Accountability, ApiExtensionContext } from '@directus/types';
+import type { Accountability, ApiExtensionContext, Query } from '@directus/types';
 import { permittedQuery } from './permitted-query.js';
 
 export interface Radius {
 	// The ids inside the circle, in order.
 	ids: number[];
+	// The items inside the circle, with the fields of the permitted query, as the database returns them.
+	items: Record<string, unknown>[];
 	// Every query that read the collection during the request, as it reached the database.
 	executed: string[];
 	// The time to build the permitted query, the schema included, in milliseconds.
@@ -17,12 +19,16 @@ interface RadiusRequest {
 	longitude: number;
 	latitude: number;
 	meters: number;
+	// The fields, the filter and the search of the page, as the /items receives them (F01-03).
+	page: Query;
 	accountability: Accountability | null;
 }
 
 // Knex returns the rows untyped.
-const idOf = (row: unknown): number => {
-	if (typeof row === 'object' && row !== null && 'id' in row && typeof row.id === 'number') {
+const isRow = (row: unknown): row is Record<string, unknown> => typeof row === 'object' && row !== null;
+
+const idOf = (row: Record<string, unknown>): number => {
+	if (typeof row.id === 'number') {
 		return row.id;
 	}
 
@@ -42,19 +48,21 @@ const numberOf = (value: unknown, name: string): number => {
 export const radiusRequestOf = (
 	collection: string,
 	query: Record<string, unknown>,
+	page: Query | undefined,
 	accountability: Accountability | undefined,
 ): RadiusRequest => ({
 	collection,
 	longitude: numberOf(query.longitude, 'longitude'),
 	latitude: numberOf(query.latitude, 'latitude'),
 	meters: numberOf(query.meters, 'meters'),
+	page: page ?? {},
 	accountability: accountability ?? null,
 });
 
 // The items of the collection within a distance of a point, in meters over the ellipsoid, out of the permitted query
 // of whoever asks (D-001), in one SQL (F01-02).
 export const radius = async (
-	{ collection, longitude, latitude, meters, accountability }: RadiusRequest,
+	{ collection, longitude, latitude, meters, page, accountability }: RadiusRequest,
 	context: ApiExtensionContext,
 ): Promise<Radius> => {
 	const knex = context.database;
@@ -72,18 +80,17 @@ export const radius = async (
 		const startedAt = performance.now();
 		const schema = await context.getSchema();
 
-		// The limit of -1 lifts the default one, QUERY_LIMIT_DEFAULT, which getDBQuery applies to a query with no limit.
-		const { builder: permitted } = await permittedQuery(
-			{ collection, query: { fields: ['id', 'geometry'], limit: -1 }, accountability },
-			{ schema, knex },
-		);
+		// The geometry goes by its name, so a role that cannot read it gets the error of the /items, instead of the field
+		// quietly missing from the *. The limit of -1 lifts QUERY_LIMIT_DEFAULT, which getDBQuery applies otherwise.
+		const query: Query = { ...page, fields: [...(page.fields ?? ['*']), 'geometry'], limit: -1 };
+		const { builder: permitted } = await permittedQuery({ collection, query, accountability }, { schema, knex });
 
 		const buildMs = performance.now() - startedAt;
 
 		// The permitted query selects the geometry as text, through st_astext, and case whens that leave it null where a
 		// policy lets the item through without the field. The envelope reads that value, and never the column itself.
 		const rows: unknown[] = await knex
-			.select('p.id')
+			.select('p.*')
 			.from(permitted.as('p'))
 			.whereRaw(
 				'ST_DWithin(ST_GeomFromText(??, 4326)::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)',
@@ -91,7 +98,9 @@ export const radius = async (
 			)
 			.orderBy('p.id');
 
-		return { ids: rows.map(idOf), executed, buildMs };
+		const items = rows.filter(isRow);
+
+		return { ids: items.map(idOf), items, executed, buildMs };
 	} finally {
 		knex.off('query', record);
 	}
