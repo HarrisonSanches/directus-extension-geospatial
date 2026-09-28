@@ -90,7 +90,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   conferido antes de montar a query, pelo que existe e não pela versão. O do 11.17 no 12 e o contrário são recusados
   com o `GEOSPATIAL_INTERNALS_UNSUPPORTED`, sem query no banco. A checagem vê o módulo, a função, a aridade e a forma
   do retorno, e não vê os campos das opções nem o comportamento (V-146).
-- Próximo passo: `/implement-issue F01-07`, o raio no SQLite com a SpatiaLite.
+- F01-07 feita em 28/09/2026: o raio no SQLite envolve a query permitida com o `PtDistWithin` da SpatiaLite, sobre o
+  elipsoide, num SQL só, e bate com a GeographicLib na Maria do 11.17 e no admin e no público do 12, no Core. O Directus
+  não cria os metadados espaciais, então não há índice nem `ST_Distance` em metros, e o `st_astext` da query permitida
+  tem 6 casas, o que limita o raio a uns 7,5 cm (V-147, A-026, no plano).
+- Próximo passo: `/implement-issue F01-08`, o envelope no CockroachDB.
 
 ## Documentação
 
