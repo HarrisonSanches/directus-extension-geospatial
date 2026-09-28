@@ -86,7 +86,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - F01-05 feita em 27/09/2026: o mesmo pedido da Maria gera o mesmo SQL e os mesmos valores em chamadas seguidas,
   depois de reiniciar o Directus e em duas instâncias, no 11.17 e no 12. A regra vai nos valores, e o `$NOW` muda os
   valores a cada pedido, o que a chave do cache reconhece pelas regras cruas das políticas (V-145, resolve a P-08).
-- Próximo passo: `/implement-issue F01-06`, o código do 11.17 no 12 é detectado.
+- F01-06 feita em 27/09/2026: a cadeia da prova fica num adaptador por versão, que importa os internos na hora e é
+  conferido antes de montar a query, pelo que existe e não pela versão. O do 11.17 no 12 e o contrário são recusados
+  com o `GEOSPATIAL_INTERNALS_UNSUPPORTED`, sem query no banco. A checagem vê o módulo, a função, a aridade e a forma
+  do retorno, e não vê os campos das opções nem o comportamento (V-146).
+- Próximo passo: `/implement-issue F01-07`, o raio no SQLite com a SpatiaLite.
 
 ## Documentação
 

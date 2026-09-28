@@ -22,6 +22,13 @@ interface Radius {
 	items: Record<string, unknown>[];
 	executed: string[];
 	buildMs: number;
+	adapter: string;
+}
+
+// What the admin route of the spike says of the adapters (spikes/extension/src/endpoint.ts).
+interface Adapters {
+	selected: string | null;
+	problems: Record<string, string[]>;
 }
 
 // What the hooks of the other spike extension received on one items.query event (spikes/hook/src/calls.ts).
@@ -78,12 +85,13 @@ const distanceOf = ({ coordinates: [longitude, latitude] }: Occurrence['geometry
 	return s12;
 };
 
-const radius = (client: Client, page: Page = {}, collection = 'occurrences') =>
+// The adapter, when given, is the one the request forces instead of the one the running Directus passes (F01-06).
+const radius = (client: Client, page: Page = {}, collection = 'occurrences', adapter?: string) =>
 	client.request(
 		customEndpoint<Radius>({
 			path: `/geospatial-spikes/radius/${collection}`,
 			method: 'GET',
-			params: { ...center, meters, ...page },
+			params: { ...center, meters, ...page, ...(adapter && { adapter }) },
 		}),
 	);
 
@@ -163,6 +171,10 @@ const userWith = async (name: string, policies: { filter: Record<string, unknown
 // What the hooks of the other spike extension received since the last time they were asked.
 const takeCalls = () =>
 	as('admin').request(customEndpoint<Call[]>({ path: '/geospatial-spikes-hook/calls', method: 'GET' }));
+
+// The queries that reached the database of the spike since the last time they were asked.
+const takeQueries = () =>
+	as('admin').request(customEndpoint<string[]>({ path: '/geospatial-spikes/queries', method: 'GET' }));
 
 const south = { region: { _eq: 'south' } };
 const north = { region: { _eq: 'north' } };
@@ -409,6 +421,55 @@ describe.runIf(versions().database.client === 'postgres')('o raio sobre a query 
 
 			expect(calls).toMatchObject([{ event: 'items.query', collection: 'occurrences' }]);
 			expect(ids).toEqual(await expectedFor(as('maria')));
+		});
+	});
+
+	// Each adapter expects what the internals of its Directus have, and the radius refuses one the running Directus does
+	// not pass, before it builds any query (§5, protections 1 and 2).
+	describe('o adaptador por versão e a checagem dos internos (F01-06)', () => {
+		const running = versions().directus.startsWith('11.') ? '11.17' : '12';
+		const other = running === '12' ? '11.17' : '12';
+
+		it('a checagem escolhe o adaptador da versão em execução, e recusa o da outra e o quebrado', async () => {
+			const { selected, problems } = await as('admin').request(
+				customEndpoint<Adapters>({ path: '/geospatial-spikes/adapters', method: 'GET' }),
+			);
+
+			log(`${inject('combination')}: the adapters found ${JSON.stringify(problems)}`);
+			expect(selected).toBe(running);
+			expect(problems[running]).toEqual([]);
+			expect(problems[other]).toEqual([
+				expect.stringContaining('@directus/api/permissions/modules/assert-collection-active/assert-collection-active'),
+			]);
+			expect(problems.broken).toEqual([
+				expect.stringContaining('getDBQuery declares 2 parameters, and the adapter expects 3'),
+				expect.stringContaining('has no function getPermittedQuery'),
+			]);
+		});
+
+		it.each([other, 'broken'])(
+			'o raio com o adaptador %s forçado responde com erro, e nenhuma query chega às ocorrências',
+			async (adapter) => {
+				await takeQueries();
+
+				const error = await errorOf(radius(as('admin'), {}, 'occurrences', adapter));
+				const queries = await takeQueries();
+
+				expect(error).toMatchObject([{ extensions: { code: 'GEOSPATIAL_INTERNALS_UNSUPPORTED' } }]);
+				expect(queries.filter((sql) => sql.includes('"occurrences"'))).toEqual([]);
+			},
+		);
+
+		it('com o adaptador da versão, forçado ou escolhido, o raio chega ao banco, e o log das queries o vê', async () => {
+			await takeQueries();
+
+			const forced = await radius(as('admin'), {}, 'occurrences', running);
+			const chosen = await radius(as('admin'));
+			const queries = await takeQueries();
+
+			expect([forced.adapter, chosen.adapter]).toEqual([running, running]);
+			expect(forced.ids).toEqual(chosen.ids);
+			expect(queries.filter((sql) => sql.includes('"occurrences"') && sql.includes('ST_DWithin'))).toHaveLength(2);
 		});
 	});
 });

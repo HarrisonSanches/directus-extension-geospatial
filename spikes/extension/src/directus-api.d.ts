@@ -120,6 +120,17 @@ declare module '@directus/api/permissions/lib/fetch-permissions' {
 	): Promise<Permission[]>;
 }
 
+// Directus 12 only: refuses a collection that is not active, which the readByQuery of the ItemsService asserts before
+// the hooks. Directus 11.17 has no such module (F01-06).
+declare module '@directus/api/permissions/modules/assert-collection-active/assert-collection-active' {
+	import type { Accountability, ApiExtensionContext, PermissionsAction, SchemaOverview } from '@directus/types';
+
+	export function assertCollectionActive(
+		options: { accountability: Accountability | null; collection: string; action: PermissionsAction },
+		context: { schema: SchemaOverview; knex: ApiExtensionContext['database'] },
+	): Promise<void>;
+}
+
 // Builds the query of one level of the tree, without running it (V-21).
 declare module '@directus/api/database/run-ast/lib/get-db-query' {
 	import type { Node } from '@directus/api/types/ast';
