@@ -6,7 +6,7 @@ import type { TestProject } from 'vitest/node';
 import { type Combination, combinations } from './combinations.ts';
 import { collectCoverage } from './coverage.ts';
 import { connect, type Directus } from './directus.ts';
-import { log, newSecret, openCoverage, seconds, startEnvironment } from './environment.ts';
+import { extension, log, newSecret, openCoverage, seconds, startEnvironment } from './environment.ts';
 import { readLicenseKey } from './license.ts';
 import { seed } from './seed.ts';
 
@@ -16,9 +16,21 @@ interface Started {
 	stop: () => Promise<void>;
 }
 
-// Starts the database and the Directus of one combination, and builds the schema, the roles and the data.
-const start = async (combination: Combination, coverage: string, licenseKey: string | undefined): Promise<Started> => {
-	const { directus: container, url, admin: credentials, backend, stop } = await startEnvironment(combination, coverage);
+// Starts the database and the Directus of one combination, with the packages of the run, and builds the schema, the
+// roles and the data.
+const start = async (
+	combination: Combination,
+	coverage: string,
+	licenseKey: string | undefined,
+	packages: readonly string[],
+): Promise<Started> => {
+	const {
+		directus: container,
+		url,
+		admin: credentials,
+		backend,
+		stop,
+	} = await startEnvironment(combination, coverage, combination, packages);
 	const images = combinations[combination];
 	const admin = connect(url, credentials.token);
 
@@ -59,7 +71,9 @@ const start = async (combination: Combination, coverage: string, licenseKey: str
 // Vitest runs the global setup of each project one after the other, so this one, at the root, runs once and starts at
 // the same time the combinations of every project of the run. Each project finds its own by name (test/directus.ts).
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
-	const selected = project.vitest.projects.flatMap(({ config }) => config.provide.combination ?? []);
+	// A run with both the suite and the spikes has two projects for a combination, and starts it once.
+	const selected = [...new Set(project.vitest.projects.flatMap(({ config }) => config.provide.combination ?? []))];
+	const extensions = [...new Set(project.vitest.projects.flatMap(({ config }) => config.provide.extensions ?? []))];
 	const [first] = selected;
 
 	// A run of the unit tests alone starts nothing.
@@ -70,7 +84,9 @@ export default async function setup(project: TestProject): Promise<() => Promise
 	// A folder for each Directus of the run, the ones of the tests included, with the coverage of its processes.
 	const coverage = await mkdtemp(join(tmpdir(), 'geospatial-coverage-'));
 	const licenseKey = await readLicenseKey();
-	const results = await Promise.allSettled(selected.map((combination) => start(combination, coverage, licenseKey)));
+	const results = await Promise.allSettled(
+		selected.map((combination) => start(combination, coverage, licenseKey, [extension, ...extensions])),
+	);
 	const started = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
 	const failure = results.find((result) => result.status === 'rejected');
 
@@ -86,8 +102,13 @@ export default async function setup(project: TestProject): Promise<() => Promise
 	return async () => {
 		try {
 			await Promise.all(started.map(({ stop }) => stop()));
-			await openCoverage(coverage, combinations[first].directus.image);
-			await collectCoverage(coverage, new URL('../coverage/integration/coverage-final.json', import.meta.url));
+
+			// A run with other packages, as the spikes, is not the suite, and its coverage would replace the one of the
+			// suite.
+			if (extensions.length === 0) {
+				await openCoverage(coverage, combinations[first].directus.image);
+				await collectCoverage(coverage, new URL('../coverage/integration/coverage-final.json', import.meta.url));
+			}
 		} finally {
 			await rm(coverage, { recursive: true, force: true });
 		}
