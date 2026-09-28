@@ -102,7 +102,10 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   porque o Directus grava a geometria com SRID 0 e um predicado entre SRIDs falha. No SRID 4326, o MySQL lê a latitude
   primeiro. Com a coluna `NOT NULL SRID 0`, o índice espacial passa a valer e o Directus segue gravando, mas recusa o
   item sem geometria (V-151, resolve a P-04).
-- Próximo passo: `/implement-issue F01-10`, o envelope no MariaDB.
+- F01-10 feita em 28/09/2026: no MariaDB 12.3, o envelope do MySQL serve sem mudança. O Directus o trata como MySQL,
+  pelo mesmo cliente, e a extensão vai reconhecê-lo pelo `version()`. Ele ignora o SRID e não troca os eixos, o índice
+  espacial vale só com o `NOT NULL`, e o `ST_Distance_Sphere` só mede entre pontos, na esfera (V-152, resolve a P-07).
+- Próximo passo: `/implement-issue F01-11`, o envelope no SQL Server.
 
 ## Documentação
 
