@@ -72,7 +72,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - F01-01 feita em 27/09/2026: a extensão de prova importa do `@directus/api` o Directus em execução, e não uma cópia.
   O `ItemsService`, a conexão e o `getSchema` que ela importa são os do `context`, nas quatro combinações. O pacote
   vem de `/directus/node_modules`, fica fora do bundle e se declara num `.d.ts` próprio, sem instalar (V-141).
-- Próximo passo: `/implement-issue F01-02`, o raio da Maria num SQL só.
+- F01-02 feita em 27/09/2026: a extensão de prova monta a query permitida da Maria pela cadeia do `ItemsService`, sem
+  executar, e a envolve num `ST_DWithin`, num SQL só, com os ids da GeographicLib no 11.17 e no 12. A cadeia é a
+  mesma nas duas versões, e montar a query custa uns 10 ms. A geometria sai como texto, dentro de um `CASE WHEN`, e
+  o envelope a lê assim, sem o índice (V-142, A-023, no plano). O builder do Knex roda se sair de uma função `async`.
+- Próximo passo: `/implement-issue F01-03`, os outros papéis e o que a página manda.
 
 ## Documentação
 

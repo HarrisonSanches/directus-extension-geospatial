@@ -69,6 +69,9 @@ catalogs:
     eslint-plugin-import-x:
       specifier: 4.17.1
       version: 4.17.1
+    geographiclib-geodesic:
+      specifier: 2.2.0
+      version: 2.2.0
     husky:
       specifier: 9.1.7
       version: 9.1.7
@@ -175,6 +178,9 @@ importers:
       eslint-plugin-import-x:
         specifier: 'catalog:'
         version: 4.17.1(@typescript-eslint/utils@8.70.1(@typescript/typescript6@6.0.2)(eslint@10.11.0(jiti@2.7.0)))(@typescript/typescript6@6.0.2)(eslint@10.11.0(jiti@2.7.0))
+      geographiclib-geodesic:
+        specifier: 'catalog:'
+        version: 2.2.0
       husky:
         specifier: 'catalog:'
         version: 9.1.7
@@ -2915,6 +2921,9 @@ packages:
 
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
+
+  geographiclib-geodesic@2.2.0:
+    resolution: {integrity: sha512-cIedo9VTYb0DFufodgibDmVfsWe9EASqb/kUByl09xc6PZYvLvlc89BHCThtGTPf2OII/zWJGxsR3Uz6O7QOVw==}
 
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
@@ -6956,6 +6965,8 @@ snapshots:
     optional: true
 
   function-bind@1.1.2: {}
+
+  geographiclib-geodesic@2.2.0: {}
 
   get-caller-file@2.0.5: {}
 
