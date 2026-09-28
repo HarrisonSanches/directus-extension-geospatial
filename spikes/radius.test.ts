@@ -1,8 +1,20 @@
-import { createItems, createPolicy, createRole, createUser, customEndpoint, readItems } from '@directus/sdk';
+import {
+	createCollection,
+	createItems,
+	createPermission,
+	createPolicy,
+	createRole,
+	createUser,
+	customEndpoint,
+	readItems,
+	readPolicies,
+	readUsers,
+} from '@directus/sdk';
 import geographiclib from 'geographiclib-geodesic';
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 import { as, type Client, connect, hasCustomPermissionRules, type Occurrence, versions } from '../test/directus.ts';
 import { log, newSecret } from '../test/environment.ts';
+import { southZone } from '../test/seed.ts';
 
 // What the radius route of the spike answers (spikes/extension/src/radius.ts).
 interface Radius {
@@ -10,6 +22,14 @@ interface Radius {
 	items: Record<string, unknown>[];
 	executed: string[];
 	buildMs: number;
+}
+
+// What the hooks of the other spike extension received on one items.query event (spikes/hook/src/calls.ts).
+interface Call {
+	event: string;
+	collection: string;
+	query: Record<string, unknown>;
+	accountability: Record<string, unknown> | null;
 }
 
 // What a page sends along with the radius, as it sends to the /items.
@@ -58,26 +78,28 @@ const distanceOf = ({ coordinates: [longitude, latitude] }: Occurrence['geometry
 	return s12;
 };
 
-const radius = (client: Client, page: Page = {}) =>
+const radius = (client: Client, page: Page = {}, collection = 'occurrences') =>
 	client.request(
 		customEndpoint<Radius>({
-			path: '/geospatial-spikes/radius/occurrences',
+			path: `/geospatial-spikes/radius/${collection}`,
 			method: 'GET',
 			params: { ...center, meters, ...page },
 		}),
 	);
 
+// The /items of a collection by its path, which also reaches the collections the schema of the suite does not know.
+const itemsOf = <Item>(client: Client, collection: string, params: Record<string, unknown>) =>
+	client.request(customEndpoint<Item[]>({ path: `/items/${collection}`, method: 'GET', params }));
+
 // What the /items of a user returns inside the circle, with the same filter and search, by the distance of
 // GeographicLib.
-const expectedFor = async (client: Client, { filter, search }: Page = {}) => {
-	const items: { id: number; geometry: Occurrence['geometry'] | null }[] = await client.request(
-		readItems('occurrences', {
-			fields: ['id', 'geometry'],
-			limit: -1,
-			...(filter && { filter }),
-			...(search && { search }),
-		}),
-	);
+const expectedFor = async (client: Client, { filter, search }: Page = {}, collection = 'occurrences') => {
+	const items = await itemsOf<{ id: number; geometry: Occurrence['geometry'] | null }>(client, collection, {
+		fields: ['id', 'geometry'],
+		limit: -1,
+		...(filter && { filter }),
+		...(search && { search }),
+	});
 
 	return items
 		.filter(({ geometry }) => geometry !== null && distanceOf(geometry) <= meters)
@@ -137,6 +159,10 @@ const userWith = async (name: string, policies: { filter: Record<string, unknown
 
 	return connect(directus.url, token);
 };
+
+// What the hooks of the other spike extension received since the last time they were asked.
+const takeCalls = () =>
+	as('admin').request(customEndpoint<Call[]>({ path: '/geospatial-spikes-hook/calls', method: 'GET' }));
 
 const south = { region: { _eq: 'south' } };
 const north = { region: { _eq: 'north' } };
@@ -290,6 +316,99 @@ describe.runIf(versions().database.client === 'postgres')('o raio sobre a query 
 				expect((await radius(geometryInPart)).ids).toEqual(expected);
 				expect(expected.length).toBeGreaterThan(0);
 			});
+		});
+	});
+
+	// The hook of spikes/hook leaves the query of this collection with the open occurrences. It holds the points around
+	// the edge, and Maria reads it by the same rule as the occurrences.
+	describe.runIf(hasCustomPermissionRules())('o hook items.query de outra extensão (F01-04)', () => {
+		const hooked = 'hooked_occurrences';
+
+		beforeAll(async () => {
+			const admin = as('admin');
+
+			await admin.request(
+				createCollection({
+					collection: hooked,
+					schema: {},
+					meta: {},
+					fields: [
+						{ field: 'id', type: 'integer', schema: { is_primary_key: true, has_auto_increment: true } },
+						{ field: 'geometry', type: 'geometry.Point', schema: {} },
+						{ field: 'region', type: 'string', schema: {} },
+						{ field: 'category', type: 'string', schema: {} },
+						{ field: 'status', type: 'string', schema: {} },
+						{ field: 'occurred_at', type: 'timestamp', schema: {} },
+					],
+				}),
+			);
+
+			await admin.request(
+				customEndpoint({ path: `/items/${hooked}`, method: 'POST', body: JSON.stringify(aroundTheEdge) }),
+			);
+
+			const [policy] = await admin.request(readPolicies({ fields: ['id'], filter: { name: { _eq: 'South zone' } } }));
+
+			if (policy === undefined) {
+				throw new Error('The seed did not create the policy of Maria.');
+			}
+
+			await admin.request(
+				createPermission({
+					policy: policy.id,
+					collection: hooked,
+					action: 'read',
+					fields: ['*'],
+					permissions: southZone,
+				}),
+			);
+		});
+
+		it('o raio da Maria bate com o /items dela, que já passa pelo hook', async () => {
+			const expected = await expectedFor(as('maria'), {}, hooked);
+			const permitted = aroundTheEdge.filter(
+				({ region, geometry }) => region === 'south' && distanceOf(geometry) <= meters,
+			);
+			const open = permitted.filter(({ status }) => status === 'open');
+
+			expect((await radius(as('maria'), {}, hooked)).ids).toEqual(expected);
+			// The /items leaves out the closed occurrences the permission alone lets through.
+			expect(expected).toHaveLength(open.length);
+			expect(open.length).toBeGreaterThan(0);
+			expect(open.length).toBeLessThan(permitted.length);
+		});
+
+		it('o hook recebe do raio a mesma query e o mesmo contexto que recebe do /items', async () => {
+			const page = { fields: ['*'], filter: { category: { _eq: 'theft' } }, search: 'open' };
+			const [maria] = await as('admin').request(
+				readUsers({ fields: ['id', 'role'], filter: { email: { _eq: 'maria@example.com' } } }),
+			);
+
+			await takeCalls();
+			await itemsOf(as('maria'), hooked, page);
+			const items = await takeCalls();
+
+			await radius(as('maria'), page, hooked);
+
+			expect(await takeCalls()).toEqual(items);
+			expect(items).toMatchObject([
+				{
+					event: 'items.query',
+					collection: hooked,
+					query: page,
+					accountability: { user: maria?.id, role: maria?.role },
+				},
+				{ event: `${hooked}.items.query`, collection: hooked, query: page },
+			]);
+		});
+
+		it('o hook age só na coleção dele: o raio das ocorrências passa por ele e sai como antes', async () => {
+			await takeCalls();
+			const { ids } = await radius(as('maria'));
+			const calls = await takeCalls();
+
+			expect(calls).toMatchObject([{ event: 'items.query', collection: 'occurrences' }]);
+			expect(ids).toEqual(await expectedFor(as('maria')));
 		});
 	});
 });

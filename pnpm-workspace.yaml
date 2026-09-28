@@ -2,6 +2,7 @@ packages:
   - packages/*
   # The proofs of F01, which leave when the phase closes.
   - spikes/extension
+  - spikes/hook
 
 catalog:
   '@commitlint/cli': 21.2.3

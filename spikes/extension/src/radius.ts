@@ -1,4 +1,5 @@
 import { performance } from 'node:perf_hooks';
+import emitter from '@directus/api/emitter';
 import { InvalidQueryError } from '@directus/errors';
 import type { Accountability, ApiExtensionContext, Query } from '@directus/types';
 import { permittedQuery } from './permitted-query.js';
@@ -10,7 +11,7 @@ export interface Radius {
 	items: Record<string, unknown>[];
 	// Every query that read the collection during the request, as it reached the database.
 	executed: string[];
-	// The time to build the permitted query, the schema included, in milliseconds.
+	// The time to build the permitted query, the schema and the hooks included, in milliseconds.
 	buildMs: number;
 }
 
@@ -80,9 +81,18 @@ export const radius = async (
 		const startedAt = performance.now();
 		const schema = await context.getSchema();
 
+		// The hooks of other extensions change the query as the ItemsService lets them, before the chain: the same
+		// events, in the same order, on the page as the /items hands it over (F01-04).
+		const hooked = await emitter.emitFilter(
+			['items.query', `${collection}.items.query`],
+			page,
+			{ collection },
+			{ database: knex, schema, accountability },
+		);
+
 		// The geometry goes by its name, so a role that cannot read it gets the error of the /items, instead of the field
 		// quietly missing from the *. The limit of -1 lifts QUERY_LIMIT_DEFAULT, which getDBQuery applies otherwise.
-		const query: Query = { ...page, fields: [...(page.fields ?? ['*']), 'geometry'], limit: -1 };
+		const query: Query = { ...hooked, fields: [...(hooked.fields ?? ['*']), 'geometry'], limit: -1 };
 		const { builder: permitted } = await permittedQuery({ collection, query, accountability }, { schema, knex });
 
 		const buildMs = performance.now() - startedAt;

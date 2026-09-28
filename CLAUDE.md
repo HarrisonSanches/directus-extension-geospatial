@@ -80,7 +80,10 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   busca da página, no papel com duas políticas e no admin, e dá os mesmos erros ao público e ao campo sem permissão.
   A geometria vai pelo nome, e o item que uma política deixa ver sem ela fica fora do raio: lendo a coluna, seis itens
   do norte vazariam (V-143).
-- Próximo passo: `/implement-issue F01-04`, o hook `items.query` de outra extensão.
+- F01-04 feita em 27/09/2026: o raio emite o `items.query` como o `ItemsService`, sobre a query da página e antes da
+  cadeia, e o hook de outra extensão recebe dele o mesmo que recebe do `/items`. O `emitter` do `context` só leva
+  eventos entre extensões, e o emissor dos hooks vem do `@directus/api` (V-144).
+- Próximo passo: `/implement-issue F01-05`, o mesmo pedido gera o mesmo SQL (P-08).
 
 ## Documentação
 
