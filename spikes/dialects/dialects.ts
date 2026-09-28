@@ -155,7 +155,77 @@ const mysql: Dialect = {
 	},
 };
 
-export const dialects = { cockroachdb, mysql } as const;
+// A point 11.6 km from the one of the probes, a line and a polygon, for the distances of MariaDB.
+const near = "st_geomfromtext('POINT(-46.6 -23.6)')";
+const line = "st_geomfromtext('LINESTRING(-46.6 -23.6, -46.6 -23.7)')";
+const square = "st_geomfromtext('POLYGON((-46.6 -23.6, -46.5 -23.6, -46.5 -23.5, -46.6 -23.5, -46.6 -23.6))')";
+
+const mariadb: Dialect = {
+	// The LTS of MariaDB, the one the docker-compose.yml of Directus 12.4.1 names. The sandbox of its end-to-end tests
+	// names 11, which is 11.8, the LTS before it (V-152).
+	image: 'mariadb:12.3.3@sha256:805c8e104bd563d5bfa24fadd3f31cd419ea859cb5277f32b5dbf2db714f9ed1',
+	start: async (network) => {
+		const password = randomBytes(32).toString('hex');
+
+		// The command and the database of the sandbox of Directus, with the data in memory. The first server of the image
+		// listens on no port, and the one that stays prints its port on the line after it is ready.
+		const container = await new GenericContainer(mariadb.image)
+			.withNetwork(network)
+			.withNetworkAliases('database')
+			.withCommand(['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci'])
+			.withEnvironment({ MARIADB_ROOT_PASSWORD: password, MARIADB_DATABASE: 'directus' })
+			.withTmpFs({ '/var/lib/mysql': 'rw' })
+			.withWaitStrategy(Wait.forLogMessage(/port: 3306/))
+			.withStartupTimeout(120_000)
+			.start();
+
+		// Directus takes MariaDB as MySQL, through the same client (V-27).
+		return {
+			container,
+			environment: {
+				DB_CLIENT: 'mysql',
+				DB_HOST: 'database',
+				DB_PORT: '3306',
+				DB_DATABASE: 'directus',
+				DB_USER: 'root',
+				DB_PASSWORD: password,
+			},
+			clientEnvironment: { MYSQL_PWD: password },
+		};
+	},
+	// The client of MariaDB, by its own name.
+	sqlCommand: (statement) => [
+		'mariadb',
+		'--user=root',
+		'--database=directus',
+		'--batch',
+		'--show-warnings',
+		`--execute=${statement}`,
+	],
+	// What differs from MySQL: the SRID of the values and of the column, the order of the axes of SRID 4326, a predicate
+	// between two SRIDs, the distances on the plane and on the sphere, for points and for other geometries (P-07), and
+	// the spatial index on the column as Directus creates it. None of them changes the table.
+	probes: {
+		version: 'select version()',
+		asText: "select st_astext(st_geomfromtext('POINT(-46.712345678901234 -23.612345678901234)')) as text",
+		column:
+			"select column_type, is_nullable from information_schema.columns where table_schema = database() and table_name = 'occurrences' and column_name = 'geometry'",
+		columnSrid:
+			"select srid from information_schema.geometry_columns where f_table_schema = database() and f_table_name = 'occurrences'",
+		storedSrid: 'select distinct st_srid(geometry) from occurrences',
+		axisOrder: "select st_x(st_geomfromtext('POINT(-46.7 -23.65)', 4326)) as x",
+		axisOrderOption: "select st_x(st_geomfromtext('POINT(-46.7 -23.65)', 4326, 'axis-order=long-lat')) as x",
+		mixedSrids: `select st_intersects(geometry, st_geomfromtext('POINT(-46.7 -23.65)', 4326)) as touches from occurrences limit 1`,
+		planeDistance: `select st_distance(${planePoint}, ${near}) as distance`,
+		spherePoints: `select st_distance_sphere(${planePoint}, ${near}) as distance`,
+		sphereMultipoint: `select st_distance_sphere(st_geomfromtext('MULTIPOINT((-46.7 -23.65), (-46.8 -23.7))'), ${near}) as distance`,
+		sphereLine: `select st_distance_sphere(${planePoint}, ${line}) as distance`,
+		spherePolygon: `select st_distance_sphere(${planePoint}, ${square}) as distance`,
+		spatialIndex: 'create spatial index occurrences_geometry_index on occurrences (geometry)',
+	},
+};
+
+export const dialects = { cockroachdb, mysql, mariadb } as const;
 
 export type DialectName = keyof typeof dialects;
 

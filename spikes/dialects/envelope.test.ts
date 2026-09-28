@@ -1,4 +1,5 @@
 import { createItem, createItems, customEndpoint, readField, readItem, readItems, updateItem } from '@directus/sdk';
+import geographiclib from 'geographiclib-geodesic';
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 import { type Client, connect, type Occurrence } from '../../test/directus.ts';
 import { log } from '../../test/environment.ts';
@@ -175,6 +176,32 @@ const findings: Record<DialectName, () => void> = {
 		expect(probeOf('spatialIndex').exitCode).toBe(1);
 		expect(probeOf('spatialIndex').output).toContain('All parts of a SPATIAL index must be NOT NULL');
 	},
+	// MariaDB 12.3, on 28/09/2026 (V-152): no order of the axes and no check of the SRID, the distance in meters only on
+	// the sphere, and only between points (P-07).
+	mariadb: () => {
+		// The same text as MySQL writes, which reads back as the same double.
+		expect(valueOf('asText')).toBe('POINT(-46.71234567890124 -23.612345678901235)');
+		expect(probeOf('column').output).toContain('point\tYES');
+		expect(valueOf('columnSrid')).toBe('0');
+		expect(valueOf('storedSrid')).toBe('0');
+		expect(valueOf('axisOrder')).toBe('-46.7');
+		expect(probeOf('axisOrderOption').exitCode).toBe(1);
+		expect(probeOf('mixedSrids').exitCode).toBe(0);
+		expect(Number(valueOf('planeDistance'))).toBeCloseTo(Math.hypot(0.1, 0.05), 12);
+		// A multipoint gives no error and no distance.
+		expect(probeOf('sphereMultipoint').exitCode).toBe(0);
+		expect(valueOf('sphereMultipoint')).toBe('NULL');
+		expect(probeOf('sphereLine').exitCode).toBe(1);
+		expect(probeOf('spherePolygon').exitCode).toBe(1);
+		expect(probeOf('spatialIndex').exitCode).toBe(1);
+
+		// The sphere against the ellipsoid of GeographicLib, between the two points of the probe.
+		const { s12 } = geographiclib.Geodesic.WGS84.Inverse(-23.65, -46.7, -23.6, -46.6);
+		const sphere = Number(valueOf('spherePoints'));
+
+		log(`${dialect}: ST_Distance_Sphere gave ${String(sphere)} m, and GeographicLib ${String(s12)} m`);
+		expect(Math.abs(sphere - (s12 ?? 0)) / (s12 ?? 1)).toBeLessThan(0.01);
+	},
 };
 
 describe(`o envelope sobre a query permitida, no ${dialect} (F01-08)`, () => {
@@ -266,93 +293,115 @@ describe(`o envelope sobre a query permitida, no ${dialect} (F01-08)`, () => {
 	});
 });
 
-// P-04: the column NOT NULL SRID 0, with a spatial index, under the writes of Directus. It changes the table, so it runs
-// after the envelope on the column as Directus creates it, in the same file, whose tests run one after the other.
-describe.runIf(dialect === 'mysql')('a coluna NOT NULL SRID 0 com índice espacial, no MySQL (P-04)', () => {
-	const sql = (statement: string) => runSql(dialect, database, statement);
-	const index = 'occurrences_geometry_index';
-	const where = `where st_intersects(geometry, st_geomfromtext('${polygon}'))`;
+// The column that takes a spatial index the optimizer considers, where Directus writes the geometry without one: MySQL
+// also asks for the SRID attribute, and MariaDB for NOT NULL alone (P-04). MySQL 9 prints the plan as a tree, without
+// the possible keys, unless the statement asks for the traditional format.
+const indexable: Partial<Record<DialectName, { column: string; explain: string }>> = {
+	mysql: { column: 'point not null srid 0', explain: 'explain format=traditional' },
+	mariadb: { column: 'point not null', explain: 'explain' },
+};
 
-	// The traditional format has the possible keys, which the tree format of MySQL 9 leaves out. With a few rows, the
-	// optimizer takes the table scan by cost, so the forced index says whether it can take the index at all.
-	const plansOf = async () => ({
-		chosen: await sql(`explain format=traditional select id from occurrences ${where}`),
-		forced: await sql(`explain format=traditional select id from occurrences force index (${index}) ${where}`),
-	});
+const indexing = indexable[dialect];
 
-	// A column of the tab-separated rows the client prints, by the name in its header.
-	const columnOf = (output: string, name: string) => {
-		const [header = '', row = ''] = output.split('\n');
+// It changes the table, so it runs after the envelope on the column as Directus creates it, in the same file, whose
+// tests run one after the other.
+describe.runIf(indexing !== undefined)(
+	`a coluna com índice espacial sob as gravações do Directus, no ${dialect} (P-04)`,
+	() => {
+		const { column, explain } = indexing ?? { column: '', explain: '' };
+		const sql = (statement: string) => runSql(dialect, database, statement);
+		const index = 'occurrences_geometry_index';
+		const where = `where st_intersects(geometry, st_geomfromtext('${polygon}'))`;
 
-		return row.split('\t')[header.split('\t').indexOf(name)];
-	};
+		// With a few rows, the optimizer takes the table scan by cost, so the forced index says whether it can take the index
+		// at all.
+		const plansOf = async () => ({
+			chosen: await sql(`${explain} select id from occurrences ${where}`),
+			forced: await sql(`${explain} select id from occurrences force index (${index}) ${where}`),
+		});
 
-	it('sem o atributo SRID, o índice espacial nasce com um aviso, e o otimizador não o considera', async () => {
-		expect((await sql('alter table occurrences modify geometry point not null')).exitCode).toBe(0);
+		// A column of the tab-separated rows the client prints, by the name in its header.
+		const columnOf = (output: string, name: string) => {
+			const [header = '', row = ''] = output.split('\n');
 
-		const created = await sql(`create spatial index ${index} on occurrences (geometry)`);
-		const { chosen, forced } = await plansOf();
+			return row.split('\t')[header.split('\t').indexOf(name)];
+		};
 
-		expect((await sql(`drop index ${index} on occurrences`)).exitCode).toBe(0);
-		log(`${dialect}: the spatial index without an SRID answered ${created.output}`);
-		log(`${dialect}: without an SRID, the plan is ${chosen.output}, and with the index forced ${forced.output}`);
-		expect(created.exitCode).toBe(0);
-		expect(created.output).toContain('will not be used by the query optimizer');
-		expect(columnOf(chosen.output, 'possible_keys')).toBe('NULL');
-		expect(columnOf(forced.output, 'key')).toBe('NULL');
-	});
+		it.runIf(dialect === 'mysql')(
+			'sem o atributo SRID, o índice espacial nasce com um aviso, e o otimizador não o considera',
+			async () => {
+				expect((await sql('alter table occurrences modify geometry point not null')).exitCode).toBe(0);
 
-	it('com o SRID 4326, a coluna recusa os valores que o Directus gravou, de SRID 0', async () => {
-		const altered = await sql('alter table occurrences modify geometry point not null srid 4326');
+				const created = await sql(`create spatial index ${index} on occurrences (geometry)`);
+				const { chosen, forced } = await plansOf();
 
-		log(`${dialect}: the column with SRID 4326 answered ${altered.output}`);
-		expect(altered.exitCode).toBe(1);
-		expect(altered.output).toContain('SRID');
-	});
+				expect((await sql(`drop index ${index} on occurrences`)).exitCode).toBe(0);
+				log(`${dialect}: the spatial index without an SRID answered ${created.output}`);
+				log(`${dialect}: without an SRID, the plan is ${chosen.output}, and with the index forced ${forced.output}`);
+				expect(created.exitCode).toBe(0);
+				expect(created.output).toContain('will not be used by the query optimizer');
+				expect(columnOf(chosen.output, 'possible_keys')).toBe('NULL');
+				expect(columnOf(forced.output, 'key')).toBe('NULL');
+			},
+		);
 
-	it('com o SRID 0, o índice espacial nasce sem aviso, e o otimizador o considera', async () => {
-		expect((await sql('alter table occurrences modify geometry point not null srid 0')).exitCode).toBe(0);
+		it.runIf(dialect === 'mysql')(
+			'com o SRID 4326, a coluna recusa os valores que o Directus gravou, de SRID 0',
+			async () => {
+				const altered = await sql('alter table occurrences modify geometry point not null srid 4326');
 
-		const created = await sql(`create spatial index ${index} on occurrences (geometry)`);
-		const { chosen, forced } = await plansOf();
+				log(`${dialect}: the column with SRID 4326 answered ${altered.output}`);
+				expect(altered.exitCode).toBe(1);
+				expect(altered.output).toContain('SRID');
+			},
+		);
 
-		log(`${dialect}: with SRID 0, the plan is ${chosen.output}, and with the index forced ${forced.output}`);
-		expect(created).toEqual({ exitCode: 0, output: '' });
-		expect(columnOf(chosen.output, 'possible_keys')).toBe(index);
-		expect(columnOf(forced.output, 'key')).toBe(index);
-		expect(columnOf(forced.output, 'type')).toBe('range');
-	});
+		it(`com a coluna ${column}, o índice espacial nasce sem aviso, e o otimizador o considera`, async () => {
+			expect((await sql(`alter table occurrences modify geometry ${column}`)).exitCode).toBe(0);
 
-	it('o Directus segue gravando e lendo a geometria, e recusa o item sem ela', async () => {
-		const admin = as('admin');
+			const created = await sql(`create spatial index ${index} on occurrences (geometry)`);
+			const { chosen, forced } = await plansOf();
 
-		// The schema of Directus lives in its system cache, which does not see a change made outside it.
-		await admin.request(customEndpoint({ path: '/utils/cache/clear', method: 'POST', params: { system: true } }));
+			log(
+				`${dialect}: with the column ${column}, the plan is ${chosen.output}, and with the index forced ${forced.output}`,
+			);
+			expect(created).toEqual({ exitCode: 0, output: '' });
+			expect(columnOf(chosen.output, 'possible_keys')).toBe(index);
+			expect(columnOf(forced.output, 'key')).toBe(index);
+			expect(columnOf(forced.output, 'type')).toBe('range');
+		});
 
-		const geometry: Occurrence['geometry'] = { type: 'Point', coordinates: [-46.68, -23.64] };
-		const moved: Occurrence['geometry'] = { type: 'Point', coordinates: [-46.69, -23.63] };
-		const item = { region: 'south', category: 'theft', status: 'open', occurred_at: '2026-09-11T10:00:00Z' };
-		const { id } = await admin.request(createItem('occurrences', { ...item, geometry }));
+		it('o Directus segue gravando e lendo a geometria, e recusa o item sem ela', async () => {
+			const admin = as('admin');
 
-		expect((await admin.request(readItem('occurrences', id))).geometry).toEqual(geometry);
+			// The schema of Directus lives in its system cache, which does not see a change made outside it.
+			await admin.request(customEndpoint({ path: '/utils/cache/clear', method: 'POST', params: { system: true } }));
 
-		await admin.request(updateItem('occurrences', id, { geometry: moved }));
-		expect((await admin.request(readItem('occurrences', id))).geometry).toEqual(moved);
+			const geometry: Occurrence['geometry'] = { type: 'Point', coordinates: [-46.68, -23.64] };
+			const moved: Occurrence['geometry'] = { type: 'Point', coordinates: [-46.69, -23.63] };
+			const item = { region: 'south', category: 'theft', status: 'open', occurred_at: '2026-09-11T10:00:00Z' };
+			const { id } = await admin.request(createItem('occurrences', { ...item, geometry }));
 
-		const refused = await errorOf(admin.request(createItem('occurrences', item)));
-		const field = await admin.request(readField('occurrences', 'geometry'));
+			expect((await admin.request(readItem('occurrences', id))).geometry).toEqual(geometry);
 
-		log(`${dialect}: an item without a geometry got ${JSON.stringify(refused)}`);
-		log(`${dialect}: Directus reads the field as ${JSON.stringify({ type: field.type, schema: field.schema })}`);
-		expect(refused).toBeDefined();
-		expect(field).toMatchObject({ type: 'geometry.Point', schema: { is_nullable: false } });
-	});
+			await admin.request(updateItem('occurrences', id, { geometry: moved }));
+			expect((await admin.request(readItem('occurrences', id))).geometry).toEqual(moved);
 
-	it('o envelope da Maria continua batendo com o gabarito sobre a coluna nova', async () => {
-		const expected = await expectedFor(as('maria'));
-		const { count, ids } = await envelopeOf(as('maria'));
+			const refused = await errorOf(admin.request(createItem('occurrences', item)));
+			const field = await admin.request(readField('occurrences', 'geometry'));
 
-		expect(ids).toEqual(expected);
-		expect(count).toBe(expected.length);
-	});
-});
+			log(`${dialect}: an item without a geometry got ${JSON.stringify(refused)}`);
+			log(`${dialect}: Directus reads the field as ${JSON.stringify({ type: field.type, schema: field.schema })}`);
+			expect(refused).toBeDefined();
+			expect(field).toMatchObject({ type: 'geometry.Point', schema: { is_nullable: false } });
+		});
+
+		it('o envelope da Maria continua batendo com o gabarito sobre a coluna nova', async () => {
+			const expected = await expectedFor(as('maria'));
+			const { count, ids } = await envelopeOf(as('maria'));
+
+			expect(ids).toEqual(expected);
+			expect(count).toBe(expected.length);
+		});
+	},
+);

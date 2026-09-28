@@ -28,8 +28,9 @@ interface EnvelopeRequest extends PermittedRequest {
 const predicates: Readonly<Record<string, string>> = {
 	// CockroachDB takes the functions of PostGIS, on the plane of the coordinates, as Directus writes to it (V-27).
 	Client_CockroachDB: 'ST_Intersects(ST_GeomFromText(??, 4326), ST_GeomFromText(?, 4326))',
-	// MySQL, on the plane as well. Directus writes the geometry without an SRID, so its SRID is 0, and a predicate takes
-	// two geometries of the same SRID: the polygon goes without one too (V-151).
+	// MySQL and MariaDB, which Directus reaches through the same client, on the plane as well. Directus writes the
+	// geometry without an SRID, so its SRID is 0, and in MySQL a predicate takes two geometries of the same SRID: the
+	// polygon goes without one too (V-151, V-152).
 	Client_MySQL2: 'ST_Intersects(ST_GeomFromText(??), ST_GeomFromText(?))',
 };
 
