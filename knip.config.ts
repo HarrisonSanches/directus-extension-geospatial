@@ -2,9 +2,10 @@ import type { KnipConfig } from 'knip';
 import extension from './packages/extension/package.json' with { type: 'json' };
 import spikes from './spikes/extension/package.json' with { type: 'json' };
 import hook from './spikes/hook/package.json' with { type: 'json' };
+import layout from './spikes/layout/package.json' with { type: 'json' };
 
 // Each extension starts at the sources of the bundle in its Directus manifest, which Knip does not read by itself.
-const entriesOf = (manifest: typeof extension | typeof spikes | typeof hook) =>
+const entriesOf = (manifest: typeof extension | typeof spikes | typeof hook | typeof layout) =>
 	manifest['directus:extension'].entries.map(({ source }) => source);
 
 export default {
@@ -19,5 +20,6 @@ export default {
 			ignoreDependencies: ['@directus/api'],
 		},
 		'spikes/hook': { entry: entriesOf(hook) },
+		'spikes/layout': { entry: [...entriesOf(layout), 'extension.config.js'] },
 	},
 } satisfies KnipConfig;

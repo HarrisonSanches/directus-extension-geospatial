@@ -85,6 +85,9 @@ não `it('nearest 3')`. O código continua em inglês.
 **Teste instável é bug.** Não se desliga nem se repete até passar. O ponta a ponta tem uma nova tentativa na CI,
 com o rastro do Playwright guardado para investigar.
 
+**O navegador roda num container,** na imagem oficial do Playwright, fixada pelo digest da mesma versão do
+`playwright-core` do catálogo, e o Vitest o comanda do host, pelo `chromium.connect` (D-047).
+
 ## Cobertura e qualidade dos testes
 
 - **Código novo ou alterado:** pelo menos 90% em todo pull request, medido sobre o diff pela cobertura do patch do

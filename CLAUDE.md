@@ -119,7 +119,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   9 de 56,9 px, então nenhuma célula atravessa a borda, e nenhum grupo se repete no tile vizinho. O tile decodificado é
   o mesmo no 11.17 e no 12, com o PostGIS 3.2 e o 3.6. Um ponto a menos de meia unidade da borda sul ou leste fica na
   borda, onde o MapLibre não põe o rótulo (V-155).
-- Próximo passo: `/implement-issue F01-14`, o MapLibre só chega quando o layout abre (P-01, P-03).
+- F01-14 feita em 28/09/2026: um build que mantém os imports dinâmicos faz a API servir o MapLibre e o deck.gl em
+  pedaços próprios, baixados só quando o layout abre e quando a camada liga, e o arquivo inicial de extensões cai de
+  2.169,6 KB para 1,5 KB. O worker do MapLibre 6 vem de uma rota da extensão, e o do loaders.gl de um `blob:`, dentro
+  da CSP padrão. O navegador dos testes roda na imagem do Playwright (D-047), e o deck.gl 9.4 ainda não desenha
+  intercalado no MapLibre 6 (V-156 a V-159, resolve a P-01 e a P-03).
+- Próximo passo: `/implement-issue F01-15`, o MapLibre, o deck.gl e o Terra Draw no mesmo mapa (P-09).
 
 ## Documentação
 

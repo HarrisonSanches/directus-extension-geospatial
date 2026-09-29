@@ -35,7 +35,7 @@ export default defineConfig({
 				test: {
 					name: `spike:${combination}`,
 					include: ['spikes/*.test.ts'],
-					provide: { combination, extensions: ['spikes/extension', 'spikes/hook'] },
+					provide: { combination, extensions: ['spikes/extension', 'spikes/hook', 'spikes/layout'] },
 					testTimeout: 30_000,
 				},
 			})),

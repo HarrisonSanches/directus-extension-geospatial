@@ -1,0 +1,13 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["es2024", "dom", "dom.iterable"],
+		// The route of the bundle runs in Node, beside the layout, which runs in the browser.
+		"types": ["node"],
+		"noEmit": true,
+		// The declarations of the extensions SDK and of deck.gl import optional peers the layout does not use, and the
+		// code of the layout is still checked against them.
+		"skipLibCheck": true
+	},
+	"include": ["src"]
+}
