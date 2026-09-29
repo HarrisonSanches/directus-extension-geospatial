@@ -2,14 +2,12 @@ import { MVTLayer } from '@deck.gl/geo-layers';
 import { MapLibreOverlay } from '@deck.gl/maplibre';
 import worker from '@loaders.gl/mvt/mvt-worker.js?raw';
 import type { Map } from 'maplibre-gl';
+import { tiles } from './tiles.js';
 
 // loaders.gl parses each tile in a worker, which it fetches from unpkg.com by default, a CDN the CSP of the Studio does
 // not let scripts come from (V-33). The worker comes in this chunk instead, as text, and starts from a blob: URL,
 // which the CSP allows (P-03).
 const workerUrl = URL.createObjectURL(new Blob([worker], { type: 'text/javascript' }));
-
-// The tiles of the occurrences of the suite, from the route of the proof of F01-13, with the session of the Studio.
-const tiles = `${new URL('../', document.baseURI).href}geospatial-spikes/tile/occurrences/{z}/{x}/{y}`;
 
 // deck.gl on the canvas of MapLibre, with a layer of vector tiles. It resolves once the layer has the tiles of the view
 // and the map is idle again, with them drawn. The layer goes below the first label of the basemap, so the names of the

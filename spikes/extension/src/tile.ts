@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks';
 import { InvalidQueryError } from '@directus/errors';
 import type { Accountability, ApiExtensionContext, Query } from '@directus/types';
 import { clientOf, isRow, permittedFor, type PermittedRequest, permittedRequestOf } from './request.js';
@@ -8,6 +9,15 @@ interface TileRequest extends PermittedRequest {
 	y: number;
 	// How many cells a side of the tile holds.
 	cells: number;
+	// Whether the column itself narrows the items to the box of the tile first, through its spatial index (F01-16).
+	prefilter: boolean;
+}
+
+// The tile, with the time to build the permitted query and the time the database took for the tile, in milliseconds.
+export interface Tile {
+	tile: Buffer;
+	buildMs: number;
+	databaseMs: number;
 }
 
 // MapLibre draws every vector tile at 512 px, and refuses any other size (VectorTileSource).
@@ -57,8 +67,15 @@ export const tileRequestOf = (
 		x: integerOf(params.x, 'x', 2 ** z),
 		y: integerOf(params.y, 'y', 2 ** z),
 		cells: cellsOf(query.cell),
+		prefilter: query.prefilter === 'box',
 	};
 };
+
+// The last tile the database built, as it ran, with its values in the text, for the measurements of F01-16 to read its
+// plan. Only the admin reads it.
+let lastStatement = '';
+
+export const lastTileStatement = (): string => lastStatement;
 
 // The tile of the permitted query of whoever asks (D-001), as a vector tile built by the database with ST_AsMVT (D-004),
 // with the items grouped by cells of the screen (D-005, F01-13).
@@ -72,7 +89,12 @@ export const tileRequestOf = (
 // The collection is the layer of the tile. A cell with one item sends the item, with its id as the id of the feature. A
 // cell with more sends a group, with the count, the mean position in Web Mercator, which stays inside the cell and so
 // inside the tile, and the rectangle of the items in longitude and latitude, where a click zooms to.
-export const tile = async (request: TileRequest, context: ApiExtensionContext): Promise<Buffer> => {
+//
+// With the prefilter, the permitted query also asks the column for the items in the box of the tile, which its spatial
+// index answers, as A-023 recommends. It only drops candidates, joined by AND to the rule of the policy: the position of
+// an item the policy lets through without the geometry still comes out null in the permitted query, and stays off the
+// tile. The box grows by about a centimeter, so rounding never drops an item on its edge.
+export const tile = async (request: TileRequest, context: ApiExtensionContext): Promise<Tile> => {
 	const knex = context.database;
 
 	if (clientOf(knex) !== 'Client_PG') {
@@ -85,15 +107,25 @@ export const tile = async (request: TileRequest, context: ApiExtensionContext): 
 
 	// The geometry goes by its name, as in the radius. The limit of -1 lifts QUERY_LIMIT_DEFAULT, and a tile shows every
 	// item it covers, whatever the page.
-	const { builder: permitted } = await permittedFor(request, context, (hooked) => ({
+	const { builder: permitted, buildMs } = await permittedFor(request, context, (hooked) => ({
 		...hooked,
 		fields: ['id', 'geometry'],
 		limit: -1,
 	}));
 
+	if (request.prefilter) {
+		permitted.andWhereRaw('?? && ST_Expand(ST_Transform(ST_TileEnvelope(?, ?, ?), 4326), ?)', [
+			`${request.collection}.geometry`,
+			z,
+			x,
+			y,
+			1e-7,
+		]);
+	}
+
 	// The permitted query exposes the geometry as text, null where a policy lets the item through without the field, and
 	// the envelope reads that text, and never the column itself (A-023).
-	const result: unknown = await knex.raw(
+	const statement = knex.raw(
 		`with located as (
 			select p.id, ST_X(p.point) as longitude, ST_Y(p.point) as latitude, ST_Transform(p.point, 3857) as mercator,
 				floor((ST_X(p.point) + 180) / 360 * ?) as cell_x,
@@ -121,6 +153,11 @@ export const tile = async (request: TileRequest, context: ApiExtensionContext): 
 		[scale, scale, permitted, mercatorLatitude, cells, x, cells, y, request.collection, z, x, y],
 	);
 
+	lastStatement = statement.toQuery();
+
+	const startedAt = performance.now();
+	const result: unknown = await statement;
+	const databaseMs = performance.now() - startedAt;
 	const rows: unknown[] = isRow(result) && Array.isArray(result.rows) ? result.rows : [];
 	const [row] = rows;
 
@@ -128,5 +165,5 @@ export const tile = async (request: TileRequest, context: ApiExtensionContext): 
 		throw new Error('The database returned no tile.');
 	}
 
-	return row.tile;
+	return { tile: row.tile, buildMs, databaseMs };
 };

@@ -8,7 +8,7 @@ import { problemsOf } from './check.js';
 import { envelope, envelopeRequestOf } from './envelope.js';
 import { record, take } from './queries.js';
 import { radius, radiusRequestOf } from './radius.js';
-import { tile, tileRequestOf } from './tile.js';
+import { lastTileStatement, tile, tileRequestOf } from './tile.js';
 
 export default defineEndpoint({
 	id: 'geospatial-spikes',
@@ -106,8 +106,25 @@ export default defineEndpoint({
 						context,
 					),
 				)
-				.then((data) => res.type('application/vnd.mapbox-vector-tile').send(data))
+				.then(({ tile: data, buildMs, databaseMs }) => {
+					// The time to build the permitted query and the time of the database, for the measurements of F01-16, in the
+					// header the browser reads with the timing of each request (Server-Timing).
+					res.setHeader('Server-Timing', `build;dur=${buildMs.toFixed(1)}, db;dur=${databaseMs.toFixed(1)}`);
+					res.type('application/vnd.mapbox-vector-tile').send(data);
+				})
 				.catch(next);
+		});
+
+		// The SQL of the last tile, as it ran, for the measurements to read its plan (F01-16). Only the admin reads it, since
+		// it holds the rule of whoever asked.
+		router.get('/tile-statement', (req, res, next) => {
+			if (req.accountability?.admin !== true) {
+				next(new ForbiddenError());
+
+				return;
+			}
+
+			res.json({ data: lastTileStatement() });
 		});
 	},
 });
