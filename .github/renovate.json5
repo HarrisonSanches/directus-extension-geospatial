@@ -80,10 +80,17 @@
 			matchDatasources: ['docker', 'github-runners'],
 			minimumReleaseAgeBehaviour: 'timestamp-optional',
 		},
-		// An override pins a fixed version in the line that the package pulling it asks for, so it keeps its major.
+		// An override pins a fixed version in the line that the package pulling it asks for, so it keeps its major, and
+		// below 1.0.0, where a minor breaks as a major does, its minor too (F01-14).
 		{
 			matchDepTypes: ['pnpm-workspace.overrides'],
 			matchUpdateTypes: ['major'],
+			enabled: false,
+		},
+		{
+			matchDepTypes: ['pnpm-workspace.overrides'],
+			matchCurrentVersion: '<1.0.0',
+			matchUpdateTypes: ['minor'],
 			enabled: false,
 		},
 		// The images of Directus come at any time, because each new tag is the signal of the canary (F02). A patch
@@ -123,6 +130,18 @@
 		// The peers of @directus/types, which follow it and not their latest version.
 		{
 			matchPackageNames: ['knex', 'pino'],
+			enabled: false,
+		},
+		// The Vue the extensions SDK depends on, exactly, which the layouts compile their types against. Another version
+		// would be a second copy, whose types do not match the ones of the SDK (F01-14).
+		{
+			matchPackageNames: ['vue'],
+			enabled: false,
+		},
+		// The Playwright the tests drive the browser with moves by hand, with the image of the same version, pinned by its
+		// digest, whose browsers are the ones of that version (D-047).
+		{
+			matchPackageNames: ['playwright-core'],
 			enabled: false,
 		},
 		// The coverage libraries are the ones @vitest/coverage-v8 uses, so a major of any of them comes with Vitest.

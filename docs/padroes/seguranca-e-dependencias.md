@@ -53,9 +53,11 @@ confiança se constrói no repositório.
     minor ou a major nova entra nela ao lado do piso (D-037). O canário roda nelas;
   - o que só anda junto vem num grupo: os pacotes do Directus, que o `@directus/extensions-sdk` prende em versões
     exatas, e, no major, o Vitest com as bibliotecas de cobertura;
-  - o que segue outra coisa fica parado: o `knex` e o `pino`, peers exatos do `@directus/types`; o `@types/node` de
-    cada catálogo, na linha do Node dele; o override, no major em que está; e o PostGIS mínimo, que segue a política
-    de suporte;
+  - o que segue outra coisa fica parado: o `knex` e o `pino`, peers exatos do `@directus/types`; o `vue`, que o
+    `@directus/extensions-sdk` prende, e com outra versão os tipos dos layouts não batem; o `playwright-core`, que
+    sobe à mão com a imagem do Playwright da mesma versão (D-047); o `@types/node` de cada catálogo, na linha do Node
+    dele; o override, no major em que está, e abaixo do 1.0.0 também na minor; e o PostGIS mínimo, que segue a
+    política de suporte;
   - uma versão fixada fora dos gerenciadores do Renovate ganha uma regra por regex ou um comentário `# renovate:`
     com a origem, senão fica parada sem aviso (V-139).
   - o lock file maintenance regenera o lockfile toda segunda-feira, com as dependências indiretas. Ele não tem data de

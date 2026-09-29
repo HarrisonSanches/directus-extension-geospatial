@@ -772,4 +772,4 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Alternativas descartadas:**
   - O Chromium instalado na máquina: pede as dependências do sistema, que a máquina de cada um teria de ter, e fica de fora onde o Playwright não dá suporte.
   - O Playwright inteiro dentro do container, com os testes lá: os testes deixariam de rodar no Vitest do host, ao lado da suíte.
-- **Consequências:** a primeira rodada baixa uns 2 GB. A versão do `playwright-core` e a da imagem andam juntas, e o Renovate precisa atualizar as duas no mesmo pull request. Sem placa de vídeo, o Chromium desenha o WebGL no processador, pelo SwiftShader.
+- **Consequências:** a primeira rodada baixa uns 2 GB. A versão do `playwright-core` e a da imagem andam juntas: o Renovate não atualiza o `playwright-core`, e os dois sobem à mão, no mesmo pull request, porque a imagem, fora do Docker Hub, não tem data, e chegaria antes do pacote, que espera os 3 dias (V-139). Sem placa de vídeo, o Chromium desenha o WebGL no processador, pelo SwiftShader.
