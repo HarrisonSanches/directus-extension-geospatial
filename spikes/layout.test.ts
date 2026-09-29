@@ -186,8 +186,13 @@ describe.runIf(versions().database.client === 'postgres')('o layout de prova, no
 				expect(maplibre).toEqual([]);
 				expect(deck).toEqual([]);
 				expect(draw).toEqual([]);
+				// The Studio downloads the file of extensions and the chunks it imports right away, before any layout opens,
+				// each one compressed on its own when a proxy compresses them (F01-16).
+				const startup = [...table.sources.values()];
+				const total = (sizeOf: (body: Buffer) => number) => startup.reduce((sum, body) => sum + sizeOf(body), 0);
+
 				log(
-					`${inject('combination')}: with the dynamic imports kept, the file of extensions weighs ${weightOf(initial ?? Buffer.alloc(0))}`,
+					`${inject('combination')}: with the dynamic imports kept, the file of extensions weighs ${weightOf(initial ?? Buffer.alloc(0))}, and with what it imports when the Studio starts, ${String(startup.length)} files, ${kilobytes(total((body) => body.length))}, ${kilobytes(total((body) => gzipSync(body).length))} with gzip`,
 				);
 			}, 120_000);
 

@@ -41,10 +41,14 @@ const summaryOf = (times: number[]) => {
 	return { runs: sorted.length, median: round(rank(0.5)), p95: round(rank(0.95)), max: round(sorted.at(-1) ?? 0) };
 };
 
+// With SPIKE_MEASURE_QUICK=1, every step runs, on the smallest volume and with few requests, to check the proof in
+// minutes before the long run, whose numbers are the ones that count.
+const quick = process.env.SPIKE_MEASURE_QUICK === '1';
+
 // Each series warms up first, so the first requests, which load the schema, the permissions and the pages of the table,
 // stay out of it.
-const warmUps = 3;
-const runs = 20;
+const warmUps = quick ? 1 : 3;
+const runs = quick ? 2 : 20;
 
 const series = async <T>(measure: () => Promise<T>): Promise<T[]> => {
 	for (let run = 0; run < warmUps; run += 1) {
@@ -401,13 +405,15 @@ describe.runIf(measuring && combinations[combination].database.client === 'postg
 				await cdp.send('Network.enable');
 				await cdp.send('Network.emulateNetworkConditions', { offline: false, ...networks[network] });
 				await page.goto(`${started().url}/admin/content/occurrences`);
-				await page.waitForFunction((name) => performance.getEntriesByName(name).length > 0, marks.tiles, {
+				// These functions run in the page. Vitest rewrites the name performance, which this file imports from Node, so
+				// the page reads its own through window.
+				await page.waitForFunction((name) => window.performance.getEntriesByName(name).length > 0, marks.tiles, {
 					timeout: 300_000,
 				});
 
 				const moments = await page.evaluate(() =>
 					Object.fromEntries(
-						performance
+						window.performance
 							.getEntriesByType('mark')
 							.filter(({ name }) => name.startsWith('geospatial-spike:'))
 							.map(({ name, startTime }) => [name.slice('geospatial-spike:'.length), Math.round(startTime)]),
@@ -427,7 +433,7 @@ describe.runIf(measuring && combinations[combination].database.client === 'postg
 );
 
 // The volumes of the measurements, with the points of the API among the first.
-const volumes = [10_000, 100_000, 1_000_000];
+const volumes = quick ? [10_000] : [10_000, 100_000, 1_000_000];
 
 // A zoom of the whole state, of the city, of a district and of a street.
 const zooms = [4, 8, 12, 16];
