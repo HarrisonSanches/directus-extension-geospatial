@@ -150,6 +150,14 @@
 			matchUpdateTypes: ['major'],
 			groupName: 'Vitest',
 		},
+		// Terra Draw and its adapter for MapLibre come from one repository, each in a version of its own, and the adapter
+		// names the major of Terra Draw it takes as its peer, so a major of either comes with the other (F01-15). The
+		// packages of deck.gl already come together, as a monorepo that config:recommended knows.
+		{
+			matchPackageNames: ['terra-draw', 'terra-draw-*'],
+			matchUpdateTypes: ['major'],
+			groupName: 'Terra Draw',
+		},
 		// The tools run on the Node of .node-version, the 24 (V-79), and the code of the extension on the Node of the
 		// Directus images, the 22 (V-80). Each catalog stays on its line, and a new line is a decision.
 		{
