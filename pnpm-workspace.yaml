@@ -29,7 +29,7 @@ catalog:
   # The decoder of vector tiles of the Mapbox and MapLibre family, with pbf below, for the tiles the tests read back.
   '@mapbox/vector-tile': 3.0.0
   '@testcontainers/postgresql': 12.1.0
-  '@types/node': 24.13.6
+  '@types/node': 24.19.0
   # TypeScript runs side by side (V-90): this alias is the TypeScript 7 behind tsc, and the typescript name below
   # serves the 6.0 API that typescript-eslint loads, until typescript-eslint supports TypeScript 7 (P-25).
   '@typescript/native': npm:typescript@7.0.2
