@@ -245,7 +245,7 @@ Recebem itens ou formas e produzem só formas. Servem de entrada para outra oper
 #### Renderização
 
 - **MapLibre na base:** mapas de fundo, tiles vetoriais, estilos por dado, grupos, mapa de calor e destaque.
-- **deck.gl intercalado** no mesmo canvas, pelo `MapboxOverlay`: trajeto animado (`TripsLayer`), muitos objetos se movendo em tempo real, 3D e agregações na placa de vídeo. Os nomes de ruas continuam por cima dos dados.
+- **deck.gl intercalado** no mesmo canvas, pelo `MapLibreOverlay` do `@deck.gl/maplibre`: trajeto animado (`TripsLayer`), muitos objetos se movendo em tempo real, 3D e agregações na placa de vídeo. As camadas dele entram abaixo do primeiro rótulo do mapa de fundo, pelo `beforeId`, e os nomes de ruas continuam por cima dos dados (V-161).
 - **Leaflet e OpenLayers ficaram de fora.** O Leaflet não usa WebGL para desenhar dados, e o OpenLayers não traria ganho aqui e ficaria diferente do mapa nativo.
 - **A extensão traz as próprias bibliotecas.** Isso a deixa independente da versão do MapLibre que o Directus usa. O requisito é WebGL2, o mesmo do nativo.
 - **Carregamento sob demanda.** O Studio baixa um arquivo único com todas as extensões ao iniciar. Para não pesar para quem nunca abre um mapa, o MapLibre só é baixado quando um mapa abre, e o deck.gl só quando uma camada precisa dele. Isso exige um build próprio, porque o build padrão do SDK junta tudo num arquivo só, e o build próprio mantém os imports dinâmicos, que a API serve como pedaços. Os workers vêm do próprio servidor: o do MapLibre por uma rota da extensão, e o do loaders.gl como texto, num `blob:`, dentro da CSP padrão (V-156, V-157).

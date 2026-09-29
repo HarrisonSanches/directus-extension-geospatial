@@ -2,7 +2,7 @@
 	"name": "directus-extension-geospatial-spikes-layout",
 	"version": "0.0.0",
 	"private": true,
-	"description": "The layout of the proof of F01-14, which loads MapLibre and deck.gl only when they are needed, with the route that serves the worker of MapLibre, and never ships.",
+	"description": "The layout of the proofs of F01-14 and F01-15, which loads MapLibre, deck.gl and Terra Draw only when they are needed, with the route that serves the worker of MapLibre, and never ships.",
 	"license": "MIT",
 	"type": "module",
 	"directus:extension": {
@@ -32,11 +32,13 @@
 		"@deck.gl/core": "catalog:",
 		"@deck.gl/geo-layers": "catalog:",
 		"@deck.gl/layers": "catalog:",
-		"@deck.gl/mapbox": "catalog:",
+		"@deck.gl/maplibre": "catalog:",
 		"@directus/extensions-sdk": "catalog:",
 		"@loaders.gl/mvt": "catalog:",
 		"@types/node": "catalog:node22",
 		"maplibre-gl": "catalog:",
+		"terra-draw": "catalog:",
+		"terra-draw-maplibre-gl-adapter": "catalog:",
 		"vue": "catalog:"
 	}
 }
