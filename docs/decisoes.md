@@ -160,10 +160,10 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-010 — MapLibre com deck.gl intercalado, carregados sob demanda
 
 - **Estado:** aceita em 23/09/2026.
-- **Onde:** §7.1 (renderização) · V-07, V-08 · P-01, P-03.
+- **Onde:** §7.1 (renderização) · V-07, V-08, V-156, V-157, V-161 · P-01, P-03.
 - **Decisão:**
   - MapLibre na base.
-  - deck.gl no mesmo canvas, pelo `MapboxOverlay`, para playback, tempo real, 3D e agregações na placa de vídeo.
+  - deck.gl no mesmo canvas, pelo `MapLibreOverlay` do `@deck.gl/maplibre`, que usa só a API pública do MapLibre (V-161), para playback, tempo real, 3D e agregações na placa de vídeo.
   - As bibliotecas vêm com a extensão, independentes da versão usada pelo Studio.
   - Um build próprio mantém os imports dinâmicos, para as bibliotecas só serem baixadas quando o mapa abre.
 - **Alternativas descartadas:**
@@ -188,7 +188,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-012 — Terra Draw para desenho e GeographicLib para medições
 
 - **Estado:** aceita em 23/09/2026.
-- **Onde:** §7.3 (grupo 3), §7.4 · V-41, V-42 · P-09.
+- **Onde:** §7.3 (grupo 3), §7.4 · V-41, V-42, V-160.
 - **Decisão:**
   - Desenho com o Terra Draw: círculo geodésico, polígono, desenho livre, linha, retângulo, seleção e encaixe.
   - Medições no navegador e no Node com a GeographicLib, o mesmo cálculo do PostGIS.

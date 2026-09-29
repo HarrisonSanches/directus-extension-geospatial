@@ -124,7 +124,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   2.169,6 KB para 1,5 KB. O worker do MapLibre 6 vem de uma rota da extensão, e o do loaders.gl de um `blob:`, dentro
   da CSP padrão. O navegador dos testes roda na imagem do Playwright (D-047), e o deck.gl 9.4 ainda não desenha
   intercalado no MapLibre 6 (V-156 a V-159, resolve a P-01 e a P-03).
-- Próximo passo: `/implement-issue F01-15`, o MapLibre, o deck.gl e o Terra Draw no mesmo mapa (P-09).
+- F01-15 feita em 28/09/2026: o MapLibre fica no 6.11.2, escolha do mantenedor. O Terra Draw desenha nele pelo
+  adaptador, só com a API pública, e o deck.gl entra pelo `MapLibreOverlay` do `@deck.gl/maplibre`, intercalado no
+  mesmo canvas, abaixo dos nomes de ruas do OpenFreeMap. O círculo do Terra Draw fica numa esfera, 0,56% aquém do
+  raio no elipsoide em São Paulo, e o polígono volta no anti-horário. A prova fecha os diálogos da licença pelo cookie
+  que o botão de lembrar depois grava, sem pedido ao servidor (V-160 a V-162, resolve a P-09).
+- Próximo passo: `/implement-issue F01-16`, as medições e as metas de desempenho.
 
 ## Documentação
 

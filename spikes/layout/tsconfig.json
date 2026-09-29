@@ -2,6 +2,10 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"lib": ["es2024", "dom", "dom.iterable"],
+		// Rollup bundles the layout and the route, so their imports resolve as a bundler resolves them. The declarations
+		// of Terra Draw import their own files without the extension, which only this resolution finds (F01-15).
+		"module": "preserve",
+		"moduleResolution": "bundler",
 		// The route of the bundle runs in Node, beside the layout, which runs in the browser.
 		"types": ["node"],
 		"noEmit": true,

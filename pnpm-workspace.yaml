@@ -6,11 +6,12 @@ packages:
   - spikes/layout
 
 catalog:
-  # deck.gl draws on the same canvas as MapLibre (D-010), all its packages in one version.
+  # deck.gl draws on the same canvas as MapLibre (D-010), all its packages in one version. @deck.gl/maplibre is the one
+  # that draws on MapLibre 6 through its public API (F01-15).
   '@deck.gl/core': 9.4.0
   '@deck.gl/geo-layers': 9.4.0
   '@deck.gl/layers': 9.4.0
-  '@deck.gl/mapbox': 9.4.0
+  '@deck.gl/maplibre': 9.4.0
   '@commitlint/cli': 21.2.3
   '@commitlint/config-conventional': 21.2.3
   '@commitlint/lint': 21.2.3
@@ -58,6 +59,9 @@ catalog:
   # The browser of the tests, driven from the host, in the official image of the same version (F01-14).
   playwright-core: 1.62.1
   prettier: 3.9.9
+  # The drawing of the map (D-012), with the adapter for MapLibre, which uses only its public API (F01-15).
+  terra-draw: 1.35.0
+  terra-draw-maplibre-gl-adapter: 1.4.1
   testcontainers: 12.1.0
   typescript: npm:@typescript/typescript6@6.0.2
   typescript-eslint: 8.70.1
