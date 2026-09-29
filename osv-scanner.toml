@@ -1,5 +1,12 @@
 # Advisories the OSV-Scanner of the CI ignores, each one until a date. The auditConfig of pnpm-workspace.yaml ignores
 # the same ones in pnpm audit, without a date, so when a date here passes, the scan fails and both lists get reviewed.
 #
-# None is ignored today. The three advisories of unhead 1.11.20 left with the extensions SDK 18.0.5 of Directus, whose
-# themes pull unhead 3.4.1 (V-149).
+# image-size, through texture-compressor 1.0.2, which the textures of loaders.gl use to compress textures in Node,
+# and which asks for image-size ^0.7.4, with no release since 2019. The fix only exists in 2.0.3, and neither package
+# reaches a chunk of the bundle, so the ICNS parser this advisory loops never runs. The date falls after F01 closes,
+# when the spikes leave, and before deck.gl enters the extension, in F04 (F01-14).
+
+[[IgnoredVulns]]
+id = "GHSA-w3rx-r6r6-pgpr"
+ignoreUntil = 2026-10-31
+reason = "image-size 0.7.x, through texture-compressor 1.0.2, a tool of loaders.gl for Node, with no fix in its range and no code in the bundle."

@@ -104,6 +104,9 @@ overrides:
   # GHSA-6w3j-5fw6-r9vr and GHSA-gg4h-3hg2-grpc: the utils of Directus pin a version of joi open to prototype
   # pollution, fixed in the same line.
   'joi@>=18.0.0 <18.2.5': 18.2.9
+  # GHSA-px8p-9vwx-vf98: the compression of loaders.gl, through the 3D Tiles of the geo layers of deck.gl, pins a
+  # version of fflate that a malformed ZIP64 archive sends into an endless loop, fixed in the same line (F01-14).
+  'fflate@>=0.7.0 <0.7.5': 0.7.5
 
 # Dependencies that these packages use in their type declarations and do not declare. pnpm then resolves them from
 # its hidden hoisting folder, where typescript is the TypeScript 7 package, which has no API, and type-fest is missing.
@@ -127,6 +130,10 @@ pmOnFail: ignore
 engineStrict: true
 
 # Advisories that pnpm audit ignores, each one reviewed. osv-scanner.toml ignores the same ones until a date, and when
-# it passes, the OSV-Scanner of the CI fails and asks for the review of both lists. None is ignored today (V-149).
+# it passes, the OSV-Scanner of the CI fails and asks for the review of both lists.
 auditConfig:
-  ignoreGhsas: []
+  ignoreGhsas:
+    # image-size, through texture-compressor 1.0.2, which the textures of loaders.gl use to compress textures in Node,
+    # and which asks for image-size ^0.7.4, with no release since 2019. The fix only exists in 2.0.3, and neither
+    # package reaches a chunk of the bundle, so the ICNS parser these advisories loop never runs (F01-14).
+    - GHSA-w3rx-r6r6-pgpr
