@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 // The folder of the package a file inside node_modules belongs to, with its scope.
 /** @param {string} file */
@@ -31,9 +32,39 @@ const keepDynamicImports = {
 	}),
 };
 
+// MapLibre 6 starts its worker from a module beside its own, which imports a module it shares with the page. The API
+// serves only the chunks it bundles, so the build of the app copies both files next to the bundle, as MapLibre
+// publishes them, in a folder named after the version, and the route of the bundle serves them (F01-14).
+const maplibreWorker = {
+	name: 'maplibre-worker',
+	/**
+	 * @this {{ emitFile: (file: { type: 'asset', fileName: string, source: Buffer }) => string }}
+	 * @param {unknown} _
+	 * @param {Record<string, { type: string, isEntry?: boolean, fileName: string }>} bundle
+	 */
+	async generateBundle(_, bundle) {
+		if (!Object.values(bundle).some((file) => file.type === 'chunk' && file.isEntry && file.fileName === 'app.js')) {
+			return;
+		}
+
+		const dist = dirname(fileURLToPath(import.meta.resolve('maplibre-gl')));
+		/** @type {{ version: string }} */
+		const { version } = JSON.parse(await readFile(join(dist, '..', 'package.json'), 'utf8'));
+
+		for (const file of ['maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs']) {
+			this.emitFile({
+				type: 'asset',
+				fileName: `maplibre-gl/${version}/${file}`,
+				source: await readFile(join(dist, file)),
+			});
+		}
+	},
+};
+
 export default {
 	plugins: [
 		...(process.env.SPIKE_LAYOUT_INLINE === '1' ? [] : [keepDynamicImports]),
+		maplibreWorker,
 		{
 			// The browser field of a package swaps a file of Node for one of the browser, as loaders.gl does with worker_threads.
 			// The esbuild plugin of the SDK resolves every relative import to its file before the resolution of Node reads

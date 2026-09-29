@@ -59,8 +59,14 @@ const openStudio = async (browser: Browser): Promise<Session> => {
 	page.on('response', (response) => {
 		const { pathname } = new URL(response.url());
 
+		// A body the page stops reading when it closes is not a file it downloaded.
 		if (pathname.includes('/extensions/sources/')) {
-			session.pending.push(response.body().then((body) => session.sources.set(pathname, body)));
+			session.pending.push(
+				response.body().then(
+					(body) => session.sources.set(pathname, body),
+					() => undefined,
+				),
+			);
 		}
 	});
 	page.on('console', (message) => {
@@ -177,6 +183,10 @@ describe.runIf(versions().database.client === 'postgres')('o MapLibre só chega 
 			expect(maplibre).toHaveLength(1);
 			expect(maplibre[0]).toMatch(/^\/extensions\/sources\/.+\.js$/);
 			expect(deck).toEqual([]);
+			// The worker of MapLibre comes from the route of the bundle, in the version of its MapLibre.
+			expect(session.workers).toContainEqual(
+				expect.stringMatching(/\/geospatial-spikes-layout\/maplibre-gl\/\d+\.\d+\.\d+\/maplibre-gl-worker\.mjs$/),
+			);
 			expect(canvas?.width).toBeGreaterThan(0);
 			expect(canvas?.height).toBeGreaterThan(0);
 
@@ -188,7 +198,10 @@ describe.runIf(versions().database.client === 'postgres')('o MapLibre só chega 
 		}, 120_000);
 
 		it('o pedaço do deck.gl só chega quando a camada do deck.gl é ligada, e o worker do loaders.gl vem da extensão', async () => {
-			await session.page.locator('.geospatial-spike-deck').click();
+			// The Studio of a new project asks, in a dialog over the page, for the owner of the project and the terms of its
+			// license, which the proof leaves unanswered: answering sends them to Directus. The focus trap of the dialog stops
+			// every click outside it, so the proof turns the layer on by the event of its own that the layout listens to.
+			await session.page.locator('.geospatial-spike').dispatchEvent('geospatial-spike-deck');
 			await session.page.locator('[data-deck="loaded"]').waitFor({ timeout: 60_000 });
 
 			const { deck } = await settled(session);
@@ -210,8 +223,14 @@ describe.runIf(versions().database.client === 'postgres')('o MapLibre só chega 
 
 			expect(elsewhere).toEqual([]);
 			expect(session.violations).toEqual([]);
-			expect(session.errors).toEqual([]);
 			log(`${inject('combination')}: the workers of the page were ${session.workers.join(', ')}`);
+
+			// deck.gl 9.4 reads map.transform, which the Map of MapLibre 6 no longer has, and throws on each frame it draws in
+			// the canvas of MapLibre. That is the question of F01-15 (V-159), and any other error fails the proof.
+			const drawing = session.errors.filter((error) => error.includes("reading 'height'"));
+
+			expect(session.errors.filter((error) => !drawing.includes(error))).toEqual([]);
+			log(`${inject('combination')}: deck.gl threw ${String(drawing.length)} times drawing on MapLibre 6`);
 		});
 	});
 });

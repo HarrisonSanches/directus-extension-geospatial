@@ -759,3 +759,17 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - A correção de segurança esperando os 3 dias, como o resto: enquanto a vulnerabilidade existe, o `pnpm audit` da CI reprova todo pull request, e a versão corrigida quase sempre já passou dos 3 dias quando o alerta sai. Chegar na hora é também o padrão do Renovate e do Dependabot.
   - O Renovate por uma action no próprio repositório, com um token ou um app nosso: mais um segredo para guardar e mais um workflow para manter, sem ganho num repositório público.
 - **Consequências:** o Scorecard passa a reconhecer a ferramenta de atualização. Uma versão fixada fora dos gerenciadores do Renovate precisa de uma regra por regex ou de um comentário `# renovate:`, senão ela fica parada sem aviso. Uma minor ou major nova do Directus não se aplica como veio: ela ganha combinações na matriz. A entrada que o Renovate acrescenta no `minimumReleaseAgeExclude` vale só para aquela versão e pode sair quando ela passar dos 3 dias.
+
+## D-047 — O navegador dos testes roda num container, na imagem oficial do Playwright
+
+- **Estado:** aceita em 28/09/2026.
+- **Onde:** `docs/padroes/testes.md` (o ponta a ponta) · `spikes/browser.ts` · V-158.
+- **Contexto:** a F01-14 confere no Studio, por um navegador automatizado, o que a página baixa. A F04 vai precisar do mesmo para o ponta a ponta. O Chromium do Playwright, instalado na máquina, pede dependências do sistema, e o Playwright só as suporta no Debian e no Ubuntu.
+- **Decisão:**
+  - O navegador roda na imagem oficial do Playwright, `mcr.microsoft.com/playwright`, fixada pelo digest da tag da mesma versão do `playwright-core` do catálogo, e sobe pelo Testcontainers, como os bancos da suíte.
+  - O `run-server` sai do `playwright-core` do host, montado no container em `/playwright-core`, na rede do host. O Vitest conecta com o `chromium.connect`, e o navegador chega ao Directus pelo mesmo endereço dos testes.
+  - A escolha vale também para o ponta a ponta da F04.
+- **Alternativas descartadas:**
+  - O Chromium instalado na máquina: pede as dependências do sistema, que a máquina de cada um teria de ter, e fica de fora onde o Playwright não dá suporte.
+  - O Playwright inteiro dentro do container, com os testes lá: os testes deixariam de rodar no Vitest do host, ao lado da suíte.
+- **Consequências:** a primeira rodada baixa uns 2 GB. A versão do `playwright-core` e a da imagem andam juntas, e o Renovate precisa atualizar as duas no mesmo pull request. Sem placa de vídeo, o Chromium desenha o WebGL no processador, pelo SwiftShader.

@@ -54,10 +54,21 @@ export default defineComponent({
 			}
 		};
 
+		// The button turns deck.gl on, and so does an event of the proof, since the Studio of a new project opens a dialog
+		// whose focus trap stops every click outside it.
 		return () =>
-			h('div', { class: 'geospatial-spike', 'data-map': map.value, 'data-deck': deck.value }, [
-				h('button', { type: 'button', class: 'geospatial-spike-deck', onClick: turnOnDeck }, 'deck.gl'),
-				h('div', { ref: container, class: 'geospatial-spike-map', style: { height: '480px' } }),
-			]);
+			h(
+				'div',
+				{
+					class: 'geospatial-spike',
+					'data-map': map.value,
+					'data-deck': deck.value,
+					onGeospatialSpikeDeck: turnOnDeck,
+				},
+				[
+					h('button', { type: 'button', class: 'geospatial-spike-deck', onClick: turnOnDeck }, 'deck.gl'),
+					h('div', { ref: container, class: 'geospatial-spike-map', style: { height: '480px' } }),
+				],
+			);
 	},
 });
