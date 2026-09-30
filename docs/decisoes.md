@@ -84,7 +84,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-005 — Agrupamento no servidor por células de tela
 
 - **Estado:** aceita em 23/09/2026.
-- **Onde:** §7.1.
+- **Onde:** §7.1 · V-155.
 - **Contexto:** em zoom baixo, um tile pode ter centenas de milhares de pontos.
 - **Decisão:**
   - Uma grade de células medidas em pixels (por exemplo, 60 px), com a mesma regra em todos os tiles.
@@ -160,10 +160,10 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-010 — MapLibre com deck.gl intercalado, carregados sob demanda
 
 - **Estado:** aceita em 23/09/2026.
-- **Onde:** §7.1 (renderização) · V-07, V-08 · P-01, P-03.
+- **Onde:** §7.1 (renderização) · V-07, V-08, V-156, V-157, V-161 · P-01, P-03.
 - **Decisão:**
   - MapLibre na base.
-  - deck.gl no mesmo canvas, pelo `MapboxOverlay`, para playback, tempo real, 3D e agregações na placa de vídeo.
+  - deck.gl no mesmo canvas, pelo `MapLibreOverlay` do `@deck.gl/maplibre`, que usa só a API pública do MapLibre (V-161), para playback, tempo real, 3D e agregações na placa de vídeo.
   - As bibliotecas vêm com a extensão, independentes da versão usada pelo Studio.
   - Um build próprio mantém os imports dinâmicos, para as bibliotecas só serem baixadas quando o mapa abre.
 - **Alternativas descartadas:**
@@ -188,7 +188,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-012 — Terra Draw para desenho e GeographicLib para medições
 
 - **Estado:** aceita em 23/09/2026.
-- **Onde:** §7.3 (grupo 3), §7.4 · V-41, V-42 · P-09.
+- **Onde:** §7.3 (grupo 3), §7.4 · V-41, V-42, V-160.
 - **Decisão:**
   - Desenho com o Terra Draw: círculo geodésico, polígono, desenho livre, linha, retângulo, seleção e encaixe.
   - Medições no navegador e no Node com a GeographicLib, o mesmo cálculo do PostGIS.
@@ -351,7 +351,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-023 — "Dentro" quer dizer "toca", com as opções "inteiramente dentro" e "fora"
 
 - **Estado:** aceita em 23/09/2026.
-- **Onde:** §6, §7.4 (testes) · V-49, V-50, V-51 · P-12.
+- **Onde:** §6, §7.4 (testes) · V-49, V-50, V-51 · V-154.
 - **Contexto:** o desenho usava "itens dentro" com dois sentidos. A área desenhada tinha como referência o `ST_Within`, que exige o item inteiro dentro e deixa de fora o ponto na borda. O raio, o corredor e o entorno usam o `ST_DWithin`, que pega o item se qualquer parte dele estiver a até a distância. Em pontos, a diferença fica só na borda; em linhas e polígonos, uma rua que atravessa a área entra num sentido e fica de fora no outro.
 - **Decisão:**
   - Em toda operação que pega itens por área ou distância, "dentro" quer dizer "toca" por padrão: qualquer parte do item na área ou a até a distância, com a borda incluída (`ST_Intersects`, `ST_DWithin`).
@@ -362,7 +362,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Um sentido para cada operação: a mesma palavra mudaria de significado de uma operação para outra.
   - Todos os predicados do padrão OGC (cruza, sobrepõe, encosta, contém): demais para um painel de operação. "Toca", "inteiramente dentro" e "fora" cobrem o catálogo e os relatórios.
 - **Consequências:**
-  - O teste de paridade compara "toca" com o `_intersects` e "fora" com o `_nintersects` do Directus. No Oracle, isso depende da P-12.
+  - O teste de paridade compara "toca" com o `_intersects` e "fora" com o `_nintersects` do Directus. No Oracle, o `_intersects` não faz a mesma pergunta, e a paridade compara com o resultado calculado (V-154).
   - A opção escolhida faz parte da consulta registrada, então entra no id e na chave do cache.
 
 ## D-024 — Nomes públicos das operações: o termo canônico do glossário
@@ -759,3 +759,17 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - A correção de segurança esperando os 3 dias, como o resto: enquanto a vulnerabilidade existe, o `pnpm audit` da CI reprova todo pull request, e a versão corrigida quase sempre já passou dos 3 dias quando o alerta sai. Chegar na hora é também o padrão do Renovate e do Dependabot.
   - O Renovate por uma action no próprio repositório, com um token ou um app nosso: mais um segredo para guardar e mais um workflow para manter, sem ganho num repositório público.
 - **Consequências:** o Scorecard passa a reconhecer a ferramenta de atualização. Uma versão fixada fora dos gerenciadores do Renovate precisa de uma regra por regex ou de um comentário `# renovate:`, senão ela fica parada sem aviso. Uma minor ou major nova do Directus não se aplica como veio: ela ganha combinações na matriz. A entrada que o Renovate acrescenta no `minimumReleaseAgeExclude` vale só para aquela versão e pode sair quando ela passar dos 3 dias.
+
+## D-047 — O navegador dos testes roda num container, na imagem oficial do Playwright
+
+- **Estado:** aceita em 28/09/2026.
+- **Onde:** `docs/padroes/testes.md` (o ponta a ponta) · `spikes/browser.ts` · V-158.
+- **Contexto:** a F01-14 confere no Studio, por um navegador automatizado, o que a página baixa. A F04 vai precisar do mesmo para o ponta a ponta. O Chromium do Playwright, instalado na máquina, pede dependências do sistema, e o Playwright só as suporta no Debian e no Ubuntu.
+- **Decisão:**
+  - O navegador roda na imagem oficial do Playwright, `mcr.microsoft.com/playwright`, fixada pelo digest da tag da mesma versão do `playwright-core` do catálogo, e sobe pelo Testcontainers, como os bancos da suíte.
+  - O `run-server` sai do `playwright-core` do host, montado no container em `/playwright-core`, na rede do host. O Vitest conecta com o `chromium.connect`, e o navegador chega ao Directus pelo mesmo endereço dos testes.
+  - A escolha vale também para o ponta a ponta da F04.
+- **Alternativas descartadas:**
+  - O Chromium instalado na máquina: pede as dependências do sistema, que a máquina de cada um teria de ter, e fica de fora onde o Playwright não dá suporte.
+  - O Playwright inteiro dentro do container, com os testes lá: os testes deixariam de rodar no Vitest do host, ao lado da suíte.
+- **Consequências:** a primeira rodada baixa uns 2 GB. A versão do `playwright-core` e a da imagem andam juntas: o Renovate não atualiza o `playwright-core`, e os dois sobem à mão, no mesmo pull request, porque a imagem, fora do Docker Hub, não tem data, e chegaria antes do pacote, que espera os 3 dias (V-139). Sem placa de vídeo, o Chromium desenha o WebGL no processador, pelo SwiftShader.

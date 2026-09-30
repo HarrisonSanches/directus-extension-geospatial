@@ -66,8 +66,80 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - F00 concluída em 27/09/2026: o critério de saída foi conferido de novo, com o `pnpm check` num clone limpo, sem a
   chave, em 186 s, e o `pnpm dev` só em `127.0.0.1`. A CI leva uns 3 min por push, e o Scorecard está em 6,2. Os passos
   da F02 esperam o resultado das provas da F01, e o Scorecard fica como está até a F16 (A-019, A-022, no plano).
-- Próximo passo: `/to-issues F01`, as provas técnicas, depois da promoção do `develop` para o `main` com a tag
-  `f00-done`.
+- O `develop` foi para o `main` em 27/09/2026, no pull request #20, com a tag `f00-done`.
+- F01 quebrada em 16 issues em 27/09/2026, no repositório do plano. As provas ficam em `spikes/`, fora do pacote da
+  extensão, e rodam sob demanda pelo `pnpm spike`, fora da CI; a pasta sai no fechamento da fase.
+- F01-01 feita em 27/09/2026: a extensão de prova importa do `@directus/api` o Directus em execução, e não uma cópia.
+  O `ItemsService`, a conexão e o `getSchema` que ela importa são os do `context`, nas quatro combinações. O pacote
+  vem de `/directus/node_modules`, fica fora do bundle e se declara num `.d.ts` próprio, sem instalar (V-141).
+- F01-02 feita em 27/09/2026: a extensão de prova monta a query permitida da Maria pela cadeia do `ItemsService`, sem
+  executar, e a envolve num `ST_DWithin`, num SQL só, com os ids da GeographicLib no 11.17 e no 12. A cadeia é a
+  mesma nas duas versões, e montar a query custa uns 10 ms. A geometria sai como texto, dentro de um `CASE WHEN`, e
+  o envelope a lê assim, sem o índice (V-142, A-023, no plano). O builder do Knex roda se sair de uma função `async`.
+- F01-03 feita em 27/09/2026: o raio lê o `req.sanitizedQuery`, a mesma query do `/items`, e bate com ele no filtro e na
+  busca da página, no papel com duas políticas e no admin, e dá os mesmos erros ao público e ao campo sem permissão.
+  A geometria vai pelo nome, e o item que uma política deixa ver sem ela fica fora do raio: lendo a coluna, seis itens
+  do norte vazariam (V-143).
+- F01-04 feita em 27/09/2026: o raio emite o `items.query` como o `ItemsService`, sobre a query da página e antes da
+  cadeia, e o hook de outra extensão recebe dele o mesmo que recebe do `/items`. O `emitter` do `context` só leva
+  eventos entre extensões, e o emissor dos hooks vem do `@directus/api` (V-144).
+- F01-05 feita em 27/09/2026: o mesmo pedido da Maria gera o mesmo SQL e os mesmos valores em chamadas seguidas,
+  depois de reiniciar o Directus e em duas instâncias, no 11.17 e no 12. A regra vai nos valores, e o `$NOW` muda os
+  valores a cada pedido, o que a chave do cache reconhece pelas regras cruas das políticas (V-145, resolve a P-08).
+- F01-06 feita em 27/09/2026: a cadeia da prova fica num adaptador por versão, que importa os internos na hora e é
+  conferido antes de montar a query, pelo que existe e não pela versão. O do 11.17 no 12 e o contrário são recusados
+  com o `GEOSPATIAL_INTERNALS_UNSUPPORTED`, sem query no banco. A checagem vê o módulo, a função, a aridade e a forma
+  do retorno, e não vê os campos das opções nem o comportamento (V-146).
+- F01-07 feita em 28/09/2026: o raio no SQLite envolve a query permitida com o `PtDistWithin` da SpatiaLite, sobre o
+  elipsoide, num SQL só, e bate com a GeographicLib na Maria do 11.17 e no admin e no público do 12, no Core. O Directus
+  não cria os metadados espaciais, então não há índice nem `ST_Distance` em metros, e o `st_astext` da query permitida
+  tem 6 casas, o que limita o raio a uns 7,5 cm (V-147, A-026, no plano).
+- F01-08 feita em 28/09/2026: o `pnpm spike:dialects` sobe o Directus 11.17 sobre um banco de fora da suíte e derruba
+  tudo sozinho. No CockroachDB 25.4, o envelope do PostGIS serve sem mudança: a contagem e os ids da Maria batem com o
+  gabarito, também com o `LIMIT` da página dentro da subconsulta. Faltam o `ST_AsMVT` e os mais próximos sem um raio.
+  Os testes de ponta a ponta do Directus usam o 25.3, que parou em janeiro, e a V-28 foi corrigida (V-148, P-06 em parte).
+- F01-09 feita em 28/09/2026: no MySQL 9.7, o envelope do CockroachDB serve no plano, com o polígono também sem SRID,
+  porque o Directus grava a geometria com SRID 0 e um predicado entre SRIDs falha. No SRID 4326, o MySQL lê a latitude
+  primeiro. Com a coluna `NOT NULL SRID 0`, o índice espacial passa a valer e o Directus segue gravando, mas recusa o
+  item sem geometria (V-151, resolve a P-04).
+- F01-10 feita em 28/09/2026: no MariaDB 12.3, o envelope do MySQL serve sem mudança. O Directus o trata como MySQL,
+  pelo mesmo cliente, e a extensão vai reconhecê-lo pelo `version()`. Ele ignora o SRID e não troca os eixos, o índice
+  espacial vale só com o `NOT NULL`, e o `ST_Distance_Sphere` só mede entre pontos, na esfera (V-152, resolve a P-07).
+- F01-11 feita em 28/09/2026: no SQL Server 2025, o envelope serve com o `STIntersects`, no plano. O SQL Server recusa o
+  `ORDER BY` numa subconsulta sem `TOP`, e o Directus dá um a toda query, menos à de fora que monta num filtro por uma
+  relação a vários: dela o envelope tira a ordem, que não muda as linhas, como o EF Core faz. O `geography` mede no
+  elipsoide, como a GeographicLib, e o Directus não cria um campo `geometry.Point` sem `meta` no SQL Server (V-153).
+- F01-12 feita em 28/09/2026: no Oracle 23.26, o envelope compara no plano, com o `sdo_geom.relate` e o texto sem
+  SRID, porque o Oracle trata o SRID 4326 como geodésico, com as arestas pelas geodésicas. O `_intersects` do Directus
+  é o `sdo_overlapbdyintersect`, que responde sem índice (P-05) e deixa de fora o ponto dentro do polígono (P-12), então
+  a paridade no Oracle compara com o resultado calculado. As imagens slim dos testes do Directus não têm o Oracle
+  Spatial, e a prova roda na regular (V-154).
+- F01-13 feita em 28/09/2026: o tile da Maria sai de um `ST_AsMVT` só em volta da query permitida, com o agrupamento
+  por células de uma grade do mundo inteiro. O MapLibre desenha todo tile vetorial em 512 px, e a célula de 60 px vira
+  9 de 56,9 px, então nenhuma célula atravessa a borda, e nenhum grupo se repete no tile vizinho. O tile decodificado é
+  o mesmo no 11.17 e no 12, com o PostGIS 3.2 e o 3.6. Um ponto a menos de meia unidade da borda sul ou leste fica na
+  borda, onde o MapLibre não põe o rótulo (V-155).
+- F01-14 feita em 28/09/2026: um build que mantém os imports dinâmicos faz a API servir o MapLibre e o deck.gl em
+  pedaços próprios, baixados só quando o layout abre e quando a camada liga, e o arquivo inicial de extensões cai de
+  2.169,6 KB para 1,5 KB. O worker do MapLibre 6 vem de uma rota da extensão, e o do loaders.gl de um `blob:`, dentro
+  da CSP padrão. O navegador dos testes roda na imagem do Playwright (D-047), e o deck.gl 9.4 ainda não desenha
+  intercalado no MapLibre 6 (V-156 a V-159, resolve a P-01 e a P-03).
+- F01-15 feita em 28/09/2026: o MapLibre fica no 6.11.2, escolha do mantenedor. O Terra Draw desenha nele pelo
+  adaptador, só com a API pública, e o deck.gl entra pelo `MapLibreOverlay` do `@deck.gl/maplibre`, intercalado no
+  mesmo canvas, abaixo dos nomes de ruas do OpenFreeMap. O círculo do Terra Draw fica numa esfera, 0,56% aquém do
+  raio no elipsoide em São Paulo, e o polígono volta no anti-horário. A prova fecha os diálogos da licença pelo cookie
+  que o botão de lembrar depois grava, sem pedido ao servidor (V-160 a V-162, resolve a P-09).
+- F01-16 feita em 29/09/2026: com 1 milhão de pontos, o tile da Maria sai em 74 a 81 ms no p95 no z12 e em 17 a
+  18 ms no z16, com o pré-filtro pela caixa do tile e o índice GiST, e em 3 a 7 s no z4 e no z8, com ou sem ele, pela
+  query permitida inteira, o texto da geometria, a ordenação em disco e o JIT. Montar a query custa 5,5 ms. O Studio
+  baixa 1,3 KB de extensões ao iniciar, com gzip, que o Directus não faz. As metas, escolhidas pelo mantenedor, estão
+  na F03 e na F04: o tile em até 100 ms do z12 para cima e em até 1 s do z8 para baixo, o primeiro tile em até 0,5 s
+  depois de o layout montar, ou 3 s no perfil desktop, e o arquivo inicial em até 5 KB com gzip (V-163 a V-166).
+- F01 concluída em 30/09/2026: o critério de saída foi conferido de novo, com o `pnpm check`, o `pnpm spike` nas
+  quatro combinações e o `pnpm spike:dialects` nos cinco bancos. Nenhuma premissa das portas de mão única caiu. A
+  pasta `spikes/` sai do `develop` depois da tag `f01-done`, que a guarda para a F02 consultar, e os passos da F02
+  foram escritos com o resultado das provas (A-022, no plano).
+- Próximo passo: `/to-issues F02`, a quebra da query permitida e do motor.
 
 ## Documentação
 

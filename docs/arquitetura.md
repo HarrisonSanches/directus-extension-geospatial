@@ -196,7 +196,7 @@ Recebem itens ou formas e produzem só formas. Servem de entrada para outra oper
 
 #### Zoom baixo: agrupamento no servidor
 
-- Dentro de cada tile, o servidor divide o quadrado em células de tamanho fixo na tela (por exemplo, 60 × 60 px), e a mesma regra vale em todos os tiles.
+- Dentro de cada tile, o servidor divide o quadrado em células de tamanho fixo na tela (por exemplo, 60 × 60 px), e a mesma regra vale em todos os tiles. O tile de 512 px, o tamanho em que o MapLibre desenha todo tile vetorial, tem um número inteiro de células, o mais perto da largura pedida (60 px viram 9 células de 56,9 px), numa grade do mundo inteiro em cada zoom. Cada item cai numa célula só, pela parte inteira da sua posição nessa grade, então um grupo nunca se repete em dois tiles vizinhos (V-155).
 - Uma célula com um item manda o próprio item, que continua clicável. Uma célula com vários manda um grupo com a contagem, na posição média dos itens, junto com o retângulo que os envolve. Clicar no grupo aproxima o mapa até esse retângulo.
 - Não existe zoom mínimo fixo: a regra se ajusta à densidade. No mesmo zoom, o centro da cidade aparece em grupos e a zona rural, em itens soltos. É o comportamento do supercluster, só que no servidor e para qualquer volume.
 - Há dois estilos a partir dos mesmos tiles: círculos com o número ou mapa de calor, com o peso dado pela contagem.
@@ -245,10 +245,10 @@ Recebem itens ou formas e produzem só formas. Servem de entrada para outra oper
 #### Renderização
 
 - **MapLibre na base:** mapas de fundo, tiles vetoriais, estilos por dado, grupos, mapa de calor e destaque.
-- **deck.gl intercalado** no mesmo canvas, pelo `MapboxOverlay`: trajeto animado (`TripsLayer`), muitos objetos se movendo em tempo real, 3D e agregações na placa de vídeo. Os nomes de ruas continuam por cima dos dados.
+- **deck.gl intercalado** no mesmo canvas, pelo `MapLibreOverlay` do `@deck.gl/maplibre`: trajeto animado (`TripsLayer`), muitos objetos se movendo em tempo real, 3D e agregações na placa de vídeo. As camadas dele entram abaixo do primeiro rótulo do mapa de fundo, pelo `beforeId`, e os nomes de ruas continuam por cima dos dados (V-161).
 - **Leaflet e OpenLayers ficaram de fora.** O Leaflet não usa WebGL para desenhar dados, e o OpenLayers não traria ganho aqui e ficaria diferente do mapa nativo.
 - **A extensão traz as próprias bibliotecas.** Isso a deixa independente da versão do MapLibre que o Directus usa. O requisito é WebGL2, o mesmo do nativo.
-- **Carregamento sob demanda.** O Studio baixa um arquivo único com todas as extensões ao iniciar. Para não pesar para quem nunca abre um mapa, o MapLibre só é baixado quando um mapa abre, e o deck.gl só quando uma camada precisa dele. Isso exige um build próprio, porque o build padrão do SDK junta tudo num arquivo só. A viabilidade será confirmada num teste ([pendências em verificacoes.md](verificacoes.md#pendências)).
+- **Carregamento sob demanda.** O Studio baixa um arquivo único com todas as extensões ao iniciar. Para não pesar para quem nunca abre um mapa, o MapLibre só é baixado quando um mapa abre, e o deck.gl só quando uma camada precisa dele. Isso exige um build próprio, porque o build padrão do SDK junta tudo num arquivo só, e o build próprio mantém os imports dinâmicos, que a API serve como pedaços. Os workers vêm do próprio servidor: o do MapLibre por uma rota da extensão, e o do loaders.gl como texto, num `blob:`, dentro da CSP padrão (V-156, V-157).
 
 ### 7.2 Navegação item a item pelo teclado
 
@@ -620,11 +620,11 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 #### O que cada banco oferece hoje (fatos em [verificacoes.md](verificacoes.md); lacunas confirmadas nos testes)
 
 - **PostgreSQL + PostGIS:** tudo, pois é a referência.
-- **CockroachDB:** o Directus usa o mesmo helper do Postgres. Tem os tipos e boa parte das funções do PostGIS. As lacunas para o nosso catálogo, como `ST_AsMVT` e os mais próximos usando o índice, serão confirmadas.
-- **MySQL:** o Directus grava a geometria sem SRID, e a coluna fica sem o atributo SRID. Nessa situação, o otimizador ignora os índices espaciais, e o índice ainda exige `NOT NULL`. A correção a testar é marcar a coluna como `NOT NULL SRID 0` e criar o índice.
-- **MariaDB:** passa pelo mesmo helper do MySQL. O índice espacial exige `NOT NULL`. As distâncias são planas, e metros só com `ST_Distance_Sphere`.
-- **SQL Server:** a coluna é `geometry` (plano) com SRID 4326. Para medir em metros, os itens são convertidos para `geography` depois do filtro por caixa.
-- **Oracle:** a coluna é `sdo_geometry` com SRID 4326 (geodésico, em metros), e há busca de mais próximos com índice (`SDO_NN`). O filtro nativo do Directus usa um operador que provavelmente exige índice espacial; isso será confirmado.
+- **CockroachDB:** o Directus usa o mesmo helper do Postgres, e o envelope sobre a query permitida é o mesmo do PostGIS. Tem os tipos e boa parte das funções do PostGIS. Na 25.4, falta o `ST_AsMVT`, que chega na 26.2, e os mais próximos só usam o índice dentro de um raio, porque o `<->` não aceita geometria (V-148). As outras lacunas do nosso catálogo serão confirmadas.
+- **MySQL:** o Directus grava a geometria sem SRID, e a coluna fica sem o atributo SRID. Nessa situação, o otimizador ignora os índices espaciais, e o índice ainda exige `NOT NULL`. A correção é marcar a coluna como `NOT NULL SRID 0` e criar o índice: o Directus segue gravando e lendo a geometria, e passa a recusar o item sem ela (V-151). O envelope sobre a query permitida é o do PostGIS, no plano e sem SRID nos dois lados.
+- **MariaDB:** passa pelo mesmo helper e pelo mesmo cliente do MySQL, e o Directus não o distingue: a extensão o reconhece pelo `version()`. O envelope sobre a query permitida é o do MySQL, e o MariaDB ignora o SRID num predicado e não troca os eixos. O índice espacial exige `NOT NULL`, e com ele o otimizador o considera, sem o SRID que o MySQL pede. As distâncias são planas, e metros só com o `ST_Distance_Sphere`, na esfera e só entre pontos: com um multiponto dá nulo, e com linha ou polígono, erro (V-152).
+- **SQL Server:** a coluna é `geometry` (plano), de qualquer tipo, com os valores em SRID 4326, e o subtipo do campo fica só no `meta` dele. O envelope sobre a query permitida usa o `STIntersects` no plano. O SQL Server recusa o `ORDER BY` numa subconsulta sem `TOP`, e o Directus dá um `TOP` a toda query, menos à de fora que ele monta num filtro por uma relação a vários: dela o envelope tira a ordem, que não muda as linhas. Para medir em metros, os itens são convertidos para `geography` depois do filtro por caixa, e o `geography` mede no elipsoide, com o anel do polígono valendo pela orientação. O índice espacial exige a caixa limite (V-153).
+- **Oracle:** a coluna é `sdo_geometry` com SRID 4326, que o Oracle trata como geodésico: as arestas dos polígonos seguem as geodésicas, e as medidas saem em metros, no elipsoide. O envelope sobre a query permitida compara no plano, sem SRID, como o PostGIS. O `_intersects` do Directus usa a máscara `OVERLAPBDYINTERSECT`, que deixa de fora um ponto dentro do polígono, então a paridade compara com o resultado calculado. Os operadores respondem sem índice espacial, e o índice nasce sem os metadados, que ele mesmo registra. Com ele, o `SDO_NN` dá os mais próximos sem um limite de distância. As imagens slim, as que os testes do Directus usam, não têm o Oracle Spatial (V-154).
 - **SQLite:** só tem geometria se a SpatiaLite já estiver carregada, e o Directus não a carrega: quem monta o ambiente a carrega em cada conexão, como a imagem dos testes faz (V-121). Na prática, é banco de desenvolvimento e de testes.
 
 #### Como lidar com as diferenças
@@ -646,7 +646,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
    - Cada operação declarada na matriz tem um resultado esperado, com tolerância para distâncias.
    - Uma operação não declarada precisa devolver o erro de indisponível.
 2. **Paridade de permissão com o `/items`**, usando um papel restrito.
-   - Quando um filtro nativo faz a mesma pergunta (a operação por área com "toca" equivale ao `_intersects`, e com "fora", ao `_nintersects`), os IDs precisam ser idênticos. No Oracle, isso depende da P-12.
+   - Quando um filtro nativo faz a mesma pergunta (a operação por área com "toca" equivale ao `_intersects`, e com "fora", ao `_nintersects`), os IDs precisam ser idênticos. No Oracle, o `_intersects` não faz a mesma pergunta, e a paridade compara com o resultado calculado (V-154).
    - Quando não faz, como no raio, o teste calcula a resposta certa: busca os itens permitidos pelo `/items` e calcula com a GeographicLib.
 3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus, e o SQLite na imagem oficial do Directus com a SpatiaLite (V-121). Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5. O 12 com PostGIS roda com a chave do Open Innovation Grant, ativada sempre no mesmo projeto dos testes, e, sem ela, no tier Core. O 12 com SQLite fica sempre no Core, porque outro banco seria outro projeto e gastaria outra ativação (D-043, D-044).
 

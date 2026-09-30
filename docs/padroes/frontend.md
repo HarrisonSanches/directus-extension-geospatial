@@ -22,8 +22,14 @@
 
 ## O mapa
 
-- O MapLibre e o deck.gl são carregados sob demanda (D-010, P-01). O arquivo inicial de extensões leva só o
-  registro das superfícies, com um orçamento de peso medido na F01 e conferido na CI (`size-limit`).
+- O MapLibre e o deck.gl são carregados sob demanda (D-010, V-156). O arquivo inicial de extensões leva só o
+  registro das superfícies, com o orçamento de peso da F01-16, conferido na CI pelo `size-limit`, tudo com gzip: até
+  5 KB para o arquivo inicial, com o que ele importa ao iniciar, e até 300 KB para o pedaço do MapLibre, 300 KB para o
+  do deck.gl e 30 KB para o do Terra Draw (V-165).
+- Os workers vêm do próprio servidor, nunca de uma CDN: o do MapLibre pela rota da extensão, na versão dele, e o do
+  loaders.gl como texto, num `blob:` (V-156, V-157).
+- O deck.gl desenha no canvas do MapLibre pelo `MapLibreOverlay` do `@deck.gl/maplibre`, intercalado, abaixo do
+  primeiro rótulo do mapa de fundo, pelo `beforeId` (V-161).
 - Os dados chegam em tiles (D-004), nunca em páginas de GeoJSON acumuladas no mapa.
 - Todo pedido que pode ficar velho (tile, página, contagem) é cancelado quando deixa de importar.
 - O item atual e os selecionados vão para a camada de destaque, com a geometria que veio na lista.

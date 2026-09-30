@@ -1,0 +1,34 @@
+{
+	"name": "directus-extension-geospatial-spikes",
+	"version": "0.0.0",
+	"private": true,
+	"description": "The proofs of F01, which run inside Directus beside the extension and never ship.",
+	"license": "MIT",
+	"type": "module",
+	"directus:extension": {
+		"type": "bundle",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"entries": [
+			{
+				"type": "endpoint",
+				"name": "geospatial-spikes",
+				"source": "src/endpoint.ts"
+			}
+		],
+		"host": "^11.17.0 || ^12.4.0"
+	},
+	"scripts": {
+		"build": "directus-extension build --no-minify"
+	},
+	"devDependencies": {
+		"@directus/errors": "catalog:",
+		"@directus/extensions-sdk": "catalog:",
+		"@directus/types": "catalog:",
+		"@types/node": "catalog:node22",
+		"knex": "catalog:",
+		"pino": "catalog:"
+	}
+}

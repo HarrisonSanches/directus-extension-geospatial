@@ -20,6 +20,9 @@ export default defineConfig(
 			parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
 		},
 	},
+	// The extensions SDK reads its configuration only as JavaScript, which no tsconfig covers, so it is linted without
+	// the rules that need types.
+	{ files: ['**/*.js'], extends: [tseslint.configs.disableTypeChecked] },
 
 	// Imports in the order of the Directus repository: Node, packages, then project files, alphabetical within each
 	// group, and the names inside the braces sorted too.

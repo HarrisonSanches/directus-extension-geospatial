@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { chmod, mkdir } from 'node:fs/promises';
+import { chmod, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
@@ -7,15 +7,33 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { GenericContainer, Network, type StartedTestContainer, Wait } from 'testcontainers';
 import { type Combination, combinations } from './combinations.ts';
 import type { Client, DatabaseVersions } from './directus.ts';
-import { activateLicense, publicUrl } from './license.ts';
+import { activateLicense, hasProjectOfTests, publicUrl } from './license.ts';
 import { versionsOf as postgresVersionsOf } from './postgres.ts';
 import { directusWithSpatialite, versionsOf as sqliteVersionsOf } from './sqlite.ts';
 
-// Where Directus loads the extension from, and where Node writes the coverage of the Directus processes.
-const extensionInContainer = '/directus/extensions/directus-extension-geospatial';
+// Where Node writes the coverage of the Directus processes.
 const coverageInContainer = '/tmp/v8-coverage';
 
-const extension = new URL('../packages/extension/', import.meta.url);
+// The extension, which every Directus of the suite loads. A run can add other packages beside it, by their folder in
+// the repository, as the spikes of F01 do.
+export const extension = 'packages/extension';
+
+const repository = new URL('../', import.meta.url);
+
+// A copy of each built package, as an installation has it, in the folder of its name, where Directus loads it from.
+export const copiesOf = async (packages: readonly string[]) =>
+	Promise.all(
+		packages.map(async (folder) => {
+			const source = new URL(`${folder}/`, repository);
+			const { name } = JSON.parse(await readFile(new URL('package.json', source), 'utf8')) as { name: string };
+			const target = `/directus/extensions/${name}`;
+
+			return {
+				files: { source: fileURLToPath(new URL('package.json', source)), target: `${target}/package.json` },
+				directories: { source: fileURLToPath(new URL('dist', source)), target: `${target}/dist` },
+			};
+		}),
+	);
 
 export const newSecret = (): string => randomBytes(32).toString('hex');
 
@@ -36,6 +54,8 @@ interface Backend {
 	// Applies the key of the tests, which only goes to the PostGIS database, under the project the key is bound to. Any
 	// other database would be another project, and another activation of the key (D-043, D-044).
 	activate?: (admin: Client, key: string) => Promise<void>;
+	// Whether the database still has the project of the tests, after a restart of Directus or another one on it.
+	hasProjectOfTests?: () => Promise<boolean>;
 	stop: () => Promise<void>;
 }
 
@@ -63,6 +83,7 @@ const withPostgis = async (directus: string, image: string): Promise<Backend> =>
 		database,
 		versions: () => postgresVersionsOf(database),
 		activate: (admin, key) => activateLicense(admin, database, key),
+		hasProjectOfTests: () => hasProjectOfTests(database),
 		stop: async () => {
 			await database.stop();
 			await network.stop();
@@ -80,21 +101,28 @@ const withSqlite = async (combination: Combination): Promise<Backend> => {
 	return { directus, environment: {}, versions: sqliteVersionsOf, stop: () => Promise.resolve() };
 };
 
+// Where the suite reaches a Directus, by the port Docker mapped, which changes when the container restarts.
+export const urlOf = (directus: StartedTestContainer): string =>
+	`http://${directus.getHost()}:${String(directus.getMappedPort(8055))}`;
+
 export interface Environment {
 	directus: StartedTestContainer;
 	url: string;
 	admin: { email: string; password: string; token: string };
 	backend: Backend;
+	// Starts another Directus on the same database, with the same configuration, as an installation that scales.
+	another: () => Promise<StartedTestContainer>;
 	stop: () => Promise<void>;
 }
 
-// Starts the database and the Directus of one combination, with the built extension, under a name for the log. Node
-// writes the coverage of the Directus processes into a folder of that name in the root, which test/coverage.ts reads
-// when the run ends.
+// Starts the database and the Directus of one combination, with the built extension and any other package the run
+// adds, under a name for the log. Node writes the coverage of the Directus processes into a folder of that name in the
+// root, which test/coverage.ts reads when the run ends.
 export const startEnvironment = async (
 	combination: Combination,
 	root: string,
 	name: string = combination,
+	packages: readonly string[] = [extension],
 ): Promise<Environment> => {
 	const images = combinations[combination];
 
@@ -110,9 +138,9 @@ export const startEnvironment = async (
 	await chmod(coverage, 0o777);
 
 	const admin = { email: 'admin@example.com', password: newSecret(), token: newSecret() };
-	const startedAt = performance.now();
+	const copies = await copiesOf(packages);
 
-	const directus = await backend.directus
+	const container = backend.directus
 		.withEnvironment({
 			...backend.environment,
 			SECRET: newSecret(),
@@ -129,30 +157,45 @@ export const startEnvironment = async (
 			NODE_V8_COVERAGE: coverageInContainer,
 			PM2_KILL_TIMEOUT: '30000',
 		})
-		// A copy of the built package, as an installation has it. The coverage comes back through a mount.
-		.withCopyFilesToContainer([
-			{ source: fileURLToPath(new URL('package.json', extension)), target: `${extensionInContainer}/package.json` },
-		])
-		.withCopyDirectoriesToContainer([
-			{ source: fileURLToPath(new URL('dist', extension)), target: `${extensionInContainer}/dist` },
-		])
+		// The coverage comes back through a mount.
+		.withCopyFilesToContainer(copies.map(({ files }) => files))
+		.withCopyDirectoriesToContainer(copies.map(({ directories }) => directories))
 		.withBindMounts([{ source: coverage, target: coverageInContainer, mode: 'rw' }])
 		.withExposedPorts(8055)
 		// /server/health refuses a request without a session from Directus 12 on (V-110).
 		.withWaitStrategy(Wait.forHttp('/server/ping', 8055))
-		.withStartupTimeout(180_000)
-		.start();
+		.withStartupTimeout(180_000);
 
-	log(`${name}: Directus started in ${seconds(startedAt)} s`);
+	const instances: StartedTestContainer[] = [];
+
+	const start = async (label: string) => {
+		const startedAt = performance.now();
+		const instance = await container.start();
+
+		instances.push(instance);
+		log(`${label}: Directus started in ${seconds(startedAt)} s`);
+
+		return instance;
+	};
+
+	const directus = await start(name);
 
 	return {
 		directus,
-		url: `http://${directus.getHost()}:${String(directus.getMappedPort(8055))}`,
+		url: urlOf(directus),
 		admin,
 		backend,
+		another: () => {
+			// SQLite keeps its database inside the container of Directus, so another one would have another database.
+			if (backend.database === undefined) {
+				return Promise.reject(new Error('Only a database in a container of its own takes another Directus.'));
+			}
+
+			return start(`${name}, instance ${String(instances.length + 1)}`);
+		},
 		stop: async () => {
 			// Time for Directus to shut down and for Node to write the coverage. Without it, Docker kills the container at once.
-			await directus.stop({ timeout: 60_000 });
+			await Promise.all(instances.map((instance) => instance.stop({ timeout: 60_000 })));
 			await backend.stop();
 		},
 	};
