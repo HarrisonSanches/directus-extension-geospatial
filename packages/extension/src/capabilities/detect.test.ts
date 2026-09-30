@@ -1,3 +1,4 @@
+import knex from 'knex';
 import { describe, expect, it } from 'vitest';
 import sqliteWithSpatialite from '../../testdata/versions/debian-trixie-spatialite.json' with { type: 'json' };
 import directus11 from '../../testdata/versions/directus-11.17.4-sqlite.json' with { type: 'json' };
@@ -6,9 +7,33 @@ import postgis14 from '../../testdata/versions/postgis-14-3.5.json' with { type:
 import postgis18Alpine from '../../testdata/versions/postgis-18-3.6-alpine.json' with { type: 'json' };
 import postgis18 from '../../testdata/versions/postgis-18-3.6.json' with { type: 'json' };
 import postgres18 from '../../testdata/versions/postgres-18-alpine.json' with { type: 'json' };
-import { detectCapabilities } from './detect.js';
+import { knexClassOf } from '../db/client.js';
+import { databaseClientOf, detectCapabilities } from './detect.js';
 
 const versions = { apiVersion: '0.1.0', extensionVersion: '0.1.0', directusVersion: '12.4.1' };
+
+// Knex creates the client without a driver or a connection, so these are the real classes of Knex 3.1.0.
+describe('identificação do banco pelo Knex', () => {
+	it.each([
+		['pg', 'postgres'],
+		['cockroachdb', 'cockroachdb'],
+		['sqlite3', 'sqlite'],
+		['mysql2', 'mysql'],
+		['mssql', 'mssql'],
+		['oracledb', 'oracle'],
+		['redshift', 'redshift'],
+		['better-sqlite3', 'unknown'],
+	])('o cliente %s do Knex é o banco %s', async (client, expected) => {
+		const database = knex({ client, useNullAsDefault: true });
+
+		expect(databaseClientOf(knexClassOf(database))).toBe(expected);
+		await database.destroy();
+	});
+
+	it('um objeto sem cliente é um banco desconhecido', () => {
+		expect(databaseClientOf(knexClassOf({ client: undefined }))).toBe('unknown');
+	});
+});
 
 describe('detecção do ambiente', () => {
 	it.each([
