@@ -139,7 +139,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   quatro combinações e o `pnpm spike:dialects` nos cinco bancos. Nenhuma premissa das portas de mão única caiu. A
   pasta `spikes/` sai do `develop` depois da tag `f01-done`, que a guarda para a F02 consultar, e os passos da F02
   foram escritos com o resultado das provas (A-022, no plano).
-- Próximo passo: `/to-issues F02`, a quebra da query permitida e do motor.
+- F02 quebrada em 21 issues em 30/09/2026, no repositório do plano, com a A-015 resolvida: a paridade compara com a
+  resposta calculada em todo banco.
+- F02-01 feita em 30/09/2026: o lint garante a direção das camadas do motor, rotas → operações → adaptadores →
+  internos, também nos testes, e nada fora de `internals/` importa o `@directus/api`. O `no-restricted-imports` não vê
+  o `import()`, e o `no-restricted-paths` pula o que não resolve e parte do `process.cwd()`, então o `import()` e o
+  `typeof import()` vão pelo `no-restricted-syntax`, e as zonas pela raiz do repositório (V-167).
+- Próximo passo: `/implement-issue F02-02`, o contrato servido e as respostas conferidas contra ele.
 
 ## Documentação
 

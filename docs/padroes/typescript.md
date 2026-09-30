@@ -75,12 +75,19 @@ packages/extension/src/
   app/          layout, módulo, painel e as opções da operação de Flow
 ```
 
-É o ponto de partida; a F02 confirma.
+Confirmada na F02-01. O `endpoint.ts` e o `hook.ts` registram as superfícies no Directus, e o `errors.ts` e o
+contrato servem a todas as camadas.
 
-- **A dependência anda num sentido só:** rotas → operações → adaptadores → internos. Nada importa uma rota, e nada
-  fora de `internals/` importa o `@directus/api`. O lint garante as duas coisas: as zonas do `no-restricted-paths`
-  do `import-x` para a direção das camadas, com o `no-cycle` contra ciclos (V-68), e uma regra
-  `no-restricted-imports` para o `@directus/api`.
+- **A dependência anda num sentido só:** rotas → operações → adaptadores → internos. As operações e os outros
+  módulos do motor (`query/`, `capabilities/`, `tiles/`, `cache/`, `queue/`, `live/`, `reports/`) ficam na mesma
+  camada, acima de `db/`. Uma camada pode pular as de baixo, como a rota que lê um adaptador, e nunca importar as de
+  cima.
+- **O lint garante a direção,** também nos testes, que moram ao lado do código: as zonas do `no-restricted-paths` do
+  `import-x` (V-68), com o `no-cycle` contra ciclos. Nada importa uma rota, fora o `endpoint.ts`, que as registra.
+- **Nada fora de `internals/` importa o `@directus/api`,** em nenhum arquivo do repositório: o `no-restricted-imports`
+  recusa o import estático e a reexportação, e o `no-restricted-syntax`, o `import()` e o `typeof import()`, que o
+  primeiro não vê (V-167). O `eslint.config.test.ts` passa cada direção proibida e cada permitida pelas mesmas
+  regras.
 - **Uma operação é um módulo profundo:** a interface é pequena (entrada validada, partes do resultado, nível em
   cada banco), e a implementação rica fica atrás dela.
 - **Exportações nomeadas.** `export default` só onde o Directus exige, no registro das superfícies.
