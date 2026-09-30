@@ -1,5 +1,4 @@
 import { configDefaults, defineConfig } from 'vitest/config';
-import { selectDialects } from './spikes/dialects/dialects.ts';
 import { selectCombinations } from './test/combinations.ts';
 
 export default defineConfig({
@@ -19,35 +18,13 @@ export default defineConfig({
 		// option applies to the whole run, not to one project.
 		teardownTimeout: 120_000,
 		projects: [
-			{ test: { name: 'unit', exclude: [...configDefaults.exclude, 'test/**', 'spikes/**'] } },
+			{ test: { name: 'unit', exclude: [...configDefaults.exclude, 'test/**'] } },
 			// A project for each combination of the integration suite, and INTEGRATION picks some of them.
 			...selectCombinations(process.env.INTEGRATION).map((combination) => ({
 				test: {
 					name: `integration:${combination}`,
 					include: ['test/**/*.test.ts'],
 					provide: { combination },
-					testTimeout: 30_000,
-				},
-			})),
-			// The proofs of F01, in the same combinations, with their extensions loaded beside the extension. Only pnpm
-			// spike runs them, and they leave when the phase closes.
-			...selectCombinations(process.env.INTEGRATION).map((combination) => ({
-				test: {
-					name: `spike:${combination}`,
-					include: ['spikes/*.test.ts'],
-					provide: { combination, extensions: ['spikes/extension', 'spikes/hook', 'spikes/layout'] },
-					testTimeout: 30_000,
-				},
-			})),
-			// The proof of the envelope on each database outside the suite, on Directus 11.17, with a global setup of its
-			// own, which the one at the root leaves alone (F01-08). Only pnpm spike:dialects runs them, and DIALECTS picks
-			// some of them.
-			...selectDialects(process.env.DIALECTS).map((dialect) => ({
-				test: {
-					name: `spike-dialect:${dialect}`,
-					include: ['spikes/dialects/*.test.ts'],
-					globalSetup: ['spikes/dialects/setup.ts'],
-					provide: { dialect },
 					testTimeout: 30_000,
 				},
 			})),

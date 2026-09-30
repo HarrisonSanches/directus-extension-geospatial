@@ -27,8 +27,7 @@ declare module 'vitest' {
 	export interface ProvidedContext {
 		// The combination a project of the integration suite runs, set in vitest.config.ts.
 		combination: Combination;
-		// The packages a project loads into Directus beside the extension, by their folder in the repository, as the
-		// spikes of F01 do.
+		// The packages a project loads into Directus beside the extension, by their folder in the repository.
 		extensions: string[];
 		// The Directus of each combination the global setup started.
 		directus: Partial<Record<Combination, Directus>>;

@@ -71,7 +71,7 @@ const start = async (
 // Vitest runs the global setup of each project one after the other, so this one, at the root, runs once and starts at
 // the same time the combinations of every project of the run. Each project finds its own by name (test/directus.ts).
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
-	// A run with both the suite and the spikes has two projects for a combination, and starts it once.
+	// Two projects of a run can share a combination, which starts once.
 	const selected = [...new Set(project.vitest.projects.flatMap(({ config }) => config.provide.combination ?? []))];
 	const extensions = [...new Set(project.vitest.projects.flatMap(({ config }) => config.provide.extensions ?? []))];
 	const [first] = selected;
@@ -103,8 +103,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 		try {
 			await Promise.all(started.map(({ stop }) => stop()));
 
-			// A run with other packages, as the spikes, is not the suite, and its coverage would replace the one of the
-			// suite.
+			// A run with other packages is not the suite, and its coverage would replace the one of the suite.
 			if (extensions.length === 0) {
 				await openCoverage(coverage, combinations[first].directus.image);
 				await collectCoverage(coverage, new URL('../coverage/integration/coverage-final.json', import.meta.url));

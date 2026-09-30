@@ -15,13 +15,13 @@ import { directusWithSpatialite, versionsOf as sqliteVersionsOf } from './sqlite
 const coverageInContainer = '/tmp/v8-coverage';
 
 // The extension, which every Directus of the suite loads. A run can add other packages beside it, by their folder in
-// the repository, as the spikes of F01 do.
+// the repository.
 export const extension = 'packages/extension';
 
 const repository = new URL('../', import.meta.url);
 
 // A copy of each built package, as an installation has it, in the folder of its name, where Directus loads it from.
-export const copiesOf = async (packages: readonly string[]) =>
+const copiesOf = async (packages: readonly string[]) =>
 	Promise.all(
 		packages.map(async (folder) => {
 			const source = new URL(`${folder}/`, repository);
@@ -102,7 +102,7 @@ const withSqlite = async (combination: Combination): Promise<Backend> => {
 };
 
 // Where the suite reaches a Directus, by the port Docker mapped, which changes when the container restarts.
-export const urlOf = (directus: StartedTestContainer): string =>
+const urlOf = (directus: StartedTestContainer): string =>
 	`http://${directus.getHost()}:${String(directus.getMappedPort(8055))}`;
 
 export interface Environment {
