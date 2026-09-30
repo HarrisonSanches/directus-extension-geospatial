@@ -390,6 +390,10 @@ describe.runIf(versions().database.client === 'postgres')('o raio sobre a query 
 			expect(open.length).toBeLessThan(permitted.length);
 		});
 
+		// The other files of the project read their collections at the same time, and the hook records every query. The
+		// calls of these tests are the ones of the collection that only this file reads.
+		const ofHooked = (calls: Call[]) => calls.filter(({ collection }) => collection === hooked);
+
 		it('o hook recebe do raio a mesma query e o mesmo contexto que recebe do /items', async () => {
 			const page = { fields: ['*'], filter: { category: { _eq: 'theft' } }, search: 'open' };
 			const [maria] = await as('admin').request(
@@ -398,11 +402,11 @@ describe.runIf(versions().database.client === 'postgres')('o raio sobre a query 
 
 			await takeCalls();
 			await itemsOf(as('maria'), hooked, page);
-			const items = await takeCalls();
+			const items = ofHooked(await takeCalls());
 
 			await radius(as('maria'), page, hooked);
 
-			expect(await takeCalls()).toEqual(items);
+			expect(ofHooked(await takeCalls())).toEqual(items);
 			expect(items).toMatchObject([
 				{
 					event: 'items.query',
@@ -415,11 +419,18 @@ describe.runIf(versions().database.client === 'postgres')('o raio sobre a query 
 		});
 
 		it('o hook age só na coleção dele: o raio das ocorrências passa por ele e sai como antes', async () => {
+			// The other files also read the occurrences. A filter that leaves every occurrence in marks the calls of this
+			// radius among theirs.
+			const page = { filter: { category: { _neq: newSecret() } } };
+
 			await takeCalls();
-			const { ids } = await radius(as('maria'));
-			const calls = await takeCalls();
+			const { ids } = await radius(as('maria'), page);
+			const calls = (await takeCalls()).filter(
+				({ query }) => JSON.stringify(query.filter) === JSON.stringify(page.filter),
+			);
 
 			expect(calls).toMatchObject([{ event: 'items.query', collection: 'occurrences' }]);
+			expect(ids).toEqual(await expectedFor(as('maria'), page));
 			expect(ids).toEqual(await expectedFor(as('maria')));
 		});
 	});
