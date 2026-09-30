@@ -135,7 +135,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   baixa 1,3 KB de extensões ao iniciar, com gzip, que o Directus não faz. As metas, escolhidas pelo mantenedor, estão
   na F03 e na F04: o tile em até 100 ms do z12 para cima e em até 1 s do z8 para baixo, o primeiro tile em até 0,5 s
   depois de o layout montar, ou 3 s no perfil desktop, e o arquivo inicial em até 5 KB com gzip (V-163 a V-166).
-- Próximo passo: `/fechar-fase F01`, o fechamento da fase de provas.
+- F01 concluída em 30/09/2026: o critério de saída foi conferido de novo, com o `pnpm check`, o `pnpm spike` nas
+  quatro combinações e o `pnpm spike:dialects` nos cinco bancos. Nenhuma premissa das portas de mão única caiu. A
+  pasta `spikes/` sai do `develop` depois da tag `f01-done`, que a guarda para a F02 consultar, e os passos da F02
+  foram escritos com o resultado das provas (A-022, no plano).
+- Próximo passo: `/to-issues F02`, a quebra da query permitida e do motor.
 
 ## Documentação
 
