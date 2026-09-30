@@ -26,9 +26,9 @@ permissions.
 ---
 
 > [!NOTE]
-> **Status: in development.** The foundation is in place, and no spatial operation works yet.
-> Nothing is published on npm or the Directus Marketplace. This page describes what the extension
-> will do.
+> **Status: in development.** The foundation and the technical proofs are in place, and no spatial
+> operation works yet. Nothing is published on npm or the Directus Marketplace. This page describes
+> what the extension will do.
 
 ## Why it exists
 
@@ -160,6 +160,8 @@ Full detail, with the reasoning behind each choice, in [`docs/arquitetura.md`](d
 - [x] Implementation plan, in phases
 - [x] Foundation: the bundle answers on `/geospatial/capabilities`, and every pull request runs the integration
       suite on Directus 11.17 and 12, with PostGIS and with SQLite
+- [x] Technical proofs on Directus 11.17 and 12: the permitted query wrapped in spatial SQL on seven databases, a
+      vector tile around it, and MapLibre, deck.gl and Terra Draw loading only when a map opens
 - [ ] Permitted queries, database adapters, tiles and the capability matrix
 - [ ] Studio surfaces, operations, time and movement
 - [ ] Evidence reports, starting with the geofence template
