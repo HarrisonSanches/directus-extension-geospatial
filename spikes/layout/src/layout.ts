@@ -3,6 +3,7 @@ import type { GeoJSONStoreFeatures } from 'terra-draw';
 import { defineComponent, h, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { Tool } from './draw.js';
 import type { Layers } from './map.js';
+import { marks } from './view.js';
 
 type State = 'off' | 'loading' | 'loaded' | 'failed';
 
@@ -39,6 +40,8 @@ export default defineComponent({
 		let drawing: { use: (tool: Tool) => void; stop: () => void } | undefined;
 
 		onMounted(async () => {
+			performance.mark(marks.mount);
+
 			try {
 				const { mountMap } = await import('./map.js');
 

@@ -129,7 +129,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   mesmo canvas, abaixo dos nomes de ruas do OpenFreeMap. O círculo do Terra Draw fica numa esfera, 0,56% aquém do
   raio no elipsoide em São Paulo, e o polígono volta no anti-horário. A prova fecha os diálogos da licença pelo cookie
   que o botão de lembrar depois grava, sem pedido ao servidor (V-160 a V-162, resolve a P-09).
-- Próximo passo: `/implement-issue F01-16`, as medições e as metas de desempenho.
+- F01-16 feita em 29/09/2026: com 1 milhão de pontos, o tile da Maria sai em 74 a 81 ms no p95 no z12 e em 17 a
+  18 ms no z16, com o pré-filtro pela caixa do tile e o índice GiST, e em 3 a 7 s no z4 e no z8, com ou sem ele, pela
+  query permitida inteira, o texto da geometria, a ordenação em disco e o JIT. Montar a query custa 5,5 ms. O Studio
+  baixa 1,3 KB de extensões ao iniciar, com gzip, que o Directus não faz. As metas, escolhidas pelo mantenedor, estão
+  na F03 e na F04: o tile em até 100 ms do z12 para cima e em até 1 s do z8 para baixo, o primeiro tile em até 0,5 s
+  depois de o layout montar, ou 3 s no perfil desktop, e o arquivo inicial em até 5 KB com gzip (V-163 a V-166).
+- Próximo passo: `/fechar-fase F01`, o fechamento da fase de provas.
 
 ## Documentação
 
