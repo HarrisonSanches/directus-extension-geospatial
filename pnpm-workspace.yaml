@@ -111,6 +111,11 @@ overrides:
   # GHSA-px8p-9vwx-vf98: the compression of loaders.gl, through the 3D Tiles of the geo layers of deck.gl, pins a
   # version of fflate that a malformed ZIP64 archive sends into an endless loop, fixed in the same line (F01-14).
   'fflate@>=0.7.0 <0.7.5': 0.7.5
+  # GHSA-3pq3-5fj3-cg6v, GHSA-44g4-m2mj-wpvx, GHSA-4hqw-qxg8-jxx2, GHSA-542g-h47m-68v8, GHSA-9fr6-4gfg-395g,
+  # GHSA-c29m-xwm3-cm6r, GHSA-j8rh-479h-cp32, GHSA-m8m8-qj5v-23w3, GHSA-mghh-pgcx-3jjj, GHSA-r4gj-5m52-g5wh,
+  # GHSA-vh66-26gq-q6x8 and GHSA-x97p-jq2g-jp4f: the composables of the extensions SDK pin a version of axios these
+  # advisories reach, fixed in the same line. The SDK is shared with the Studio, so axios never reaches the bundle.
+  'axios@>=1.0.0 <1.20.0': 1.20.0
 
 # Dependencies that these packages use in their type declarations and do not declare. pnpm then resolves them from
 # its hidden hoisting folder, where typescript is the TypeScript 7 package, which has no API, and type-fest is missing.
