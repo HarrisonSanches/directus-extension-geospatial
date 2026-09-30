@@ -763,7 +763,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-047 — O navegador dos testes roda num container, na imagem oficial do Playwright
 
 - **Estado:** aceita em 28/09/2026.
-- **Onde:** `docs/padroes/testes.md` (o ponta a ponta) · `spikes/browser.ts` · V-158.
+- **Onde:** `docs/padroes/testes.md` (o ponta a ponta) · `spikes/browser.ts` na tag `f01-done`, até a F04 trazê-lo para `test/` · V-158.
 - **Contexto:** a F01-14 confere no Studio, por um navegador automatizado, o que a página baixa. A F04 vai precisar do mesmo para o ponta a ponta. O Chromium do Playwright, instalado na máquina, pede dependências do sistema, e o Playwright só as suporta no Debian e no Ubuntu.
 - **Decisão:**
   - O navegador roda na imagem oficial do Playwright, `mcr.microsoft.com/playwright`, fixada pelo digest da tag da mesma versão do `playwright-core` do catálogo, e sobe pelo Testcontainers, como os bancos da suíte.
