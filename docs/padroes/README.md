@@ -24,7 +24,7 @@ que o mantenedor guarda num repositório privado.
 
 1. **Teste é parte da entrega, não etapa depois dela.** Código sem teste não está pronto.
 2. **A regra de ouro também no código** (D-001). Nenhum dado sai sem passar pela query permitida, e só o módulo
-   dos internos importa o `@directus/api`, o que uma regra de lint garante.
+   dos internos importa o `@directus/api`, o que o lint garante.
 3. **A fonte da verdade fica no formato nativo:** o OpenAPI para a API (D-016), a matriz de capacidades declarada
    num lugar só por operação (D-002) e as coleções da extensão criadas pelos serviços do Directus (D-015). O
    resto é gerado ou conferido a partir deles.
