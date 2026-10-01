@@ -100,6 +100,41 @@ components:
           type: object
           additionalProperties:
             $ref: '#/components/schemas/OperationCapability'
+        internals:
+          $ref: '#/components/schemas/Internals'
+    Internals:
+      description: >-
+        Only for admins. Whether the internals of the running Directus, which the operations build the permitted query
+        with, are the ones an adapter of the extension expects, as the check found them when the extension started.
+        When no adapter passes, the operations are off.
+      oneOf:
+        - $ref: '#/components/schemas/InternalsAccepted'
+        - $ref: '#/components/schemas/InternalsRefused'
+    InternalsAccepted:
+      type: object
+      required: [status, adapter]
+      properties:
+        status:
+          type: string
+          const: accepted
+        adapter:
+          description: The adapter that the running Directus passed, named after the Directus version it was written for.
+          type: string
+          enum: ['11.17', '12']
+    InternalsRefused:
+      type: object
+      required: [status, problems]
+      properties:
+        status:
+          type: string
+          const: refused
+        problems:
+          description: What the running Directus lacks, or has besides, of what each adapter expects, by adapter.
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
     OpenApiDocument:
       description: An OpenAPI 3.1 document, as the OpenAPI Specification describes it.
       type: object

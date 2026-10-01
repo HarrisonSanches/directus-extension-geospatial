@@ -19,6 +19,30 @@ export type Capabilities = {
 	operations: {
 		[key: string]: OperationCapability;
 	};
+	internals?: Internals;
+};
+
+/**
+ * Only for admins. Whether the internals of the running Directus, which the operations build the permitted query with, are the ones an adapter of the extension expects, as the check found them when the extension started. When no adapter passes, the operations are off.
+ */
+export type Internals = InternalsAccepted | InternalsRefused;
+
+export type InternalsAccepted = {
+	status: 'accepted';
+	/**
+	 * The adapter that the running Directus passed, named after the Directus version it was written for.
+	 */
+	adapter: '11.17' | '12';
+};
+
+export type InternalsRefused = {
+	status: 'refused';
+	/**
+	 * What the running Directus lacks, or has besides, of what each adapter expects, by adapter.
+	 */
+	problems: {
+		[key: string]: Array<string>;
+	};
 };
 
 /**

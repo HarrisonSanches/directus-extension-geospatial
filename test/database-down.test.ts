@@ -71,7 +71,7 @@ describe.runIf(combinations[combination].database.client === 'postgres')('o capa
 		checkedFetch(`${started().url}/geospatial/capabilities`, { headers: { Authorization: `Bearer ${session}` } });
 
 	beforeAll(async () => {
-		environment = await startEnvironment(combination, inject('coverage'), `${combination}-database-down`);
+		environment = await startEnvironment(combination, inject('coverage'), { name: `${combination}-database-down` });
 
 		// Directus looks a static token up in the database before any route, so with the database down it answers with
 		// an error of its own (V-124). A session token only needs the roles and the access Directus keeps in memory,

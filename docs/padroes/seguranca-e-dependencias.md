@@ -27,8 +27,10 @@ confiança se constrói no repositório.
 - **O build gera o aviso de licenças de terceiros,** junto do `dist`, como as licenças MIT e BSD exigem de quem
   redistribui.
 - **Nenhum código do `@directus/api` dentro do pacote.** O núcleo do Directus tem licença própria, a MSCL-1.0-GPL,
-  diferente da MIT dos pacotes de apoio (V-60). A extensão usa os internos do Directus que já está rodando, e uma
-  conferência na CI garante que o build os deixou de fora.
+  diferente da MIT dos pacotes de apoio (V-60). A extensão usa os internos do Directus que já está rodando: o
+  `extension.config.js` mantém cada import dele como import, mesmo com o pacote instalado, e um teste da integração
+  (`test/bundle.test.ts`) confere no bundle que os imports continuam lá e, pelo mapa do código, que nenhum arquivo do
+  pacote entrou.
 - **Cadeia de suprimentos:**
   - lockfile versionado, e instalação com o lockfile congelado na CI;
   - scripts de instalação das dependências desligados, com cada exceção decidida no `allowBuilds`; a instalação

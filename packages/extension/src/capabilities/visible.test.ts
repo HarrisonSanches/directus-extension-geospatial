@@ -9,15 +9,16 @@ const capabilities = detectCapabilities({
 	directusVersion: '12.4.1',
 	client: 'postgres',
 	...postgis18,
+	internals: { status: 'accepted', adapter: '12' },
 });
 
 describe('quem vê o capabilities', () => {
-	it('o admin vê tudo, com o banco e a extensão espacial', () => {
+	it('o admin vê tudo, com o banco, a extensão espacial e os internos', () => {
 		expect(viewerOf({ user: 'admin-id', admin: true })).toBe('admin');
 		expect(visibleTo(capabilities, 'admin')).toEqual(capabilities);
 	});
 
-	it('o usuário logado vê a matriz e as versões, sem o banco e sem a extensão espacial', () => {
+	it('o usuário logado vê a matriz e as versões, sem o banco, a extensão espacial e os internos', () => {
 		expect(viewerOf({ user: 'maria-id', admin: false })).toBe('user');
 		expect(visibleTo(capabilities, 'user')).toEqual({
 			api: capabilities.api,

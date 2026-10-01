@@ -1,4 +1,4 @@
-import type { Capabilities, Database, Spatial } from 'directus-geospatial-contract';
+import type { Capabilities, Database, Internals, Spatial } from 'directus-geospatial-contract';
 
 type DatabaseClient = Database['client'];
 
@@ -10,6 +10,8 @@ export interface EnvironmentReport {
 	directusVersion: string;
 	extensionVersion: string;
 	apiVersion: string;
+	// What the check of the internals found when the extension started.
+	internals: Internals;
 }
 
 // "18.6 (Debian 18.6-1.pgdg13+2)" and "18.6" both read as 18.6.
@@ -47,4 +49,5 @@ export const detectCapabilities = (report: EnvironmentReport): Capabilities => (
 	database: { client: report.client, version: majorMinor(report.databaseVersion) },
 	spatial: spatialOf(report),
 	operations: {},
+	internals: report.internals,
 });

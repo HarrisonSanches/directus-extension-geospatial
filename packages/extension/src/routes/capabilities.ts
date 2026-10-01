@@ -1,6 +1,6 @@
 import { InternalServerError } from '@directus/errors';
 import type { Accountability, ApiExtensionContext } from '@directus/types';
-import { apiVersion, type Capabilities } from 'directus-geospatial-contract';
+import { apiVersion, type Capabilities, type Internals } from 'directus-geospatial-contract';
 import packageJson from '../../package.json' with { type: 'json' };
 import { databaseClientOf, detectCapabilities } from '../capabilities/detect.js';
 import { viewerOf, visibleTo } from '../capabilities/visible.js';
@@ -37,6 +37,7 @@ const directusVersionOf = async (context: ApiExtensionContext, accountability: A
 export const readCapabilities = async (
 	context: ApiExtensionContext,
 	accountability: Accountability | undefined,
+	internals: () => Promise<Internals>,
 ): Promise<Capabilities | 'forbidden'> => {
 	const viewer = viewerOf(accountability);
 
@@ -46,9 +47,15 @@ export const readCapabilities = async (
 
 	const client = databaseClientOf(knexClassOf(context.database));
 
-	// Both read the database: the versions, and Directus its settings.
-	const [versions, directusVersion] = await failClosed(
-		() => Promise.all([readVersions(client, queryOf(context.database)), directusVersionOf(context, accountability)]),
+	// Each one reads the database: the versions, Directus its settings, and the check of the internals the schema, once
+	// for the process.
+	const [versions, directusVersion, checked] = await failClosed(
+		() =>
+			Promise.all([
+				readVersions(client, queryOf(context.database)),
+				directusVersionOf(context, accountability),
+				internals(),
+			]),
 		context.logger.child({ extension: 'geospatial' }),
 	);
 
@@ -58,6 +65,7 @@ export const readCapabilities = async (
 		directusVersion,
 		extensionVersion: packageJson.version,
 		apiVersion,
+		internals: checked,
 	});
 
 	return visibleTo(capabilities, viewer);

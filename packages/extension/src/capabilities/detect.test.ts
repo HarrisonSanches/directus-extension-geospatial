@@ -1,3 +1,4 @@
+import type { Internals } from 'directus-geospatial-contract';
 import knex from 'knex';
 import { describe, expect, it } from 'vitest';
 import sqliteWithSpatialite from '../../testdata/versions/debian-trixie-spatialite.json' with { type: 'json' };
@@ -10,7 +11,12 @@ import postgres18 from '../../testdata/versions/postgres-18-alpine.json' with { 
 import { knexClassOf } from '../db/client.js';
 import { databaseClientOf, detectCapabilities } from './detect.js';
 
-const versions = { apiVersion: '0.1.0', extensionVersion: '0.1.0', directusVersion: '12.4.1' };
+const versions = {
+	apiVersion: '0.1.0',
+	extensionVersion: '0.1.0',
+	directusVersion: '12.4.1',
+	internals: { status: 'accepted', adapter: '12' },
+} as const;
 
 // Knex creates the client without a driver or a connection, so these are the real classes of Knex 3.1.0.
 describe('identificação do banco pelo Knex', () => {
@@ -85,14 +91,19 @@ describe('detecção do ambiente', () => {
 	);
 });
 
-describe('versões e matriz', () => {
-	it('a matriz sai vazia, e as versões da API, da extensão e do Directus saem como vieram', () => {
+describe('versões, matriz e internos', () => {
+	it('a matriz sai vazia, e as versões e os internos saem como vieram', () => {
+		const internals: Internals = {
+			status: 'refused',
+			problems: { '12': ['@directus/api/database/run-ast/lib/get-db-query has no function getDBQuery'] },
+		};
 		const capabilities = detectCapabilities({
 			apiVersion: '0.2.0',
 			extensionVersion: '0.3.1',
 			directusVersion: '11.17.4',
 			client: 'postgres',
 			...postgis18,
+			internals,
 		});
 
 		expect(capabilities).toMatchObject({
@@ -100,6 +111,7 @@ describe('versões e matriz', () => {
 			extension: { version: '0.3.1' },
 			directus: { version: '11.17.4' },
 			operations: {},
+			internals,
 		});
 	});
 });

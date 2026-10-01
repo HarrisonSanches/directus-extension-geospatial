@@ -44,7 +44,8 @@
 ## Compatibilidade
 
 - A versão da API sai em `/geospatial/capabilities`: é o `info.version` do documento, que um teste mantém igual à
-  constante `apiVersion` do contrato. A rota recusa o pedido sem sessão, e só o admin vê o banco (D-042).
+  constante `apiVersion` do contrato. A rota recusa o pedido sem sessão, e só o admin vê o banco e o resultado da
+  checagem dos internos (D-042).
 - Mudança que quebra cliente só em versão major, com o aviso de descontinuação publicado antes, numa minor.
 - Acrescentar um campo na resposta não quebra; tirar um campo, ou mudar o sentido dele, quebra.
 

@@ -149,7 +149,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   serve o dele, a quem tem sessão, do JSON que o `generate` escreve a partir do YAML e o build embute. O Redocly CLI,
   no `recommended-strict` e sem a telemetria dele, passa no `pnpm lint` e na CI, e a suíte confere cada resposta da
   extensão contra o documento, pelo Ajv: a rota, o status, o tipo e o schema (V-168, V-169).
-- Próximo passo: `/implement-issue F02-03`, os internos do Directus em execução, conferidos ao subir.
+- F02-03 feita em 30/09/2026: a pasta `internals/` é a única que importa o `@directus/api`, declarado num `.d.ts` e
+  importado na hora, módulo a módulo, e um adaptador para o 11.17 e outro para o 12 montam a cadeia até o `getDBQuery`.
+  Ao subir, a checagem confere o módulo, a função, a aridade e a forma de cada passo, sobre a `directus_collections`, e
+  o resultado sai no log e no `capabilities` do admin. O próprio Directus importa cada módulo da cadeia, então o ensaio
+  move um deles para outro arquivo, em vez de apagá-lo, e a suíte confere pelo mapa do código que nenhum arquivo do
+  `@directus/api` entrou no bundle (V-170, A-039, no plano).
+- Próximo passo: `/implement-issue F02-04`, o raio da Maria no estilo do `/items`, no PostGIS.
 
 ## Documentação
 
