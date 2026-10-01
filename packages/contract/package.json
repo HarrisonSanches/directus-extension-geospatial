@@ -3,13 +3,15 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		".": "./src/index.ts"
+		".": "./src/index.ts",
+		"./responses": "./src/responses.ts"
 	},
 	"scripts": {
-		"generate": "openapi-ts"
+		"generate": "openapi-ts && node document.ts"
 	},
 	"devDependencies": {
 		"@hey-api/openapi-ts": "catalog:",
+		"ajv": "catalog:",
 		"prettier": "catalog:",
 		"yaml": "catalog:"
 	}

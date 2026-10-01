@@ -39,6 +39,9 @@ catalogs:
     '@hey-api/openapi-ts':
       specifier: 0.99.0
       version: 0.99.0
+    '@redocly/cli':
+      specifier: 2.54.3
+      version: 2.54.3
     '@testcontainers/postgresql':
       specifier: 12.1.0
       version: 12.1.0
@@ -57,6 +60,9 @@ catalogs:
     '@vitest/istanbul-lib-report':
       specifier: 1.0.1
       version: 1.0.1
+    ajv:
+      specifier: 8.20.0
+      version: 8.20.0
     ast-v8-to-istanbul:
       specifier: 1.0.7
       version: 1.0.7
@@ -143,6 +149,9 @@ importers:
       '@eslint/js':
         specifier: 'catalog:'
         version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+      '@redocly/cli':
+        specifier: 'catalog:'
+        version: 2.54.3
       '@testcontainers/postgresql':
         specifier: 'catalog:'
         version: 12.1.0
@@ -209,6 +218,9 @@ importers:
       '@hey-api/openapi-ts':
         specifier: 'catalog:'
         version: 0.99.0(@typescript/typescript6@6.0.2)(magicast@0.5.5)
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
       prettier:
         specifier: 'catalog:'
         version: 3.9.9
@@ -1211,6 +1223,11 @@ packages:
 
   '@protobufjs/utf8@1.1.2':
     resolution: {integrity: sha512-b1UQwcEZ4yCnMCD8DAL1VlbvBJE9/IX4FTIp7BG1xYpf29SLazLSrqUkj4w7Y5y7cCVP6E5tcqqcI0xemPkHug==}
+
+  '@redocly/cli@2.54.3':
+    resolution: {integrity: sha512-tgjCjKm9NjcbN0N04dylwUw8eZzematq07JHm+dVyPkAfA/eZEN57En7jpUYrPvwOb53MJLfDB/0qJ5iz/4eHQ==}
+    engines: {node: '>=22.12.0 || >=20.19.0 <21.0.0', npm: '>=10'}
+    hasBin: true
 
   '@rolldown/binding-android-arm-eabi@1.2.11':
     resolution: {integrity: sha512-A5kXfGKvKWWZE0TtPrfsvT+q4Y5d1QG8gGUzpYjGydM+fARM9MuX90PrXYXe0XbsDVgyxxNzHo6giCj90bsFNw==}
@@ -5483,6 +5500,8 @@ snapshots:
   '@protobufjs/pool@1.1.0': {}
 
   '@protobufjs/utf8@1.1.2': {}
+
+  '@redocly/cli@2.54.3': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.11':
     optional: true

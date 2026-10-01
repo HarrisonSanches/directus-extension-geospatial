@@ -3,6 +3,7 @@ import { login } from '@directus/sdk';
 import { getContainerRuntimeClient, type StartedTestContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { combinations } from './combinations.ts';
+import { checkedFetch } from './contract.ts';
 import { connect } from './directus.ts';
 import { type Environment, startEnvironment } from './environment.ts';
 
@@ -65,8 +66,9 @@ describe.runIf(combinations[combination].database.client === 'postgres')('o capa
 		return { ...environment, database };
 	};
 
+	// Each answer, the 503 included, goes through the contract (test/contract.ts).
 	const capabilities = () =>
-		fetch(`${started().url}/geospatial/capabilities`, { headers: { Authorization: `Bearer ${session}` } });
+		checkedFetch(`${started().url}/geospatial/capabilities`, { headers: { Authorization: `Bearer ${session}` } });
 
 	beforeAll(async () => {
 		environment = await startEnvironment(combination, inject('coverage'), `${combination}-database-down`);

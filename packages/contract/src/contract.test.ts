@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { format, resolveConfig } from 'prettier';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { apiVersion } from './index.js';
+import { apiVersion, openapi } from './index.js';
 
 const contract = join(import.meta.dirname, '..');
 const generated = join(import.meta.dirname, 'generated');
@@ -16,6 +16,10 @@ describe('contrato', () => {
 		const openapi: unknown = parse(await readFile(join(contract, 'openapi.yaml'), 'utf8'));
 
 		expect(openapi).toMatchObject({ info: { version: apiVersion } });
+	});
+
+	it('o documento em JSON, que a extensão serve, é o openapi.yaml', async () => {
+		expect(openapi).toEqual(parse(await readFile(join(contract, 'openapi.yaml'), 'utf8')));
 	});
 
 	it('os tipos gerados estão em dia com o documento', async () => {

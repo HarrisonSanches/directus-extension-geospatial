@@ -1,6 +1,7 @@
 import { createDirectus, type DirectusClient, rest, type RestClient, staticToken } from '@directus/sdk';
 import { inject } from 'vitest';
 import type { Combination } from './combinations.ts';
+import { checkedFetch } from './contract.ts';
 import type { Database, Spatial } from 'directus-geospatial-contract';
 
 // The users the suite calls Directus as. Each one but the public has a static token of its own.
@@ -51,9 +52,10 @@ interface Schema {
 
 export type Client = DirectusClient<Schema> & RestClient<Schema>;
 
-// A token of null calls Directus without a session, as the public role.
+// A token of null calls Directus without a session, as the public role. Each response of the extension goes through
+// the contract (test/contract.ts).
 export const connect = (url: string, token: string | null): Client => {
-	const client = createDirectus<Schema>(url).with(rest());
+	const client = createDirectus<Schema>(url, { globals: { fetch: checkedFetch } }).with(rest());
 
 	return token === null ? client : client.with(staticToken(token));
 };
