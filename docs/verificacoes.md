@@ -259,6 +259,11 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
   - o SDK do Directus manda cada parâmetro que não conhece pelo `JSON.stringify`: no ensaio, o `geo` passado em objeto ao `customEndpoint` chegou à rota como texto JSON;
   - o tipo de um campo de geometria é o `geometry` ou o `geometry.<subtipo>` (`TYPES`, no `@directus/constants`);
   - no PostGIS 3.2 e no 3.6, o `ST_AsGeoJSON` com 15 casas, sobre o texto que a query permitida expõe, deu a mesma geometria que o `/items`, que o Directus lê do `st_astext`.
+- **V-173** **Directus, o que o `/items` faz além das permissões, antes e depois da query** (código-fonte das tags `v11.17.4` e `v12.4.1`: `api/src/controllers/items.ts`, `api/src/database/run-ast/run-ast.ts` e `api/src/services/payload.ts`, e no 12 `api/src/middleware/collection-active.ts` e `api/src/permissions/modules/assert-collection-active/assert-collection-active.ts`, e ensaio da F02-05, em 01/10/2026):
+  - o `/items` recusa toda coleção do sistema com o `FORBIDDEN`, pelo `isSystemCollection` do `@directus/system-data`, antes do `ItemsService`, nas duas versões. A cadeia até o `getDBQuery` não recusa: a checagem da F02-03 monta por ela a query da `directus_collections`;
+  - no 12, o `/items` passa antes pelo `collectionActive()`: numa coleção inativa, quem tem acesso a ela recebe o `CollectionInactiveError`, e quem não tem, o `FORBIDDEN`. O 11.17 não tem esse passo;
+  - depois da query, o `runAst` passa as linhas pelo `PayloadService.processValues('read', …)`. O `conceal` troca o valor por `**********`, o `cast-boolean`, o `cast-json` e o `cast-csv` convertem o valor cru, as datas saem formatadas pelo tipo (`timestamp`, `dateTime`, `date` e `time`), e a geometria em texto vira GeoJSON. A query permitida devolve os valores crus, então quem responde as linhas dela direto entrega, por exemplo, o valor de um campo com o `conceal`;
+  - no PostGIS, com os tipos do seed (inteiro, texto, `timestamp` e a geometria), as linhas cruas do envelope saíram iguais às do `/items`, também com o `fields=*`, e por isso a suíte não via a diferença.
 
 ### Outras ferramentas
 

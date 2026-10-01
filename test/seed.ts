@@ -1,6 +1,6 @@
 import { createCollection, createItems, createPolicy, createRole, createUser } from '@directus/sdk';
 import geographiclib from 'geographiclib-geodesic';
-import type { Client, Occurrence } from './directus.ts';
+import type { Client, Occurrence, Role } from './directus.ts';
 
 const point = (longitude: number, latitude: number): Occurrence['geometry'] => ({
 	type: 'Point',
@@ -84,17 +84,24 @@ const aroundTheEdge: Omit<Occurrence, 'id'>[] = Array.from({ length: 12 }, (_, i
 
 export const occurrences: Omit<Occurrence, 'id'>[] = [...scattered, ...aroundTheEdge];
 
-// A role whose policies each read the occurrences that match one filter. Directus joins the policies of a role with OR.
-const roleWith = async (admin: Client, name: string, filters: Record<string, Record<string, unknown>>) => {
+// What a policy lets its role read of the occurrences: the items that match a filter, with every field or with some.
+interface Read {
+	filter: Record<string, unknown>;
+	fields?: string[];
+}
+
+// A role whose policies each read the occurrences of one filter. Directus joins the policies of a role with OR, and a
+// field one policy holds back comes null in the items that only that policy lets through (V-22, V-143).
+const roleWith = async (admin: Client, name: string, policies: Record<string, Read>) => {
 	const role = await admin.request(createRole({ name }));
 
-	for (const [policy, filter] of Object.entries(filters)) {
+	for (const [policy, { filter, fields = ['*'] }] of Object.entries(policies)) {
 		await admin.request(
 			createPolicy({
 				name: policy,
 				admin_access: false,
 				app_access: false,
-				permissions: [{ collection: 'occurrences', action: 'read', fields: ['*'], permissions: filter }],
+				permissions: [{ collection: 'occurrences', action: 'read', fields, permissions: filter }],
 				roles: [{ role: role.id }],
 			}),
 		);
@@ -115,6 +122,11 @@ const userWith = async (admin: Client, role: string, email: string, newSecret: (
 // The row rule of Maria, who only reads the south zone.
 export const southZone = { region: { _eq: 'south' } };
 
+const northZone = { region: { _eq: 'north' } };
+
+const everyFieldBut = (field: keyof Occurrence) =>
+	(['id', 'geometry', 'region', 'category', 'status', 'occurred_at'] as const).filter((name) => name !== field);
+
 // Builds the schema, the roles and the data through the API, so each database stores them the way Directus writes to
 // it. Without custom permission rules, as on the Core tier of Directus 12, the roles get no policy, and their users
 // only have a session (V-114).
@@ -122,7 +134,7 @@ export const seed = async (
 	admin: Client,
 	newSecret: () => string,
 	customPermissionRules: boolean,
-): Promise<{ maria: string; twoPolicies: string }> => {
+): Promise<Record<Exclude<Role, 'admin' | 'public'>, string>> => {
 	await admin.request(
 		createCollection({
 			collection: 'occurrences',
@@ -145,20 +157,26 @@ export const seed = async (
 
 	await admin.request(createItems('occurrences', occurrences));
 
-	const maria = await roleWith(
-		admin,
-		'Maria, South Zone Operator',
-		customPermissionRules ? { 'South zone': southZone } : {},
-	);
-
-	const twoPolicies = await roleWith(
-		admin,
-		'Two policies',
-		customPermissionRules ? { 'North zone': { region: { _eq: 'north' } }, Theft: { category: { _eq: 'theft' } } } : {},
-	);
+	const userOf = async (name: string, email: string, policies: Record<string, Read>) =>
+		userWith(admin, await roleWith(admin, name, customPermissionRules ? policies : {}), email, newSecret);
 
 	return {
-		maria: await userWith(admin, maria, 'maria@example.com', newSecret),
-		twoPolicies: await userWith(admin, twoPolicies, 'two-policies@example.com', newSecret),
+		maria: await userOf('Maria, South Zone Operator', 'maria@example.com', { 'South zone': { filter: southZone } }),
+		twoPolicies: await userOf('Two policies', 'two-policies@example.com', {
+			'North zone': { filter: northZone },
+			Theft: { filter: { category: { _eq: 'theft' } } },
+		}),
+		// The south zone without one field, for the error of /items to a field asked by name.
+		withoutCategory: await userOf('Without category', 'without-category@example.com', {
+			'South zone without category': { filter: southZone, fields: everyFieldBut('category') },
+		}),
+		withoutGeometry: await userOf('Without geometry', 'without-geometry@example.com', {
+			'South zone without geometry': { filter: southZone, fields: everyFieldBut('geometry') },
+		}),
+		// The geometry in the south zone, and the north zone without it, for the leak a radius over the column would show.
+		geometryInPart: await userOf('Geometry in part', 'geometry-in-part@example.com', {
+			'South zone with geometry': { filter: southZone },
+			'North zone without geometry': { filter: northZone, fields: everyFieldBut('geometry') },
+		}),
 	};
 };

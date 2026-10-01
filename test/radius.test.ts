@@ -28,14 +28,31 @@ const distanceOf = ({ coordinates: [longitude, latitude] }: Occurrence['geometry
 	return s12;
 };
 
-// What /items gives a user inside the circle, by the distance of GeographicLib: the answer of the radius is calculated,
-// since no filter of Directus asks the same (A-015, D-017).
-const expectedFor = async (client: Client) => {
-	const items = await client.request(
-		readItems('occurrences', { fields: ['id', 'region', 'geometry'], limit: -1, sort: ['id'] }),
+// What a page of /items asks: the same parameters go to the radius.
+interface Page {
+	fields?: ('*' | keyof Occurrence)[];
+	filter?: Record<string, unknown>;
+	search?: string;
+}
+
+// An item as /items gives it: the fields the page asked, with the geometry null where a policy holds it back.
+type Read = Partial<Omit<Occurrence, 'geometry'> & { geometry: Occurrence['geometry'] | null }>;
+
+// The page as the radius takes it, with the fields joined as Directus reads them in the URL.
+const paramsOf = ({ fields, ...page }: Page) => ({ ...page, ...(fields && { fields: fields.join(',') }) });
+
+// What /items gives a user inside the circle, with the same page, by the distance of GeographicLib: the answer of the
+// radius is calculated, since no filter of Directus asks the same (A-015, D-017). An item whose geometry a policy holds
+// back is in no circle.
+const expectedFor = async (client: Client, { fields = ['id', 'region', 'geometry'], ...page }: Page = {}) => {
+	const asked = fields.includes('*') || fields.includes('geometry');
+	const items: Read[] = await client.request(
+		readItems('occurrences', { ...page, fields: asked ? fields : [...fields, 'geometry'], limit: -1, sort: ['id'] }),
 	);
 
-	return items.filter(({ geometry }) => distanceOf(geometry) <= circle.meters);
+	return items
+		.filter(({ geometry }) => geometry && distanceOf(geometry) <= circle.meters)
+		.map(({ geometry, ...item }): Read => (asked ? { ...item, geometry } : item));
 };
 
 // The error a request fails with, in the format of Directus.
@@ -47,6 +64,13 @@ const errorOf = async (request: Promise<unknown>) => {
 	}
 
 	throw new Error('The request did not fail.');
+};
+
+// The errors of a request that failed, without the response, to compare the radius with /items.
+const errorsOf = async (request: Promise<unknown>) => {
+	const error = await errorOf(request);
+
+	return error instanceof Object && 'errors' in error ? error.errors : error;
 };
 
 describe('o raio no estilo do /items', () => {
@@ -116,7 +140,9 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		expect(items).toEqual(expected);
 
 		// The 12 points 2 m inside the edge, and none of the 12 points 2 m outside it.
-		const nearTheEdge = expected.filter(({ geometry }) => Math.abs(distanceOf(geometry) - circle.meters) < 3);
+		const nearTheEdge = expected.filter(
+			({ geometry }) => geometry && Math.abs(distanceOf(geometry) - circle.meters) < 3,
+		);
 
 		expect(nearTheEdge).toHaveLength(12);
 	});
@@ -153,6 +179,93 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		const items = await radius(as('admin'), { fields: 'id', limit: 3, offset: 2 });
 
 		expect(items.map(({ id }) => id)).toEqual(expected.slice(2, 5));
+	});
+
+	describe('os outros papéis e o que a página manda (V-143)', () => {
+		it('o público, que não lê as ocorrências, recebe do raio o mesmo erro do /items', async () => {
+			const items = await errorsOf(as('public').request(readItems('occurrences')));
+
+			expect(await errorsOf(radius(as('public')))).toEqual(items);
+			expect(items).toMatchObject([{ extensions: { code: 'FORBIDDEN' } }]);
+		});
+
+		it.runIf(hasCustomPermissionRules())(
+			'o raio do papel com duas políticas devolve a união das duas (V-22)',
+			async () => {
+				const page: Page = { fields: ['id', 'region', 'category', 'geometry'] };
+				const expected = await expectedFor(as('twoPolicies'), page);
+
+				expect(await radius(as('twoPolicies'), paramsOf(page))).toEqual(expected);
+				// Items only one of the policies lets through: north and not theft, and theft and not north.
+				expect(expected.some(({ region, category }) => region === 'north' && category !== 'theft')).toBe(true);
+				expect(expected.some(({ region, category }) => region !== 'north' && category === 'theft')).toBe(true);
+			},
+		);
+
+		it.runIf(hasCustomPermissionRules())(
+			'o filtro, a busca e os campos da página mudam o raio da Maria como mudam o /items dela',
+			async () => {
+				const page: Page = {
+					fields: ['id', 'category', 'status'],
+					filter: { status: { _eq: 'open' } },
+					search: 'theft',
+				};
+				const expected = await expectedFor(as('maria'), page);
+
+				expect(await radius(as('maria'), paramsOf(page))).toEqual(expected);
+				// The filter and the search leave out items of the circle the radius alone would bring.
+				expect(expected.length).toBeGreaterThan(0);
+				expect(expected.length).toBeLessThan((await expectedFor(as('maria'))).length);
+				expect(expected.every(({ category, status }) => category === 'theft' && status === 'open')).toBe(true);
+			},
+		);
+
+		describe.runIf(hasCustomPermissionRules())('com campos sem permissão', () => {
+			it('com fields=*, o campo sem permissão fica fora do raio, como do /items', async () => {
+				const page: Page = { fields: ['*'] };
+				const expected = await expectedFor(as('withoutCategory'), page);
+
+				expect(await radius(as('withoutCategory'), paramsOf(page))).toEqual(expected);
+				expect(expected.length).toBeGreaterThan(0);
+				expect(expected.every((item) => !('category' in item))).toBe(true);
+			});
+
+			it('pedido pelo nome, o campo sem permissão dá ao raio o mesmo erro do /items', async () => {
+				const client = as('withoutCategory');
+				const items = await errorsOf(client.request(readItems('occurrences', { fields: ['id', 'category'] })));
+
+				expect(await errorsOf(radius(client, paramsOf({ fields: ['id', 'category'] })))).toEqual(items);
+				expect(items).toMatchObject([{ extensions: { code: 'FORBIDDEN' } }]);
+			});
+
+			it('sem permissão na geometria, o raio dá o erro do /items que a pede, e não um raio vazio', async () => {
+				const client = as('withoutGeometry');
+				const items = await errorsOf(client.request(readItems('occurrences', { fields: ['*', 'geometry'] })));
+
+				expect(await errorsOf(radius(client))).toEqual(items);
+				expect(items).toMatchObject([{ extensions: { code: 'FORBIDDEN' } }]);
+			});
+
+			it('o item que uma política deixa ver sem a geometria fica fora do raio, sem vazar onde ele está', async () => {
+				const client = as('geometryInPart');
+				const visible: Read[] = await client.request(
+					readItems('occurrences', { fields: ['id', 'region', 'geometry'], limit: -1 }),
+				);
+				const hidden = visible.filter(({ geometry }) => geometry === null).map(({ id }) => id);
+				const inside = (await expectedFor(as('admin'))).map(({ id }) => id);
+
+				// The /items shows items of the north without their geometry, and some of them are inside the circle: a radius
+				// over the column itself would give their place away.
+				expect(visible.some(({ region, geometry }) => region === 'north' && geometry === null)).toBe(true);
+				expect(hidden.some((id) => inside.includes(id))).toBe(true);
+
+				const items = await radius(client, { fields: 'id,region,geometry', limit: -1 });
+
+				expect(items).toEqual(await expectedFor(client));
+				expect(items.length).toBeGreaterThan(0);
+				expect(hidden.filter((id) => items.some((item) => item.id === id))).toEqual([]);
+			});
+		});
 	});
 
 	describe('num único pedido ao banco', () => {

@@ -161,7 +161,14 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   parâmetro que não conhece (D-048, V-171). A matriz declara o raio e o envelope de cada banco num lugar
   só: no PostGIS, sem índice; nos outros, indisponível, com o `GEOSPATIAL_OPERATION_UNAVAILABLE`. A suíte conta as
   queries pelo `pg_stat_statements` (V-172).
-- Próximo passo: `/implement-issue F02-05`, os outros papéis e o que a página manda, no raio.
+- F02-05 feita em 01/10/2026: o raio passa pela paridade inteira da F01-03. O papel com duas políticas e o filtro, a
+  busca e os campos da Maria batem com o gabarito sobre o `/items` de cada um, e o público, o campo sem permissão pedido
+  pelo nome e a geometria sem permissão recebem o erro do `/items`, inteiro. O seed ganhou três papéis com campos sem
+  permissão. O item que uma política deixa ver sem a geometria fica fora do raio, e um envelope sobre a coluna crua
+  devolveu seis itens do norte, e o teste reprovou. O `/items` recusa as coleções do sistema e as inativas e processa
+  os valores lidos, e o raio ainda não (V-173, A-041, no plano).
+- Próximo passo: o que a A-041 pede, pela escolha do mantenedor, e depois `/implement-issue F02-06`, o hook
+  `items.query` de outra extensão, respeitado.
 
 ## Documentação
 
