@@ -167,8 +167,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   permissão. O item que uma política deixa ver sem a geometria fica fora do raio, e um envelope sobre a coluna crua
   devolveu seis itens do norte, e o teste reprovou. O `/items` recusa as coleções do sistema e as inativas e processa
   os valores lidos, e o raio ainda não (V-173, A-041, no plano).
-- Próximo passo: o que a A-041 pede, pela escolha do mantenedor, e depois `/implement-issue F02-06`, o hook
-  `items.query` de outra extensão, respeitado.
+- F02-22 feita em 01/10/2026: o raio responde como o `/items` também fora das permissões. A coleção do sistema, pelo
+  prefixo `directus_`, volta com o `FORBIDDEN`, também ao admin, e as linhas passam pelo `PayloadService` do Directus,
+  que esconde o `conceal`, converte as datas, o CSV e o resto e faz o GeoJSON do texto da query permitida, então o
+  `ST_AsGeoJSON` saiu do envelope. A coleção inativa do 12 a própria cadeia já recusava, pelo `processAst` (V-173,
+  A-042, no plano).
+- Próximo passo: `/implement-issue F02-06`, o hook `items.query` de outra extensão, respeitado.
 
 ## Documentação
 
