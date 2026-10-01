@@ -30,7 +30,7 @@ const start = async (
 		admin: credentials,
 		backend,
 		stop,
-	} = await startEnvironment(combination, coverage, combination, packages);
+	} = await startEnvironment(combination, coverage, { packages });
 	const images = combinations[combination];
 	const admin = connect(url, credentials.token);
 

@@ -88,6 +88,11 @@ contrato servem a todas as camadas.
   recusa o import estático e a reexportação, e o `no-restricted-syntax`, o `import()` e o `typeof import()`, que o
   primeiro não vê (V-167). O `eslint.config.test.ts` passa cada direção proibida e cada permitida pelas mesmas
   regras.
+- **Os internos entram na hora, e são conferidos ao subir.** O `@directus/api` é declarado em
+  `internals/directus-api.d.ts`, sem instalar (V-141), e cada módulo entra por um `import()` com o nome dele, no
+  carregador de `internals/modules.ts`: um import estático do que uma versão não tem derrubaria a extensão ao carregar
+  (V-146). A checagem recebe o carregador, e o teste unitário passa um falso. A forma do que cada passo da cadeia
+  devolve é conferida, e o resto do tipo vem das declarações, que a paridade com o `/items` confirma.
 - **Uma operação é um módulo profundo:** a interface é pequena (entrada validada, partes do resultado, nível em
   cada banco), e a implementação rica fica atrás dela.
 - **Exportações nomeadas.** `export default` só onde o Directus exige, no registro das superfícies.

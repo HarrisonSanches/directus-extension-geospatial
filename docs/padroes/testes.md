@@ -123,7 +123,8 @@ com o rastro do Playwright guardado para investigar.
 
 Cada ensaio de falha de uma fase vira teste automatizado quando a fase termina, na suíte de integração ou na de
 ponta a ponta. Os que derrubam uma peça (o banco, o Redis, o processo do Directus) usam os próprios containers do
-teste.
+teste. Os que mudam o Directus montam a imagem na suíte, sobre a oficial, como a do módulo da cadeia fora do lugar
+(`test/moved-module/`), e sobem um ambiente próprio, pelo `startEnvironment`.
 
 ## Quando cada teste roda
 

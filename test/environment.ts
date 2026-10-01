@@ -92,11 +92,11 @@ const withPostgis = async (directus: string, image: string): Promise<Backend> =>
 };
 
 // SQLite has no container of its own: Directus opens the file its image points DB_FILENAME to.
-const withSqlite = async (combination: Combination): Promise<Backend> => {
+const withSqlite = async (name: string, image: DirectusImage): Promise<Backend> => {
 	const builtAt = performance.now();
-	const directus = await directusWithSpatialite(combinations[combination].directus);
+	const directus = await directusWithSpatialite(image);
 
-	log(`${combination}: built the image of Directus with SpatiaLite in ${seconds(builtAt)} s`);
+	log(`${name}: built the image of Directus with SpatiaLite in ${seconds(builtAt)} s`);
 
 	return { directus, environment: {}, versions: sqliteVersionsOf, stop: () => Promise.resolve() };
 };
@@ -115,21 +115,32 @@ export interface Environment {
 	stop: () => Promise<void>;
 }
 
-// Starts the database and the Directus of one combination, with the built extension and any other package the run
-// adds, under a name for the log. Node writes the coverage of the Directus processes into a folder of that name in the
-// root, which test/coverage.ts reads when the run ends.
+// An image of Directus, by the version it runs, which names the images the suite builds on it.
+interface DirectusImage {
+	version: string;
+	image: string;
+}
+
+interface Options {
+	// A name for the log. Node writes the coverage of the Directus processes into a folder of that name in the root,
+	// which test/coverage.ts reads when the run ends.
+	name?: string;
+	// The packages Directus loads, by their folder in the repository: the built extension, and any other the run adds.
+	packages?: readonly string[];
+	// An image of Directus in place of the one of the combination, for a test that changes it.
+	directus?: DirectusImage;
+}
+
+// Starts the database and the Directus of one combination.
 export const startEnvironment = async (
 	combination: Combination,
 	root: string,
-	name: string = combination,
-	packages: readonly string[] = [extension],
+	{ name = combination, packages = [extension], directus: image = combinations[combination].directus }: Options = {},
 ): Promise<Environment> => {
-	const images = combinations[combination];
+	const { database } = combinations[combination];
 
 	const backend =
-		images.database.client === 'postgres'
-			? await withPostgis(images.directus.image, images.database.image)
-			: await withSqlite(combination);
+		database.client === 'postgres' ? await withPostgis(image.image, database.image) : await withSqlite(name, image);
 
 	// The container user of Directus writes the coverage here, so the folder is open to any user.
 	const coverage = join(root, name);
