@@ -10,6 +10,7 @@ import postgis18 from '../../testdata/versions/postgis-18-3.6.json' with { type:
 import postgres18 from '../../testdata/versions/postgres-18-alpine.json' with { type: 'json' };
 import { knexClassOf } from '../db/client.js';
 import { databaseClientOf, detectCapabilities } from './detect.js';
+import { matrixOf } from './matrix.js';
 
 const versions = {
 	apiVersion: '0.1.0',
@@ -92,7 +93,7 @@ describe('detecção do ambiente', () => {
 });
 
 describe('versões, matriz e internos', () => {
-	it('a matriz sai vazia, e as versões e os internos saem como vieram', () => {
+	it('a matriz sai da matriz de capacidades, e as versões e os internos saem como vieram', () => {
 		const internals: Internals = {
 			status: 'refused',
 			problems: { '12': ['@directus/api/database/run-ast/lib/get-db-query has no function getDBQuery'] },
@@ -110,7 +111,7 @@ describe('versões, matriz e internos', () => {
 			api: { version: '0.2.0' },
 			extension: { version: '0.3.1' },
 			directus: { version: '11.17.4' },
-			operations: {},
+			operations: matrixOf({ client: 'postgres', spatial: { name: 'postgis', version: '3.6.4' }, internals }),
 			internals,
 		});
 	});

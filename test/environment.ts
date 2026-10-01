@@ -8,7 +8,7 @@ import { GenericContainer, Network, type StartedTestContainer, Wait } from 'test
 import { type Combination, combinations } from './combinations.ts';
 import type { Client, DatabaseVersions } from './directus.ts';
 import { activateLicense, hasProjectOfTests, publicUrl } from './license.ts';
-import { versionsOf as postgresVersionsOf } from './postgres.ts';
+import { directusDatabase, versionsOf as postgresVersionsOf, query } from './postgres.ts';
 import { directusWithSpatialite, versionsOf as sqliteVersionsOf } from './sqlite.ts';
 
 // Where Node writes the coverage of the Directus processes.
@@ -65,10 +65,14 @@ const withPostgis = async (directus: string, image: string): Promise<Backend> =>
 	const database = await new PostgreSqlContainer(image)
 		.withNetwork(network)
 		.withNetworkAliases('database')
-		.withDatabase('directus')
-		.withUsername('directus')
+		.withDatabase(directusDatabase)
+		.withUsername(directusDatabase)
 		.withPassword(newSecret())
+		// pg_stat_statements counts the statements the database runs, for the tests that read how many reached it.
+		.withCommand(['postgres', '-c', 'shared_preload_libraries=pg_stat_statements'])
 		.start();
+
+	await query(database, 'create extension pg_stat_statements');
 
 	return {
 		directus: new GenericContainer(directus).withNetwork(network),

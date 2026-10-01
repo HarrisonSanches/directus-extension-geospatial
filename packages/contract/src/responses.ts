@@ -1,5 +1,5 @@
 import type { ValidateFunction } from 'ajv/dist/2020.js';
-import { Ajv2020 } from 'ajv/dist/2020.js';
+import { ajvOf, id, tokenOf } from './ajv.js';
 import type { OpenApiDocument } from './generated/index.js';
 
 // A response of a route of the extension, as a test received it.
@@ -13,30 +13,6 @@ export interface Response {
 	body: unknown;
 }
 
-// The keys of an OpenAPI document around its schemas, and the ones OpenAPI 3.1 adds to JSON Schema. Ajv takes them as
-// annotations, and still checks strictly every schema of the document a response reaches.
-const annotations = [
-	'openapi',
-	'info',
-	'jsonSchemaDialect',
-	'servers',
-	'paths',
-	'webhooks',
-	'components',
-	'security',
-	'tags',
-	'externalDocs',
-	'discriminator',
-	'xml',
-	'example',
-];
-
-const id = 'urn:geospatial:openapi';
-
-// A token of a JSON Pointer inside the fragment of a URI: ~ and / escaped as JSON Pointer asks, and the braces of a path
-// template encoded, as a URI asks.
-const tokenOf = (token: string) => encodeURIComponent(token.replaceAll('~', '~0').replaceAll('/', '~1'));
-
 // The path of the document a request path falls into, with each {parameter} of a template standing for one segment.
 const templateOf = (paths: string[], path: string) =>
 	paths.find((template) => {
@@ -48,14 +24,9 @@ const templateOf = (paths: string[], path: string) =>
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 // The responses a test receives from the extension, checked against the document of the contract (D-016): the route,
-// the method and the status must be in it, and the body must match the JSON Schema it declares for them. The schemas
-// are compiled in strict mode, so a schema of the document that Ajv cannot read fails too.
+// the method and the status must be in it, and the body must match the JSON Schema it declares for them.
 export const contractOf = (document: OpenApiDocument) => {
-	const ajv = new Ajv2020({ strict: true, allErrors: true });
-
-	ajv.addVocabulary(annotations);
-	ajv.addSchema({ ...document, $id: id });
-
+	const ajv = ajvOf(document);
 	const compiled = new Map<string, ValidateFunction>();
 
 	return {

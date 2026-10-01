@@ -46,6 +46,91 @@
 				}
 			}
 		},
+		"/geospatial/items/{collection}": {
+			"get": {
+				"operationId": "items",
+				"summary": "The items of a collection that a spatial operation selects",
+				"description": "The format of /items of Directus, with the parameter geo for the spatial operation. The items come out of the query Directus builds of what the user can read, with the filter and the search of the request, so a user only ever receives the items /items would give them. Each geometry comes in GeoJSON, and the other values as the database returns them.",
+				"security": [{ "bearer": [] }, {}],
+				"parameters": [
+					{
+						"name": "collection",
+						"in": "path",
+						"required": true,
+						"description": "The collection, by its name in Directus.",
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "geo",
+						"in": "query",
+						"required": true,
+						"description": "The spatial operation, as JSON, the way Directus takes the filter.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Geo" } } }
+					},
+					{
+						"name": "fields",
+						"in": "query",
+						"description": "The fields of each item, as in /items, separated by commas. Fields of a relation are refused for now. The geometry the operation reads is always read by its name, so a user who cannot read it gets the error of /items.",
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "filter",
+						"in": "query",
+						"description": "The filter of /items, as JSON.",
+						"content": { "application/json": { "schema": { "type": "object" } } }
+					},
+					{ "name": "search", "in": "query", "description": "The search of /items.", "schema": { "type": "string" } },
+					{
+						"name": "limit",
+						"in": "query",
+						"description": "How many items, as in /items, with -1 for all of them.",
+						"schema": { "type": "integer", "minimum": -1 }
+					},
+					{
+						"name": "offset",
+						"in": "query",
+						"description": "How many items to skip, in the order of the primary key.",
+						"schema": { "type": "integer", "minimum": 0 }
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"description": "The page, as in /items, starting at 1.",
+						"schema": { "type": "integer", "minimum": 1 }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The items, in the order of the primary key.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["data"],
+									"properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } } }
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The geo is off the contract, or the request carries a parameter the operation does not take yet (code INVALID_QUERY of Directus).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"403": {
+						"description": "The user cannot read the collection, a field the request asks for or the geometry, as in /items (code FORBIDDEN).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"501": {
+						"description": "The operation does not run on the database in use (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"503": {
+						"description": "The internals of the running Directus are not the ones the extension expects, so its operations are off (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			}
+		},
 		"/geospatial/openapi.json": {
 			"get": {
 				"operationId": "openapi",
@@ -172,13 +257,56 @@
 						"description": "indexed and unindexed run in the database, with or without a spatial index; capped runs in the server of the extension, on a maximum volume; unavailable does not run.",
 						"type": "string",
 						"enum": ["indexed", "unindexed", "capped", "unavailable"]
+					},
+					"reason": {
+						"description": "Why the operation is unavailable, without naming the database.",
+						"type": "string"
 					}
 				}
+			},
+			"Geo": {
+				"description": "The spatial operation of a request, by its id, the canonical term of the glossary in camelCase.",
+				"oneOf": [{ "$ref": "#/components/schemas/Radius" }],
+				"discriminator": { "propertyName": "operation", "mapping": { "radius": "#/components/schemas/Radius" } }
+			},
+			"Radius": {
+				"description": "The items within a distance of a point, in meters over the ellipsoid. An item is inside when any part of it is at most at the distance, the edge included.",
+				"type": "object",
+				"required": ["operation", "center", "distance"],
+				"additionalProperties": false,
+				"properties": {
+					"operation": { "type": "string", "const": "radius" },
+					"field": {
+						"description": "The geometry field of the collection the operation reads. It may be left out when the collection has a single geometry field.",
+						"type": "string",
+						"minLength": 1
+					},
+					"center": { "$ref": "#/components/schemas/Position" },
+					"distance": { "description": "The distance, in meters.", "type": "number", "exclusiveMinimum": 0 }
+				}
+			},
+			"Position": {
+				"description": "A point as [longitude, latitude], in WGS 84, as GeoJSON writes it.",
+				"type": "array",
+				"prefixItems": [
+					{ "type": "number", "minimum": -180, "maximum": 180 },
+					{ "type": "number", "minimum": -90, "maximum": 90 }
+				],
+				"items": false,
+				"minItems": 2
+			},
+			"Item": {
+				"description": "An item of the collection, with the fields the request asks for, the geometries in GeoJSON and the other values as the database returns them.",
+				"type": "object"
 			},
 			"ErrorCode": {
 				"description": "The codes of the errors of the extension, in the extensions.code of the error format of Directus. Each one starts with GEOSPATIAL_, so it never collides with a code of Directus.",
 				"type": "string",
-				"enum": ["GEOSPATIAL_DATABASE_UNAVAILABLE"]
+				"enum": [
+					"GEOSPATIAL_DATABASE_UNAVAILABLE",
+					"GEOSPATIAL_INTERNALS_UNSUPPORTED",
+					"GEOSPATIAL_OPERATION_UNAVAILABLE"
+				]
 			},
 			"Errors": {
 				"description": "The error format of Directus.",

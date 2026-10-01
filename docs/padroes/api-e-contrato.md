@@ -26,8 +26,20 @@
 - Tudo sob `/geospatial` (D-019), com os nomes das operações em camelCase: o termo canônico do glossário (D-024).
 - Respostas no formato do Directus: `{ data, meta }`.
 - Erros no formato do Directus, com códigos próprios em `UPPER_SNAKE_CASE` e o prefixo `GEOSPATIAL_` (D-045), todos
-  listados no schema `ErrorCode` do contrato: banco fora (`GEOSPATIAL_DATABASE_UNAVAILABLE`, 503), operação
-  indisponível, geometria inválida, limite excedido, consulta desconhecida e tempo esgotado (§7.8).
+  listados no schema `ErrorCode` do contrato: banco fora (`GEOSPATIAL_DATABASE_UNAVAILABLE`, 503), internos do Directus
+  recusados (`GEOSPATIAL_INTERNALS_UNSUPPORTED`, 503), operação indisponível no banco
+  (`GEOSPATIAL_OPERATION_UNAVAILABLE`, 501, com a operação e o motivo nas `extensions`, e o motivo nunca diz o banco,
+  D-042), geometria inválida, limite excedido, consulta desconhecida e tempo esgotado (§7.8).
+- **O `geo` do estilo do `/items`** vai em JSON, como o `filter` do Directus, que é como o SDK do Directus manda um
+  parâmetro que não conhece (V-171), e não pelos colchetes do `qs`. É um objeto com a `operation`, o id da operação
+  (D-024), e as entradas dela, que o contrato descreve num `oneOf` com o `discriminator` pela `operation`. O mesmo
+  objeto vai no corpo do `SEARCH` e da consulta registrada. O `field` diz o campo de geometria que a operação lê, e sem
+  ele vale o único da coleção; com dois ou mais, o pedido é recusado, até a configuração da coleção trazer o campo
+  padrão (F06). A D-048 registra a escolha.
+- Um parâmetro do `/items` que a operação ainda não trata, como o `sort`, volta com o `INVALID_QUERY` do Directus, em
+  vez de ficar de fora calado, e o `geo` fora do contrato também, até os códigos próprios de entrada.
+- A coleção que o esquema não tem responde `FORBIDDEN`, como a que o usuário não lê, como o `/items` faz. Um problema
+  do campo de geometria só aparece depois de a cadeia do Directus conferir que o usuário lê a coleção.
 - Valores calculados no campo reservado `$geo`; nas formas, nas propriedades do GeoJSON.
 - Horários em ISO 8601 com deslocamento (D-031).
 - Coordenadas sempre em `[longitude, latitude]`, como no GeoJSON.

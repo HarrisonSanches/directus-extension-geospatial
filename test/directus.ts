@@ -22,6 +22,9 @@ export interface Directus {
 	// Whether Directus accepts permissions with rules of their own, such as the row filter of Maria. Directus 12 only
 	// does with a license key, and runs on the Core tier without one (V-114, D-043).
 	customPermissionRules: boolean;
+	// The id of the container of the database, when it runs apart from Directus, for the tests that read what reached it
+	// (test/postgres.ts).
+	databaseContainer?: string;
 }
 
 declare module 'vitest' {
@@ -82,3 +85,5 @@ export const as = (role: Role): Client => {
 export const versions = (): Directus['versions'] => current().versions;
 
 export const hasCustomPermissionRules = (): boolean => current().customPermissionRules;
+
+export const databaseContainer = (): string | undefined => current().databaseContainer;

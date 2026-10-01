@@ -1,4 +1,5 @@
 import { createCollection, createItems, createPolicy, createRole, createUser } from '@directus/sdk';
+import geographiclib from 'geographiclib-geodesic';
 import type { Client, Occurrence } from './directus.ts';
 
 const point = (longitude: number, latitude: number): Occurrence['geometry'] => ({
@@ -8,7 +9,7 @@ const point = (longitude: number, latitude: number): Occurrence['geometry'] => (
 
 // Occurrences in São Paulo. Each region and category appears more than once, so every policy lets some through and
 // holds some back.
-export const occurrences: Omit<Occurrence, 'id'>[] = [
+const scattered: Omit<Occurrence, 'id'>[] = [
 	{
 		region: 'south',
 		category: 'theft',
@@ -52,6 +53,36 @@ export const occurrences: Omit<Occurrence, 'id'>[] = [
 		geometry: point(-46.46, -23.55),
 	},
 ];
+
+export const wgs84 = geographiclib.Geodesic.WGS84;
+
+// A circle of 10 km in the south zone of São Paulo, for the radius. Over 10 km, the sphere and the ellipsoid disagree by
+// up to 40 m, so the points 2 m from the edge only fall on the right side by the geodesic distance (F01-02).
+export const circle = { center: [-46.7, -23.65] as [number, number], meters: 10_000 };
+
+// Points every 30° around the center, 2 m inside and 2 m outside the edge. Half of them are in the south zone and half
+// in the north, which Maria does not read, and the status and the category vary, for the filter and the search.
+const aroundTheEdge: Omit<Occurrence, 'id'>[] = Array.from({ length: 12 }, (_, index) => index * 30).flatMap(
+	(azimuth, index) =>
+		[circle.meters - 2, circle.meters + 2].map((distance) => {
+			const [longitude, latitude] = circle.center;
+			const { lat2, lon2 } = wgs84.Direct(latitude, longitude, azimuth, distance);
+
+			if (lat2 === undefined || lon2 === undefined) {
+				throw new Error('GeographicLib did not return the point.');
+			}
+
+			return {
+				region: index % 2 === 0 ? 'south' : 'north',
+				category: Math.floor(index / 4) % 2 === 0 ? 'theft' : 'fire',
+				status: Math.floor(index / 2) % 2 === 0 ? 'open' : 'closed',
+				occurred_at: '2026-09-10T10:00:00Z',
+				geometry: point(lon2, lat2),
+			};
+		}),
+);
+
+export const occurrences: Omit<Occurrence, 'id'>[] = [...scattered, ...aroundTheEdge];
 
 // A role whose policies each read the occurrences that match one filter. Directus joins the policies of a role with OR.
 const roleWith = async (admin: Client, name: string, filters: Record<string, Record<string, unknown>>) => {
