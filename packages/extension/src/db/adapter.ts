@@ -18,10 +18,7 @@ interface RadiusEnvelope {
 }
 
 export interface SpatialAdapter {
-	// The items within a distance of a point, out of the permitted query, in one statement, and how a row of it becomes
-	// an item, with the geometry in GeoJSON.
-	radius: (
-		knex: Knex,
-		envelope: RadiusEnvelope,
-	) => { builder: Knex.QueryBuilder; itemOf: (row: Record<string, unknown>) => Record<string, unknown> };
+	// The items within a distance of a point, out of the permitted query, in one statement. The rows keep the columns of
+	// the permitted query, with the geometry as its text, which Directus turns into the values of /items (V-173).
+	radius: (knex: Knex, envelope: RadiusEnvelope) => { builder: Knex.QueryBuilder };
 }

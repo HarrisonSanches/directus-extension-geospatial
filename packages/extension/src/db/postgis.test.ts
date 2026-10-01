@@ -38,11 +38,4 @@ describe('o raio no PostGIS', () => {
 
 		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis-offset.sql');
 	});
-
-	it('cada item sai com a geometria em GeoJSON, e sem a coluna que a trouxe', () => {
-		const { itemOf } = postgis.radius(database, { ...radius, permitted: permitted(), limit: 100, offset: 0 });
-		const point = { type: 'Point', coordinates: [-46.7, -23.65] };
-
-		expect(itemOf({ id: 1, geometry: 'POINT(-46.7 -23.65)', $geojson: point })).toEqual({ id: 1, geometry: point });
-	});
 });

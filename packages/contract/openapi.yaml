@@ -56,8 +56,9 @@ paths:
       description: >-
         The format of /items of Directus, with the parameter geo for the spatial operation. The items come out of the
         query Directus builds of what the user can read, with the filter and the search of the request, so a user only
-        ever receives the items /items would give them. Each geometry comes in GeoJSON, and the other values as the
-        database returns them.
+        ever receives the items /items would give them. The values come as /items gives them, converted by Directus:
+        the geometry in GeoJSON, a concealed field hidden, and the booleans, the JSON, the CSV and the dates in their
+        format.
       security:
         - bearer: []
         - {}
@@ -137,8 +138,9 @@ paths:
                 $ref: '#/components/schemas/Errors'
         '403':
           description: >-
-            The user cannot read the collection, a field the request asks for or the geometry, as in /items (code
-            FORBIDDEN).
+            The user cannot read the collection, a field the request asks for or the geometry, or the collection is one
+            of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read
+            it (code COLLECTION_INACTIVE).
           content:
             application/json:
               schema:

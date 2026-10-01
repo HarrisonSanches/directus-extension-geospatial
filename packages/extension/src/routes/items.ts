@@ -33,6 +33,9 @@ export const readItems = (
 			internals,
 			permittedQuery,
 			logger: context.logger.child({ extension: 'geospatial' }),
+			// As runAst reads the rows for /items, with the PayloadService of the running Directus (V-173).
+			valuesOf: (name, rows) =>
+				new context.services.PayloadService(name, { knex: context.database, schema }).processValues('read', rows),
 		},
 	);
 };

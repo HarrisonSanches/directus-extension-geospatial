@@ -25,6 +25,12 @@ const schema = {
 				region: { field: 'region', type: 'string' },
 			},
 		},
+		// A collection of the system with a geometry field someone added, which /items refuses all the same.
+		directus_users: {
+			collection: 'directus_users',
+			primary: 'id',
+			fields: { id: { field: 'id', type: 'uuid' }, location: { field: 'location', type: 'geometry.Point' } },
+		},
 	},
 	relations: [],
 } as unknown as SchemaOverview;
@@ -47,6 +53,7 @@ const engineWith = (overrides: Partial<Engine> = {}) => {
 			return Promise.resolve({ builder: database.select('id', 'geometry').from('occurrences') });
 		},
 		logger: { error: (error: unknown) => logged.push(error) },
+		valuesOf: (_, rows) => Promise.resolve(rows),
 		...overrides,
 	};
 
@@ -67,6 +74,7 @@ describe('o raio, antes do banco', () => {
 		['os internos recusados', {}, { internals: () => Promise.resolve(refused) }, 'GEOSPATIAL_INTERNALS_UNSUPPORTED'],
 		['um banco onde o raio não roda', {}, { client: 'sqlite' as const }, 'GEOSPATIAL_OPERATION_UNAVAILABLE'],
 		['uma coleção que o esquema não tem', { collection: 'nowhere' }, {}, 'FORBIDDEN'],
+		['uma coleção do sistema, mesmo com uma geometria', { collection: 'directus_users' }, {}, 'FORBIDDEN'],
 	])('%s volta com o erro, sem montar a query permitida', async (_, request, overrides, code) => {
 		const { engine, built } = engineWith(overrides);
 

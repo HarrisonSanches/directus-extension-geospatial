@@ -1,12 +1,29 @@
-import { createCollection, createPermission, customEndpoint, readItems, readPolicies } from '@directus/sdk';
-import { beforeAll, describe, expect, inject, it } from 'vitest';
+import {
+	createCollection,
+	createPermission,
+	customEndpoint,
+	deleteField,
+	readItems,
+	readPolicies,
+} from '@directus/sdk';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { combinations } from './combinations.ts';
-import { as, type Client, databaseContainer, hasCustomPermissionRules, type Occurrence } from './directus.ts';
+import {
+	as,
+	type Client,
+	databaseContainer,
+	hasCustomPermissionRules,
+	type Occurrence,
+	type Role,
+} from './directus.ts';
 import { callsOn } from './postgres.ts';
 import { circle, southZone, wgs84 } from './seed.ts';
 import type { Capabilities, Item } from 'directus-geospatial-contract';
 
 const postgis = combinations[inject('combination')].database.client === 'postgres';
+
+// Directus 12 deactivates a collection, and 11.17 has no such state (V-173).
+const deactivates = combinations[inject('combination')].directus.version.startsWith('12.');
 
 const geo = { operation: 'radius', center: circle.center, distance: circle.meters };
 
@@ -53,6 +70,17 @@ const expectedFor = async (client: Client, { fields = ['id', 'region', 'geometry
 	return items
 		.filter(({ geometry }) => geometry && distanceOf(geometry) <= circle.meters)
 		.map(({ geometry, ...item }): Read => (asked ? { ...item, geometry } : item));
+};
+
+// The container of the database, for the tests that count what reached it (test/postgres.ts).
+const containerOf = () => {
+	const container = databaseContainer();
+
+	if (container === undefined) {
+		throw new Error('The global setup did not hand over the container of the database.');
+	}
+
+	return container;
 };
 
 // The error a request fails with, in the format of Directus.
@@ -268,6 +296,150 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		});
 	});
 
+	describe('as coleções que o /items recusa além das permissões (V-173)', () => {
+		// A geometry field only this test adds to a collection of the system, by a name no other query reads.
+		const column = 'radius_location';
+		const itemsOf = (client: Client, collection: string) =>
+			errorsOf(client.request(customEndpoint({ path: `/items/${collection}`, method: 'GET' })));
+
+		afterAll(async () => {
+			await as('admin').request(deleteField('directus_users', column));
+		});
+
+		it('uma coleção do sistema é recusada como no /items, também ao admin', async () => {
+			const items = await itemsOf(as('admin'), 'directus_users');
+
+			expect(await errorsOf(radius(as('admin'), {}, 'directus_users'))).toEqual(items);
+			expect(items).toMatchObject([{ extensions: { code: 'FORBIDDEN' } }]);
+		});
+
+		it('com um campo de geometria acrescentado, a coleção do sistema segue recusada, sem query nela', async () => {
+			const admin = as('admin');
+
+			// The schema of the suite does not know the collection, so the field goes by the path of /fields.
+			await admin.request(
+				customEndpoint({
+					path: '/fields/directus_users',
+					method: 'POST',
+					body: JSON.stringify({ field: column, type: 'geometry.Point', schema: {}, meta: {} }),
+				}),
+			);
+
+			const container = containerOf();
+			const before = await callsOn(container, `"${column}"`);
+
+			expect(await errorsOf(radius(admin, {}, 'directus_users'))).toEqual(await itemsOf(admin, 'directus_users'));
+			expect(await callsOn(container, `"${column}"`)).toBe(before);
+		});
+
+		it.runIf(deactivates)(
+			'no 12, a coleção inativa é recusada como no /items: inativa a quem a lê, proibida a quem não lê',
+			async () => {
+				const collection = 'radius_inactive';
+				const admin = as('admin');
+
+				await admin.request(
+					createCollection({
+						collection,
+						schema: {},
+						meta: {},
+						fields: [
+							{ field: 'id', type: 'integer', schema: { is_primary_key: true, has_auto_increment: true } },
+							{ field: 'geometry', type: 'geometry.Point', schema: {}, meta: {} },
+						],
+					}),
+				);
+
+				const readers: Role[] = ['admin', 'public'];
+
+				if (hasCustomPermissionRules()) {
+					const [policy] = await admin.request(readPolicies({ filter: { name: { _eq: 'South zone' } } }));
+
+					await admin.request(
+						createPermission({ policy: policy?.id, collection, action: 'read', fields: ['*'], permissions: southZone }),
+					);
+					readers.push('maria');
+				}
+
+				// Directus deactivates a collection through its meta, as it does past the collections of its tier.
+				await admin.request(
+					customEndpoint({
+						path: `/collections/${collection}`,
+						method: 'PATCH',
+						body: JSON.stringify({ meta: { status: 'inactive' } }),
+					}),
+				);
+
+				for (const reader of readers) {
+					expect(await errorsOf(radius(as(reader), {}, collection))).toEqual(await itemsOf(as(reader), collection));
+				}
+
+				expect(await itemsOf(admin, collection)).toMatchObject([{ extensions: { code: 'COLLECTION_INACTIVE' } }]);
+				expect(await itemsOf(as('public'), collection)).toMatchObject([{ extensions: { code: 'FORBIDDEN' } }]);
+			},
+		);
+	});
+
+	describe('os valores como o /items os entrega (V-173)', () => {
+		const collection = 'radius_values';
+		const point = { type: 'Point', coordinates: circle.center };
+
+		// A field of each kind Directus processes as it reads, inside the circle. Only this test reads the collection.
+		beforeAll(async () => {
+			const admin = as('admin');
+
+			await admin.request(
+				createCollection({
+					collection,
+					schema: {},
+					meta: {},
+					fields: [
+						{ field: 'id', type: 'integer', schema: { is_primary_key: true, has_auto_increment: true } },
+						{ field: 'geometry', type: 'geometry.Point', schema: {}, meta: {} },
+						{ field: 'secret', type: 'hash', schema: {}, meta: { special: ['hash', 'conceal'] } },
+						{ field: 'flag', type: 'boolean', schema: {}, meta: { special: ['cast-boolean'] } },
+						{ field: 'details', type: 'json', schema: {}, meta: { special: ['cast-json'] } },
+						{ field: 'tags', type: 'csv', schema: {}, meta: { special: ['cast-csv'] } },
+						{ field: 'stamped_at', type: 'timestamp', schema: {}, meta: {} },
+						{ field: 'happened_at', type: 'dateTime', schema: {}, meta: {} },
+						{ field: 'day', type: 'date', schema: {}, meta: {} },
+						{ field: 'hour', type: 'time', schema: {}, meta: {} },
+					],
+				}),
+			);
+			await admin.request(
+				customEndpoint({
+					path: `/items/${collection}`,
+					method: 'POST',
+					body: JSON.stringify([
+						{
+							geometry: point,
+							secret: 'swordfish',
+							flag: true,
+							details: { level: 2, tags: ['a'] },
+							tags: ['a', 'b'],
+							stamped_at: '2026-09-01T10:00:00Z',
+							happened_at: '2026-09-01T10:00:00',
+							day: '2026-09-01',
+							hour: '10:00:00',
+						},
+						{ geometry: point, flag: false },
+					]),
+				}),
+			);
+		});
+
+		it('com fields=*, o raio devolve os mesmos valores do /items, com o campo escondido e cada tipo convertido', async () => {
+			const items = await as('admin').request(
+				customEndpoint<Item[]>({ path: `/items/${collection}`, method: 'GET', params: { sort: 'id', limit: -1 } }),
+			);
+
+			expect(await radius(as('admin'), { fields: '*', limit: -1 }, collection)).toEqual(items);
+			// The values /items gives are not the ones the database holds.
+			expect(items[0]).toMatchObject({ secret: '**********', tags: ['a', 'b'], day: '2026-09-01' });
+		});
+	});
+
 	describe('num único pedido ao banco', () => {
 		const collection = 'radius_once';
 		const user = () => (hasCustomPermissionRules() ? as('maria') : as('admin'));
@@ -315,16 +487,6 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 				);
 			}
 		});
-
-		const containerOf = () => {
-			const container = databaseContainer();
-
-			if (container === undefined) {
-				throw new Error('The global setup did not hand over the container of the database.');
-			}
-
-			return container;
-		};
 
 		it('um geo fora do contrato volta antes de qualquer query na coleção', async () => {
 			const container = containerOf();
