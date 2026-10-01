@@ -12,8 +12,14 @@
     quando o arquivo fica para trás do documento. São usados pelo motor e pelo SDK;
   - a validação da entrada (Ajv, pelo JSON Schema do próprio documento), feita antes de tocar o banco;
   - a referência da API no site de documentação.
-- O documento passa pelo lint (Redocly CLI) na CI e é servido em `GET /geospatial/openapi.json`.
-- Os testes de integração validam as respostas contra o documento.
+- O documento passa pelo lint do Redocly CLI, com o `recommended-strict`, em que cada aviso é um erro, e nenhuma regra
+  desligada. O `pnpm lint` o roda, e com ele o `pnpm check` e a CI. O `redocly.yaml` desliga a telemetria, que o
+  Redocly CLI manda a cada comando (V-169).
+- O `generate` escreve também o documento em JSON, em `src/generated/openapi.json`, que o build da extensão embute e
+  que um teste mantém igual ao YAML. A extensão o serve em `GET /geospatial/openapi.json`, cru, sem o `{ data }`, como
+  o Directus serve o dele (V-168), só a quem tem sessão, como o `capabilities` (D-042). O `servers` é a variável
+  `{publicUrl}`, porque o mesmo documento serve a qualquer Directus.
+- Os testes de integração validam cada resposta contra o documento (`docs/padroes/testes.md`).
 
 ## Convenções
 

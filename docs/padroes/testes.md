@@ -11,7 +11,7 @@ sem um teste que a quebraria se ela deixasse de ser verdade. A primeira dessas p
 | **Integração**            | O motor contra o Directus e o banco de verdade                         | Vitest, testcontainers, `@directus/sdk` para montar os dados                  | A cada push                                                                                               |
 | **Paridade de permissão** | Resultado diferente do que o `/items` daria ao mesmo papel             | A suíte de integração, com os papéis de teste                                 | A cada push                                                                                               |
 | **Contrato por banco**    | Banco que faz diferente do que a matriz declara                        | A mesma suíte, em cada banco da matriz                                        | PostGIS e SQLite a cada push; todos à noite                                                               |
-| **Contrato da API**       | Rota respondendo fora do OpenAPI                                       | Resposta validada contra o documento, nos testes de integração                | A cada push                                                                                               |
+| **Contrato da API**       | Rota respondendo fora do OpenAPI                                       | O `fetch` da suíte, com o Ajv, valida cada resposta contra o documento        | A cada push                                                                                               |
 | **Ponta a ponta**         | O Studio montado: o mapa abre, os tiles chegam, o clique abre o drawer | Playwright com `@axe-core/playwright`                                         | O curto, em pull request que toca a interface, bloqueando o merge; o completo, à noite e antes da release |
 | **Mutação**               | Teste que executa o código sem testar nada                             | StrykerJS com o executor do Vitest, no módulo de permissões                   | Toda noite                                                                                                |
 | **Medição**               | Regressão de desempenho                                                | k6 nos tiles, `EXPLAIN ANALYZE` no SQL, `bench` do Vitest no que é JavaScript | Sob demanda; os números vão para `verificacoes.md` e para o histórico                                     |
@@ -62,6 +62,12 @@ gabarito:
 
 **Índice conferido, não suposto.** A operação que a matriz declara "no banco com índice" tem um teste que lê o
 `EXPLAIN` e falha se o plano varrer a tabela.
+
+**Toda resposta da extensão passa pelo contrato.** O `fetch` da suíte (`test/contract.ts`), que o cliente do SDK usa,
+confere cada resposta de `/geospatial/*` contra o `openapi.yaml`: a rota, o método e o status precisam estar nele, e o
+corpo, no schema que ele declara, pelo Ajv no JSON Schema 2020-12 do OpenAPI 3.1, no modo estrito (V-169). Uma resposta
+fora do documento reprova o pedido, com o lugar e o motivo. O teste que chama o `fetch` sozinho, como o do banco fora,
+usa o `checkedFetch`. O núcleo do ajudante fica no pacote do contrato (`responses.ts`), com teste unitário.
 
 **Fakes em vez de mocks.** Onde precisar de dublê (o provedor de endereço, o relógio, o gerador de tokens), uma
 implementação simples em memória da interface que o consumidor definiu. O adaptador de um serviço HTTP de fora,

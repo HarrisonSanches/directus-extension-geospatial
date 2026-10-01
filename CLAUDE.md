@@ -145,7 +145,11 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   internos, também nos testes, e nada fora de `internals/` importa o `@directus/api`. O `no-restricted-imports` não vê
   o `import()`, e o `no-restricted-paths` pula o que não resolve e parte do `process.cwd()`, então o `import()` e o
   `typeof import()` vão pelo `no-restricted-syntax`, e as zonas pela raiz do repositório (V-167).
-- Próximo passo: `/implement-issue F02-02`, o contrato servido e as respostas conferidas contra ele.
+- F02-02 feita em 30/09/2026: o documento do contrato é servido em `GET /geospatial/openapi.json`, cru, como o Directus
+  serve o dele, a quem tem sessão, do JSON que o `generate` escreve a partir do YAML e o build embute. O Redocly CLI,
+  no `recommended-strict` e sem a telemetria dele, passa no `pnpm lint` e na CI, e a suíte confere cada resposta da
+  extensão contra o documento, pelo Ajv: a rota, o status, o tipo e o schema (V-168, V-169).
+- Próximo passo: `/implement-issue F02-03`, os internos do Directus em execução, conferidos ao subir.
 
 ## Documentação
 

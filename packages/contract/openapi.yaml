@@ -6,6 +6,13 @@ info:
   license:
     name: MIT
     identifier: MIT
+servers:
+  - url: '{publicUrl}'
+    description: The Directus the extension runs in.
+    variables:
+      publicUrl:
+        default: http://localhost:8055
+        description: The PUBLIC_URL of that Directus.
 paths:
   /geospatial/capabilities:
     get:
@@ -42,6 +49,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Errors'
+  /geospatial/openapi.json:
+    get:
+      operationId: openapi
+      summary: This document, in JSON
+      description: >-
+        The contract of the API, as OpenAPI 3.1: the same document the types of the SDK and the validation of the input
+        come from. Anonymous requests are refused, since it carries the version of the API.
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: The OpenAPI document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenApiDocument'
+        '403':
+          description: The request has no authenticated user (code FORBIDDEN).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
 components:
   securitySchemes:
     bearer:
@@ -71,6 +100,24 @@ components:
           type: object
           additionalProperties:
             $ref: '#/components/schemas/OperationCapability'
+    OpenApiDocument:
+      description: An OpenAPI 3.1 document, as the OpenAPI Specification describes it.
+      type: object
+      required: [openapi, info, paths]
+      properties:
+        openapi:
+          type: string
+          pattern: ^3\.1\.\d+$
+        info:
+          type: object
+          required: [title, version]
+          properties:
+            title:
+              type: string
+            version:
+              type: string
+        paths:
+          type: object
     Version:
       type: object
       required: [version]
@@ -132,4 +179,7 @@ components:
                 required: [code]
                 properties:
                   code:
-                    type: string
+                    description: A code of the extension, or one of Directus, such as FORBIDDEN.
+                    anyOf:
+                      - $ref: '#/components/schemas/ErrorCode'
+                      - type: string
