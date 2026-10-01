@@ -35,7 +35,7 @@
   (D-024), e as entradas dela, que o contrato descreve num `oneOf` com o `discriminator` pela `operation`. O mesmo
   objeto vai no corpo do `SEARCH` e da consulta registrada. O `field` diz o campo de geometria que a operação lê, e sem
   ele vale o único da coleção; com dois ou mais, o pedido é recusado, até a configuração da coleção trazer o campo
-  padrão (F06). Escolha do mantenedor, na F02-04.
+  padrão (F06). A D-048 registra a escolha.
 - Um parâmetro do `/items` que a operação ainda não trata, como o `sort`, volta com o `INVALID_QUERY` do Directus, em
   vez de ficar de fora calado, e o `geo` fora do contrato também, até os códigos próprios de entrada.
 - A coleção que o esquema não tem responde `FORBIDDEN`, como a que o usuário não lê, como o `/items` faz. Um problema

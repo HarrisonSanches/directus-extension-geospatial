@@ -876,7 +876,7 @@ O admin configura cada coleção uma vez, numa tela do módulo. Todas as camadas
 
 **Dois jeitos de usar a API**
 
-1. **No formato do `/items`, para quem integra.** `GET` ou `SEARCH /geospatial/items/:coleção` recebe os mesmos parâmetros do Directus (fields, filter, search, sort, limit) mais o parâmetro `geo`, com a operação. A resposta é `{ data, meta }`, como no `/items`. O `SEARCH`, que leva a consulta no corpo, é o mesmo que o `/items` aceita.
+1. **No formato do `/items`, para quem integra.** `GET` ou `SEARCH /geospatial/items/:coleção` recebe os mesmos parâmetros do Directus (fields, filter, search, sort, limit) mais o parâmetro `geo`, um JSON com a operação (D-048). A resposta é `{ data, meta }`, como no `/items`. O `SEARCH`, que leva a consulta no corpo, é o mesmo que o `/items` aceita.
    - `data` são os itens. Nas operações que agregam (contagem por região, grade e focos), `data` traz uma linha por região, célula da grade ou foco, com a contagem, como o Directus faz com `aggregate` e `groupBy` (V-44).
    - As formas só saem pela consulta registrada. Quem integra por aqui já conhece a geometria que mandou.
 2. **Consulta registrada, para o Studio, os dashboards e o compartilhamento.** `POST /geospatial/queries` registra a consulta e devolve o id, que os tiles, as três partes do resultado e a exportação usam. Cada parte tem a sua rota, e o mapa, a lista e o resumo carregam em paralelo (D-022).

@@ -773,3 +773,19 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - O Chromium instalado na máquina: pede as dependências do sistema, que a máquina de cada um teria de ter, e fica de fora onde o Playwright não dá suporte.
   - O Playwright inteiro dentro do container, com os testes lá: os testes deixariam de rodar no Vitest do host, ao lado da suíte.
 - **Consequências:** a primeira rodada baixa uns 2 GB. A versão do `playwright-core` e a da imagem andam juntas: o Renovate não atualiza o `playwright-core`, e os dois sobem à mão, no mesmo pull request, porque a imagem, fora do Docker Hub, não tem data, e chegaria antes do pacote, que espera os 3 dias (V-139). Sem placa de vídeo, o Chromium desenha o WebGL no processador, pelo SwiftShader.
+
+## D-048 — O `geo` do formato do `/items` em JSON, com a operação na `operation`
+
+- **Estado:** aceita em 01/10/2026. Detalha a D-016.
+- **Onde:** §7.8 (API e SDK) · `docs/padroes/api-e-contrato.md` · D-024 · V-171.
+- **Contexto:** a D-016 põe as operações no formato do `/items` com um parâmetro `geo`, sem dizer a forma dele, e a F02-04 abriu a primeira rota, a do raio. O Directus só sanitiza os parâmetros que conhece, então o `geo` chega cru no `req.query`, lido pelo `qs`. O SDK do Directus manda um parâmetro que não conhece pelo `JSON.stringify` (V-171).
+- **Decisão:**
+  - O `geo` é um objeto JSON na URL, como o `filter` do Directus: `geo={"operation":"radius","center":[-46.7,-23.65],"distance":1000}`.
+  - A `operation` leva o id da operação (D-024), e as outras chaves são as entradas dela. O contrato descreve o `geo` num `oneOf`, com o `discriminator` pela `operation`, e cada operação nova entra como mais um ramo.
+  - O mesmo objeto vai no corpo do `SEARCH` e da consulta registrada.
+  - O `field` diz o campo de geometria que a operação lê. Sem ele, vale o único campo de geometria da coleção, e com dois ou mais o pedido é recusado, até a configuração da coleção trazer o campo padrão (F06).
+- **Alternativas descartadas:**
+  - A operação como chave, no estilo dos operadores do `filter` (`{"radius":{...}}`): o contrato viraria um `oneOf` de objetos de uma chave só, sem o `discriminator`, e o cliente teria de descobrir a operação pela chave que veio.
+  - Parâmetros soltos na URL (`operation=radius&center=-46.7,-23.65&distance=1000`), como na prova da F01: dividem o espaço de nomes com os parâmetros do `/items`, e uma entrada aninhada, como o polígono do "Por área", não cabe.
+  - Os colchetes do `qs` (`geo[center][0]=-46.7`): os números chegariam como texto, a profundidade e o tamanho das listas esbarram nos limites do Directus (`QUERYSTRING_MAX_PARSE_DEPTH` e `QUERYSTRING_ARRAY_LIMIT`), e o SDK do Directus não manda assim.
+- **Consequências:** o `geo` passa pelo mesmo `JSON.parse` e pela mesma validação do contrato no `GET`, no `SEARCH` e na consulta registrada. Na URL, o JSON vai codificado, como o `filter`. Depois da primeira publicação, mudar o formato quebra cliente, então ele só muda numa versão major (`docs/padroes/api-e-contrato.md`).

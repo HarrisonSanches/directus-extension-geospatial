@@ -158,7 +158,7 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - F02-04 feita em 01/10/2026: `GET /geospatial/items/:coleção` devolve o raio no formato do `/items`, sobre a query
   permitida do `req.sanitizedQuery`, num SQL só, com o `ST_DWithin` em `geography` sobre o texto da geometria, e a
   geometria em GeoJSON, igual à do `/items`. O `geo` vai em JSON, com a `operation`, como o SDK do Directus manda um
-  parâmetro que não conhece (escolha do mantenedor, V-171). A matriz declara o raio e o envelope de cada banco num lugar
+  parâmetro que não conhece (D-048, V-171). A matriz declara o raio e o envelope de cada banco num lugar
   só: no PostGIS, sem índice; nos outros, indisponível, com o `GEOSPATIAL_OPERATION_UNAVAILABLE`. A suíte conta as
   queries pelo `pg_stat_statements` (V-172).
 - Próximo passo: `/implement-issue F02-05`, os outros papéis e o que a página manda, no raio.
