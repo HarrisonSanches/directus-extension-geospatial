@@ -1,10 +1,11 @@
-import { ForbiddenError, InvalidQueryError } from '@directus/errors';
+import { InvalidQueryError } from '@directus/errors';
 import type { Accountability, ApiExtensionContext, Query, SchemaOverview } from '@directus/types';
 import type { Database, Internals, Item, Radius } from 'directus-geospatial-contract';
 import type { Logger } from 'pino';
 import { failClosed } from '../../db/fail-closed.js';
 import { InternalsUnsupportedError, OperationUnavailableError } from '../../errors.js';
 import type { PermittedQuery } from '../../internals/permitted.js';
+import { collectionOf } from '../collection.js';
 import { geometryFieldOf, unsupportedIn } from '../request.js';
 import { radiusLevels } from './levels.js';
 
@@ -23,6 +24,9 @@ export interface Engine {
 	internals: () => Promise<Internals>;
 	permittedQuery: PermittedQuery;
 	logger: Pick<Logger, 'error'>;
+	// The values /items gives of the rows of a collection, as Directus reads them: a concealed field hidden, and the
+	// booleans, the JSON, the CSV, the dates and the geometry converted (V-173).
+	valuesOf: (collection: string, rows: Record<string, unknown>[]) => Promise<Record<string, unknown>[]>;
 }
 
 const isRow = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -52,7 +56,7 @@ const windowOf = ({ limit, offset, page }: Query) => {
 // answers so before the permitted query is built.
 export const radiusItems = async (
 	{ collection, geo, page, accountability }: RadiusRequest,
-	{ knex, schema, client, internals, permittedQuery, logger }: Engine,
+	{ knex, schema, client, internals, permittedQuery, logger, valuesOf }: Engine,
 ): Promise<Item[]> => {
 	const unsupported = unsupportedIn(page);
 
@@ -72,13 +76,7 @@ export const radiusItems = async (
 		throw new OperationUnavailableError({ operation: 'radius', reason: declared.reason });
 	}
 
-	// As the /items of Directus, a collection the schema does not have is refused as one the user cannot read.
-	const primary = schema.collections[collection]?.primary;
-
-	if (primary === undefined) {
-		throw new ForbiddenError();
-	}
-
+	const { primary } = collectionOf(schema, collection);
 	const context = { schema, knex };
 	const found = geometryFieldOf(schema, collection, geo.field);
 
@@ -96,7 +94,7 @@ export const radiusItems = async (
 		context,
 	);
 
-	const { builder, itemOf } = declared.envelope(knex, {
+	const { builder } = declared.envelope(knex, {
 		permitted,
 		geometry: found.field,
 		key: primary,
@@ -111,11 +109,13 @@ export const radiusItems = async (
 		return Array.isArray(result) ? result.filter(isRow) : [];
 	}, logger);
 
-	// The geometry the operation read stays out when the page did not ask for it.
+	const values = await valuesOf(collection, rows);
 	const fields = page.fields ?? ['*'];
-	const asked = fields.includes('*') || fields.includes(found.field);
 
-	return rows
-		.map(itemOf)
-		.map(({ [found.field]: geometry, ...item }) => (asked ? { ...item, [found.field]: geometry } : item));
+	if (fields.includes('*') || fields.includes(found.field)) {
+		return values;
+	}
+
+	// The geometry the operation read stays out when the page did not ask for it.
+	return values.map((item) => Object.fromEntries(Object.entries(item).filter(([name]) => name !== found.field)));
 };

@@ -40,6 +40,10 @@
   vez de ficar de fora calado, e o `geo` fora do contrato também, até os códigos próprios de entrada.
 - A coleção que o esquema não tem responde `FORBIDDEN`, como a que o usuário não lê, como o `/items` faz. Um problema
   do campo de geometria só aparece depois de a cadeia do Directus conferir que o usuário lê a coleção.
+- Toda operação que devolve itens responde como o `/items` também fora das permissões (V-173): a coleção do sistema,
+  pelo prefixo `directus_`, responde `FORBIDDEN`, também ao admin; a inativa do 12, o `COLLECTION_INACTIVE`, que a
+  própria cadeia lança; e os valores saem pelo `PayloadService` do Directus, como o `/items` os dá, com a geometria
+  convertida por ele do texto da query permitida.
 - Valores calculados no campo reservado `$geo`; nas formas, nas propriedades do GeoJSON.
 - Horários em ISO 8601 com deslocamento (D-031).
 - Coordenadas sempre em `[longitude, latitude]`, como no GeoJSON.

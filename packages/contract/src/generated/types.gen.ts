@@ -227,7 +227,7 @@ export type ItemsErrors = {
 	 */
 	400: Errors;
 	/**
-	 * The user cannot read the collection, a field the request asks for or the geometry, as in /items (code FORBIDDEN).
+	 * The user cannot read the collection, a field the request asks for or the geometry, or the collection is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read it (code COLLECTION_INACTIVE).
 	 */
 	403: Errors;
 	/**
