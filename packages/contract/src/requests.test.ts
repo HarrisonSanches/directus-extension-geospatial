@@ -29,6 +29,10 @@ describe('a entrada conferida contra o contrato', () => {
 		expect(geo(value)).toMatchObject({ valid: false });
 	});
 
+	it('na raiz, o motivo diz só por quê', () => {
+		expect(geo('radius')).toEqual({ valid: false, errors: expect.arrayContaining(['must be object']) as string[] });
+	});
+
 	it('o motivo diz onde e por quê', () => {
 		expect(geo({ ...radius, distance: -1 })).toEqual({
 			valid: false,

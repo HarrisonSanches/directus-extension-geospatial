@@ -19,10 +19,11 @@ export const inputsOf = (document: OpenApiDocument) => {
 					? { valid: true, value }
 					: {
 							valid: false,
-							errors: (validate.errors ?? []).map(
-								({ instancePath, message }) =>
-									`${instancePath === '' ? 'the root' : instancePath} ${message ?? 'is invalid'}`,
-							),
+							// The place, which is empty at the root, and the reason of each problem, as Ajv words them.
+							errors: ajv
+								.errorsText(validate.errors, { separator: '\n', dataVar: '' })
+								.split('\n')
+								.map((error) => error.trim()),
 						};
 		},
 	};
