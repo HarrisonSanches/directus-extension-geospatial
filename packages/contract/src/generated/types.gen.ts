@@ -87,12 +87,50 @@ export type OperationCapability = {
 	 * indexed and unindexed run in the database, with or without a spatial index; capped runs in the server of the extension, on a maximum volume; unavailable does not run.
 	 */
 	level: 'indexed' | 'unindexed' | 'capped' | 'unavailable';
+	/**
+	 * Why the operation is unavailable, without naming the database.
+	 */
+	reason?: string;
+};
+
+/**
+ * The spatial operation of a request, by its id, the canonical term of the glossary in camelCase.
+ */
+export type Geo = Radius;
+
+/**
+ * The items within a distance of a point, in meters over the ellipsoid. An item is inside when any part of it is at most at the distance, the edge included.
+ */
+export type Radius = {
+	operation: 'radius';
+	/**
+	 * The geometry field of the collection the operation reads. It may be left out when the collection has a single geometry field.
+	 */
+	field?: string;
+	center: Position;
+	/**
+	 * The distance, in meters.
+	 */
+	distance: number;
+};
+
+/**
+ * A point as [longitude, latitude], in WGS 84, as GeoJSON writes it.
+ */
+export type Position = [number, number];
+
+/**
+ * An item of the collection, with the fields the request asks for, the geometries in GeoJSON and the other values as the database returns them.
+ */
+export type Item = {
+	[key: string]: unknown;
 };
 
 /**
  * The codes of the errors of the extension, in the extensions.code of the error format of Directus. Each one starts with GEOSPATIAL_, so it never collides with a code of Directus.
  */
-export type ErrorCode = 'GEOSPATIAL_DATABASE_UNAVAILABLE';
+export type ErrorCode =
+	'GEOSPATIAL_DATABASE_UNAVAILABLE' | 'GEOSPATIAL_INTERNALS_UNSUPPORTED' | 'GEOSPATIAL_OPERATION_UNAVAILABLE';
 
 /**
  * The error format of Directus.
@@ -139,6 +177,81 @@ export type CapabilitiesResponses = {
 };
 
 export type CapabilitiesResponse = CapabilitiesResponses[keyof CapabilitiesResponses];
+
+export type ItemsData = {
+	body?: never;
+	path: {
+		/**
+		 * The collection, by its name in Directus.
+		 */
+		collection: string;
+	};
+	query: {
+		/**
+		 * The spatial operation, as JSON, the way Directus takes the filter.
+		 */
+		geo: Geo;
+		/**
+		 * The fields of each item, as in /items, separated by commas. Fields of a relation are refused for now. The geometry the operation reads is always read by its name, so a user who cannot read it gets the error of /items.
+		 */
+		fields?: string;
+		/**
+		 * The filter of /items, as JSON.
+		 */
+		filter?: {
+			[key: string]: unknown;
+		};
+		/**
+		 * The search of /items.
+		 */
+		search?: string;
+		/**
+		 * How many items, as in /items, with -1 for all of them.
+		 */
+		limit?: number;
+		/**
+		 * How many items to skip, in the order of the primary key.
+		 */
+		offset?: number;
+		/**
+		 * The page, as in /items, starting at 1.
+		 */
+		page?: number;
+	};
+	url: '/geospatial/items/{collection}';
+};
+
+export type ItemsErrors = {
+	/**
+	 * The geo is off the contract, or the request carries a parameter the operation does not take yet (code INVALID_QUERY of Directus).
+	 */
+	400: Errors;
+	/**
+	 * The user cannot read the collection, a field the request asks for or the geometry, as in /items (code FORBIDDEN).
+	 */
+	403: Errors;
+	/**
+	 * The operation does not run on the database in use (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
+	 */
+	501: Errors;
+	/**
+	 * The internals of the running Directus are not the ones the extension expects, so its operations are off (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).
+	 */
+	503: Errors;
+};
+
+export type ItemsError = ItemsErrors[keyof ItemsErrors];
+
+export type ItemsResponses = {
+	/**
+	 * The items, in the order of the primary key.
+	 */
+	200: {
+		data: Array<Item>;
+	};
+};
+
+export type ItemsResponse = ItemsResponses[keyof ItemsResponses];
 
 export type OpenapiData = {
 	body?: never;
