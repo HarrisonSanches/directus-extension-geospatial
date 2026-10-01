@@ -155,7 +155,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   o resultado sai no log e no `capabilities` do admin. O próprio Directus importa cada módulo da cadeia, então o ensaio
   move um deles para outro arquivo, em vez de apagá-lo, e a suíte confere pelo mapa do código que nenhum arquivo do
   `@directus/api` entrou no bundle (V-170, A-039, no plano).
-- Próximo passo: `/implement-issue F02-04`, o raio da Maria no estilo do `/items`, no PostGIS.
+- F02-04 feita em 01/10/2026: `GET /geospatial/items/:coleção` devolve o raio no formato do `/items`, sobre a query
+  permitida do `req.sanitizedQuery`, num SQL só, com o `ST_DWithin` em `geography` sobre o texto da geometria, e a
+  geometria em GeoJSON, igual à do `/items`. O `geo` vai em JSON, com a `operation`, como o SDK do Directus manda um
+  parâmetro que não conhece (escolha do mantenedor, V-171). A matriz declara o raio e o envelope de cada banco num lugar
+  só: no PostGIS, sem índice; nos outros, indisponível, com o `GEOSPATIAL_OPERATION_UNAVAILABLE`. A suíte conta as
+  queries pelo `pg_stat_statements` (V-172).
+- Próximo passo: `/implement-issue F02-05`, os outros papéis e o que a página manda, no raio.
 
 ## Documentação
 

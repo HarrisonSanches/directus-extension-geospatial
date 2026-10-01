@@ -10,3 +10,18 @@ export const DatabaseUnavailableError = createError(
 	'The database did not answer. Try again later.',
 	503,
 );
+
+// The internals of the running Directus are not the ones an adapter expects, so the operations are off (§5, protection
+// 2). What is missing goes only to the admin, through the capabilities.
+export const InternalsUnsupportedError = createError(
+	code('GEOSPATIAL_INTERNALS_UNSUPPORTED'),
+	'The internals of this Directus are not the ones the extension expects, so its operations are off.',
+	503,
+);
+
+// An operation that does not run on the database in use, with the operation and the reason in the extensions (§7.4).
+export const OperationUnavailableError = createError<{ operation: string; reason: string }>(
+	code('GEOSPATIAL_OPERATION_UNAVAILABLE'),
+	({ operation, reason }) => `The operation ${operation} is unavailable. ${reason}`,
+	501,
+);

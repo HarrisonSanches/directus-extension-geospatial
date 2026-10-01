@@ -60,6 +60,11 @@ gabarito:
 - quando não faz (raio, mais próximos), o gabarito é calculado: os itens permitidos pelo `/items`, filtrados ou
   ordenados com a GeographicLib, com tolerância só nas distâncias.
 
+**Um SQL só, conferido.** O Postgres dos testes carrega o `pg_stat_statements` (V-172), e o teste que promete a query
+permitida e a parte espacial num SQL só conta, pelo `callsOn` de `test/postgres.ts`, quantas vezes o banco rodou o que
+lê uma coleção que só ele usa, porque os outros testes da combinação rodam ao mesmo tempo. É o que pega a query
+permitida rodando sozinha antes do envelope (V-142).
+
 **Índice conferido, não suposto.** A operação que a matriz declara "no banco com índice" tem um teste que lê o
 `EXPLAIN` e falha se o plano varrer a tabela.
 

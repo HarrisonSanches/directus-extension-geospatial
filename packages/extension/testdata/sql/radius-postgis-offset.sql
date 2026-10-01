@@ -1,0 +1,2 @@
+select "p".*, ST_AsGeoJSON(ST_GeomFromText("p"."geometry", 4326), 15)::json as "$geojson" from (select (CASE WHEN ("occurrences"."region" = ?) THEN "occurrences"."id" END) AS "id", (CASE WHEN ("occurrences"."region" = ?) THEN st_astext("occurrences"."geometry") END) AS "geometry" from "occurrences" where "occurrences"."region" = ?) as "p" where ST_DWithin(ST_GeomFromText("p"."geometry", 4326)::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?) order by "p"."id" asc offset ?
+-- bindings: ["south","south","south",-46.7,-23.65,10000,200]

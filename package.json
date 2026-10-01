@@ -38,6 +38,7 @@
 		"eslint": "catalog:",
 		"eslint-config-prettier": "catalog:",
 		"eslint-plugin-import-x": "catalog:",
+		"geographiclib-geodesic": "catalog:",
 		"husky": "catalog:",
 		"jiti": "catalog:",
 		"knip": "catalog:",

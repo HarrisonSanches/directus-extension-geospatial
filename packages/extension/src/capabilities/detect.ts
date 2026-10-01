@@ -1,4 +1,5 @@
 import type { Capabilities, Database, Internals, Spatial } from 'directus-geospatial-contract';
+import { matrixOf } from './matrix.js';
 
 type DatabaseClient = Database['client'];
 
@@ -42,12 +43,16 @@ const spatialOf = ({ client, spatialVersion }: EnvironmentReport): Spatial | nul
 	return name === undefined || spatialVersion === null ? null : { name, version: spatialVersion };
 };
 
-export const detectCapabilities = (report: EnvironmentReport): Capabilities => ({
-	api: { version: report.apiVersion },
-	extension: { version: report.extensionVersion },
-	directus: { version: report.directusVersion },
-	database: { client: report.client, version: majorMinor(report.databaseVersion) },
-	spatial: spatialOf(report),
-	operations: {},
-	internals: report.internals,
-});
+export const detectCapabilities = (report: EnvironmentReport): Capabilities => {
+	const spatial = spatialOf(report);
+
+	return {
+		api: { version: report.apiVersion },
+		extension: { version: report.extensionVersion },
+		directus: { version: report.directusVersion },
+		database: { client: report.client, version: majorMinor(report.databaseVersion) },
+		spatial,
+		operations: matrixOf({ client: report.client, spatial, internals: report.internals }),
+		internals: report.internals,
+	};
+};

@@ -5,7 +5,9 @@ import { GenericContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { combinations } from './combinations.ts';
 import { connect } from './directus.ts';
-import { type Environment, startEnvironment } from './environment.ts';
+import { type Environment, newSecret, startEnvironment } from './environment.ts';
+import { callsOn } from './postgres.ts';
+import { circle, seed } from './seed.ts';
 import type { Capabilities } from 'directus-geospatial-contract';
 
 const combination = inject('combination');
@@ -49,6 +51,9 @@ describe.runIf(combinations[combination].database.client === 'postgres')(
 				directus,
 			});
 
+			// The occurrences, for the radius to find nothing to read. Only the admin reads them here.
+			await seed(connect(environment.url, environment.admin.token), newSecret, false);
+
 			// The log of Directus since it started, as Docker keeps it.
 			stream = await environment.directus.logs();
 			stream.on('data', (chunk: Buffer) => {
@@ -74,6 +79,37 @@ describe.runIf(combinations[combination].database.client === 'postgres')(
 
 			expect(Object.keys(problems).sort()).toEqual(['11.17', '12']);
 			expect(Object.values(problems)).toEqual([expect.arrayContaining([missing]), expect.arrayContaining([missing])]);
+		});
+
+		it('o raio responde que os internos não servem, sem nenhuma query nas ocorrências', async () => {
+			const { url, admin, backend } = started();
+			const container = backend.database?.getId();
+
+			if (container === undefined) {
+				throw new Error('The database of the test runs inside Directus.');
+			}
+
+			const before = await callsOn(container, '"occurrences"');
+			const geo = { operation: 'radius', center: circle.center, distance: circle.meters };
+
+			await expect(
+				connect(url, admin.token).request(
+					customEndpoint({ path: '/geospatial/items/occurrences', method: 'GET', params: { geo } }),
+				),
+			).rejects.toMatchObject({ errors: [{ extensions: { code: 'GEOSPATIAL_INTERNALS_UNSUPPORTED' } }] });
+			expect(await callsOn(container, '"occurrences"')).toBe(before);
+		});
+
+		it('o capabilities mostra as operações desligadas, pelos internos', async () => {
+			const { url, admin } = started();
+			const { operations } = await connect(url, admin.token).request(
+				customEndpoint<Capabilities>({ path: '/geospatial/capabilities', method: 'GET' }),
+			);
+
+			expect(operations.radius).toEqual({
+				level: 'unavailable',
+				reason: 'The internals of this Directus are not the ones the extension expects.',
+			});
 		});
 
 		it('o log avisa, com o que falta', async () => {
