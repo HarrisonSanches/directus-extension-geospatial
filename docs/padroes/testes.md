@@ -46,19 +46,27 @@ pela pasta de cobertura da rodada, que o setup global entrega a todos os testes.
 um JWT, porque o Directus procura o token estático no banco antes de qualquer rota (V-124).
 
 **Os dados de teste entram pela API do Directus,** com o `@directus/sdk`: o esquema, os papéis, as políticas e os
-itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. Os papéis de sempre:
+itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. Os papéis de sempre, em
+`test/seed.ts`:
 
 - **Maria, Operador Zona Sul:** só `regiao = sul`;
 - um papel com **duas políticas**, para o OU entre elas (V-22);
+- três papéis da zona sul com **campos sem permissão**: um sem a `category`, para o campo pedido pelo nome; um sem a
+  geometria; e um que vê a geometria no sul e o norte sem ela, para o vazamento que um envelope sobre a coluna
+  mostraria (V-143);
 - o **público** e o **admin**.
 
-**Paridade de permissão em tudo que devolve dado.** O teste chama a extensão como a Maria e compara com o
-gabarito:
+**Paridade de permissão em tudo que devolve dado.** O teste chama a extensão como cada papel e compara com o
+gabarito calculado, em todo banco (A-015):
 
-- quando um filtro nativo faz a mesma pergunta (por área com "toca" é o `_intersects`), os ids precisam ser
-  idênticos aos do `/items`;
-- quando não faz (raio, mais próximos), o gabarito é calculado: os itens permitidos pelo `/items`, filtrados ou
-  ordenados com a GeographicLib, com tolerância só nas distâncias.
+- o gabarito são os itens que o `/items` dá ao mesmo papel, com a mesma página (o filtro, a busca e os campos),
+  filtrados ou ordenados com a GeographicLib, com tolerância só nas distâncias. Um filtro espacial do Directus não
+  serve de gabarito: o `_intersects` não vale num `geometry.Point` (V-123) e, no Oracle, não faz a mesma pergunta
+  (V-154);
+- o erro do `/items` (o público sem leitura, o campo sem permissão pedido pelo nome e a geometria sem permissão) se
+  compara inteiro, com o código e a mensagem;
+- o item que uma política deixa ver sem a geometria fica fora de toda operação, e o teste reprova um envelope que lê a
+  coluna crua.
 
 **Um SQL só, conferido.** O Postgres dos testes carrega o `pg_stat_statements` (V-172), e o teste que promete a query
 permitida e a parte espacial num SQL só conta, pelo `callsOn` de `test/postgres.ts`, quantas vezes o banco rodou o que

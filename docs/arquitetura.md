@@ -645,9 +645,9 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
    - Um conjunto fixo de dados é carregado pela API do Directus, para que fique gravado do jeito que o Directus grava em cada banco.
    - Cada operação declarada na matriz tem um resultado esperado, com tolerância para distâncias.
    - Uma operação não declarada precisa devolver o erro de indisponível.
-2. **Paridade de permissão com o `/items`**, usando um papel restrito.
-   - Quando um filtro nativo faz a mesma pergunta (a operação por área com "toca" equivale ao `_intersects`, e com "fora", ao `_nintersects`), os IDs precisam ser idênticos. No Oracle, o `_intersects` não faz a mesma pergunta, e a paridade compara com o resultado calculado (V-154).
-   - Quando não faz, como no raio, o teste calcula a resposta certa: busca os itens permitidos pelo `/items` e calcula com a GeographicLib.
+2. **Paridade de permissão com o `/items`**, com os papéis restritos de `docs/padroes/testes.md`.
+   - O teste calcula a resposta certa em todo banco: busca os itens que o `/items` dá ao mesmo papel, com a mesma página, e calcula com a GeographicLib. Um filtro espacial do Directus não serve de gabarito: ele não vale num campo `geometry.Point` (V-123), e no Oracle o `_intersects` não faz a mesma pergunta (V-154).
+   - Os erros do `/items` se comparam inteiros, com o código e a mensagem, e o item que uma política deixa ver sem a geometria fica fora de toda operação.
 3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus, e o SQLite na imagem oficial do Directus com a SpatiaLite (V-121). Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5. O 12 com PostGIS roda com a chave do Open Innovation Grant, ativada sempre no mesmo projeto dos testes, e, sem ela, no tier Core. O 12 com SQLite fica sempre no Core, porque outro banco seria outro projeto e gastaria outra ativação (D-043, D-044).
 
 **Quando cada teste roda:**
