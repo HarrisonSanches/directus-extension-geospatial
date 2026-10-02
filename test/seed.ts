@@ -122,7 +122,7 @@ const userWith = async (admin: Client, role: string, email: string, newSecret: (
 // The row rule of Maria, who only reads the south zone.
 export const southZone = { region: { _eq: 'south' } };
 
-const northZone = { region: { _eq: 'north' } };
+export const northZone = { region: { _eq: 'north' } };
 
 const everyFieldBut = (field: keyof Occurrence) =>
 	(['id', 'geometry', 'region', 'category', 'status', 'occurred_at'] as const).filter((name) => name !== field);

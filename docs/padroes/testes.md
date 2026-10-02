@@ -86,6 +86,15 @@ do teste, com pontos bastantes para o Postgres pesar o índice, porque numa tabe
 propósito, e com o GiST que a extensão oferece ao admin (§7.6). O mesmo teste confere que a caixa não perdeu nenhum
 item que a distância sozinha manteria.
 
+**O caminho conferido no SQL.** Um caminho que só muda o desempenho, como a caixa do primeiro estágio, dá o resultado
+certo também quando não é tomado. O teste dele confere o resultado e, no SQL que o observador entrega, que o caminho
+estava lá, ou que não estava, onde ele não vale. Sem isso, a caixa em outro SRID passou nos testes sem nunca ter ido ao
+banco (V-178).
+
+**A coluna que o Directus não cria.** O Directus só cria `geometry` em 4326 (V-25). O teste da coluna em outro SRID ou
+em `geography` cria a coleção pelo Directus e muda o tipo da coluna por SQL, no container da suíte, com os pontos
+convertidos pelo próprio PostGIS.
+
 **Toda resposta da extensão passa pelo contrato.** O `fetch` da suíte (`test/contract.ts`), que o cliente do SDK usa,
 confere cada resposta de `/geospatial/*` contra o `openapi.yaml`: a rota, o método e o status precisam estar nele, e o
 corpo, no schema que ele declara, pelo Ajv no JSON Schema 2020-12 do OpenAPI 3.1, no modo estrito (V-169). Uma resposta

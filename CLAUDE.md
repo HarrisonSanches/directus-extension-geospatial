@@ -189,8 +189,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   em volta, deixa fora o que uma política esconde (D-049, a opção da A-026, escolha do mantenedor). Com 1 milhão de
   pontos e o GiST, o pedido da Maria caiu de 0,9 s para 50 a 64 ms na primeira página, na máquina de referência. Um
   teste lê o `EXPLAIN` do SQL que chegou ao banco, que o observador da medição, agora também na suíte, entrega (V-177).
-- Próximo passo: `/implement-issue F02-09`, metros em qualquer SRID. A A-044, o raio sem `limit`, espera a decisão do
-  mantenedor, antes da F02-10.
+- F02-09 feita em 02/10/2026: o raio mede em metros numa coluna em qualquer SRID e numa `geography`, e a geometria sai
+  em 4326. O esquema do Directus lê as duas como `geometry.Point` e não guarda o SRID, então o motor os lê do catálogo,
+  a cada pedido. A caixa vai para o SRID da coluna com a borda cortada em trechos curtos, e só onde o PROJ a traz de
+  volta ao mesmo lugar, e na `geography` o próprio `ST_DWithin` usa o índice. Com o SRID sem tipo, o `ST_Transform`
+  lia o número como um texto do PROJ, e a caixa ficava de fora com o resultado certo: só o `EXPLAIN` reprovou (V-178).
+- Próximo passo: a decisão do mantenedor sobre a A-044, o raio sem `limit`, e depois `/implement-issue F02-10`.
 
 ## Documentação
 

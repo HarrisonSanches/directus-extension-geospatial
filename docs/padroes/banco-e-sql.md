@@ -22,6 +22,12 @@
 - Distância, área, perímetro e comprimento sempre em `geography` (D-007).
 - Filtro em dois estágios: a caixa no SRID da coluna, que usa o índice, e o teste exato em metros no que sobrou.
 - O SRID é lido da coluna: a entrada chega em 4326 e é convertida para ele, e a saída volta em 4326.
+  - O tipo e o SRID de uma coluna espacial vêm do catálogo, a cada pedido, porque o esquema do Directus não os tem
+    (V-178).
+  - No estágio que o índice responde, converte-se o que entra, nunca a coluna. A caixa vai com a borda cortada em
+    trechos curtos, e só onde o PROJ a traz de volta ao mesmo lugar.
+  - Um SRID que vai como parâmetro leva `::integer`: sem o tipo, o Postgres escolhe a sobrecarga de texto do
+    `ST_Transform`, que o lê como um texto do PROJ (V-178).
 - Nas datas, converter o parâmetro, nunca a coluna (D-031), para o banco continuar usando o índice.
 - A operação que promete índice tem teste com `EXPLAIN` ([`testes.md`](testes.md)).
 

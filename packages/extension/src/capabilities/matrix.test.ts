@@ -23,7 +23,7 @@ const clientsOfContract = () => {
 };
 
 describe('a matriz de capacidades', () => {
-	it('o raio roda no PostGIS sem o índice, enquanto o envelope lê o texto da query permitida (A-023)', () => {
+	it('o raio roda no PostGIS com o índice, e o envelope lê a coluna dentro da query permitida (D-049)', () => {
 		expect(matrixOf({ client: 'postgres', spatial: postgis, internals: accepted })).toEqual({
 			radius: { level: 'indexed' },
 		});

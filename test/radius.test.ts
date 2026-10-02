@@ -18,8 +18,8 @@ import {
 } from './directus.ts';
 import { planOf, summaryOfPlan } from './measure/measure.ts';
 import { callsOn, queryOn } from './postgres.ts';
-import { circle, southZone, wgs84 } from './seed.ts';
-import type { Capabilities, Item } from 'directus-geospatial-contract';
+import { circle, northZone, southZone, wgs84 } from './seed.ts';
+import type { Capabilities, Item, Position } from 'directus-geospatial-contract';
 
 const postgis = combinations[inject('combination')].database.client === 'postgres';
 
@@ -100,6 +100,94 @@ const errorsOf = async (request: Promise<unknown>) => {
 	const error = await errorOf(request);
 
 	return error instanceof Object && 'errors' in error ? error.errors : error;
+};
+
+// The statement of the last radius of a collection, with its values, as the observer of the suite saw it reach the
+// database (test/measure/observer/).
+const statementOn = async (collection: string) => {
+	const read = await as('admin').request(
+		customEndpoint<{ statement: string } | null>({
+			path: '/geospatial-test-observer/last',
+			method: 'GET',
+			params: { collection },
+		}),
+	);
+
+	if (read === null) {
+		throw new Error('The observer saw no radius of the collection.');
+	}
+
+	return read.statement;
+};
+
+// The columns Directus never creates, which a test makes by SQL from the one Directus creates, a geometry in 4326 (V-25):
+// the type, how the rows go to it, and how a statement reads it in geography.
+const columns = {
+	utm: {
+		type: 'geometry(Point, 31983)',
+		using: 'ST_Transform(geometry, 31983)',
+		geography: 'ST_Transform(geometry, 4326)::geography',
+	},
+	geography: { type: 'geography(Point, 4326)', using: 'geometry::geography', geography: 'geometry' },
+	// A geometry with no SRID declared, whose rows keep the one Directus writes them in.
+	undeclared: { type: 'geometry', using: 'geometry', geography: 'geometry::geography' },
+};
+
+type Column = (typeof columns)[keyof typeof columns];
+
+const changeColumn = (collection: string, { type, using }: Column) =>
+	`alter table ${collection} alter column geometry type ${type} using ${using}`;
+
+// A collection only one test reads, as Directus creates it, with the geometry in 4326.
+const createCollectionOf = (collection: string) =>
+	as('admin').request(
+		createCollection({
+			collection,
+			schema: {},
+			meta: {},
+			fields: [
+				{ field: 'id', type: 'integer', schema: { is_primary_key: true, has_auto_increment: true } },
+				{ field: 'geometry', type: 'geometry.Point', schema: {}, meta: {} },
+				{ field: 'region', type: 'string', schema: {} },
+			],
+		}),
+	);
+
+// A permission to read a collection, in a policy of the seed, found by its name.
+const permit = async (collection: string, policy: string, permissions: Record<string, unknown>, fields = ['*']) => {
+	const admin = as('admin');
+	const [found] = await admin.request(readPolicies({ filter: { name: { _eq: policy } } }));
+
+	await admin.request(createPermission({ policy: found?.id, collection, action: 'read', fields, permissions }));
+};
+
+const distanceBetween = ([fromLongitude, fromLatitude]: Position, [toLongitude, toLatitude]: Position) => {
+	const { s12 } = wgs84.Inverse(fromLatitude, fromLongitude, toLatitude, toLongitude);
+
+	if (s12 === undefined) {
+		throw new Error('GeographicLib did not return the distance.');
+	}
+
+	return s12;
+};
+
+const isPoint = (value: unknown): value is Occurrence['geometry'] =>
+	value instanceof Object && 'type' in value && value.type === 'Point' && 'coordinates' in value;
+
+// A radius against its gabarito where PostGIS converts the geometry on the way out: the same items, in the same order,
+// each with the geometry a point in 4326 less than a billionth of a degree from the one of the gabarito, which is under
+// a millimeter.
+const expectIn4326 = (items: Item[], expected: Read[]) => {
+	expect(items.map((item) => Object.keys(item))).toEqual(expected.map((item) => Object.keys(item)));
+
+	for (const [index, { geometry, ...rest }] of expected.entries()) {
+		const item = items[index] ?? {};
+		const [longitude, latitude] = isPoint(item.geometry) ? item.geometry.coordinates : [];
+
+		expect(Object.fromEntries(Object.entries(item).filter(([name]) => name !== 'geometry'))).toEqual(rest);
+		expect(longitude).toBeCloseTo(geometry?.coordinates[0] ?? Number.NaN, 9);
+		expect(latitude).toBeCloseTo(geometry?.coordinates[1] ?? Number.NaN, 9);
+	}
 };
 
 describe('o raio no estilo do /items', () => {
@@ -439,35 +527,214 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		});
 	});
 
-	describe('o índice conferido, não suposto (D-049)', () => {
-		const collection = 'radius_indexed';
+	// A column in another SRID, a geography and a geometry with no SRID declared, which Directus never creates: Directus
+	// creates the collection, and the test changes the type of the column by SQL, in the container of the suite (V-25).
+	// Each one copies the occurrences, with their ids, so the gabarito of /items over them holds.
+	describe.each([
+		{ collection: 'radius_utm', name: 'em SIRGAS 2000 / UTM 23S', column: columns.utm },
+		{ collection: 'radius_geography', name: 'geography', column: columns.geography },
+		{ collection: 'radius_undeclared', name: 'geometry sem SRID declarado', column: columns.undeclared },
+	])('numa coluna $name (D-007)', ({ collection, column }) => {
+		const user = () => (hasCustomPermissionRules() ? as('maria') : as('admin'));
+
+		beforeAll(async () => {
+			await createCollectionOf(collection);
+			await queryOn(containerOf(), [
+				`insert into ${collection} (id, region, geometry) select id, region, geometry from occurrences`,
+				changeColumn(collection, column),
+			]);
+
+			if (hasCustomPermissionRules()) {
+				await permit(collection, 'South zone', southZone);
+				await permit(collection, 'South zone with geometry', southZone);
+				await permit(collection, 'North zone without geometry', northZone, ['id', 'region']);
+			}
+		});
+
+		it('o raio bate com o gabarito, com a geometria em 4326, e o SRID vem da coluna', async () => {
+			const expected = await expectedFor(user());
+
+			expectIn4326(await radius(user(), { fields: 'id,region,geometry', limit: -1 }, collection), expected);
+			expect(expected.length).toBeGreaterThan(0);
+		});
+
+		it.runIf(hasCustomPermissionRules())(
+			'o item que uma política deixa ver sem a geometria segue fora do raio, também com a geometria convertida',
+			async () => {
+				const client = as('geometryInPart');
+				const expected = await expectedFor(client);
+				const items = await radius(client, { fields: 'id,region,geometry', limit: -1 }, collection);
+
+				expectIn4326(items, expected);
+				expect(items.some(({ region }) => region === 'north')).toBe(false);
+				expect(items.length).toBeGreaterThan(0);
+			},
+		);
+
+		it.runIf(column === columns.utm)(
+			'o /items devolve a coluna em UTM nos metros dela, como se fossem graus, e o raio a devolve em 4326 (V-178)',
+			async () => {
+				const [item] = await as('admin').request(
+					customEndpoint<Item[]>({ path: `/items/${collection}`, method: 'GET', params: { sort: 'id', limit: 1 } }),
+				);
+				const [inRadius] = await radius(as('admin'), { fields: 'id,geometry', limit: -1 }, collection);
+
+				expect(isPoint(item?.geometry) && item.geometry.coordinates[0]).toBeGreaterThan(180);
+				expect(isPoint(inRadius?.geometry) && Math.abs(inRadius.geometry.coordinates[0])).toBeLessThanOrEqual(180);
+			},
+		);
+	});
+
+	// Points 1 m inside and 1 m outside the edge of a circle, every 15°, by GeographicLib.
+	const edgeOf = ([longitude, latitude]: Position, distance: number) =>
+		Array.from({ length: 24 }, (_, index) => index * 15).flatMap((azimuth) =>
+			[distance - 1, distance + 1].map((meters): Position => {
+				const { lon2, lat2 } = wgs84.Direct(latitude, longitude, azimuth, meters);
+
+				if (lon2 === undefined || lat2 === undefined) {
+					throw new Error('GeographicLib did not return the point.');
+				}
+
+				return [lon2, lat2];
+			}),
+		);
+
+	// The points of a collection only one test reads, by SQL, in 4326, with the ids in their order.
+	const insertPoints = (collection: string, points: Position[]) =>
+		`insert into ${collection} (id, region, geometry) values ${points
+			.map(
+				([longitude, latitude], index) =>
+					`(${String(index + 1)}, 'south', ST_SetSRID(ST_MakePoint(${String(longitude)}, ${String(latitude)}), 4326))`,
+			)
+			.join(', ')}`;
+
+	const idsInRadius = async (collection: string, center: Position, distance: number) =>
+		(await radius(as('admin'), { fields: 'id', limit: -1, geo: { ...geo, center, distance } }, collection)).map(
+			({ id }) => id,
+		);
+
+	// The box in the SRID of a column, as it went with the statement of the last radius of a collection.
+	const boxIn = (srid: number) => new RegExp(String.raw`&& ST_MakeEnvelope\((-?[\d.]+, ){4}${String(srid)}\)`);
+
+	describe('a caixa convertida para a UTM (D-007)', () => {
+		const collection = 'radius_utm_edges';
+
+		// São Paulo, 2° west of the central meridian of the zone, and Manaus, 15° west of it.
+		const centers: Position[] = [circle.center, [-60.02, -3.1]];
+		const distances = [1_000, 100_000, 2_000_000];
+		const points = centers.flatMap((center) => distances.flatMap((distance) => edgeOf(center, distance)));
+
+		const insideOf = (center: Position, distance: number) =>
+			points.flatMap((point, index) => (distanceBetween(center, point) <= distance ? [index + 1] : []));
+
+		beforeAll(async () => {
+			await createCollectionOf(collection);
+			await queryOn(containerOf(), [insertPoints(collection, points), changeColumn(collection, columns.utm)]);
+		});
+
+		it.each(centers.flatMap((center) => distances.map((distance) => [center, distance] as const)))(
+			'em volta de %j, com %d m, a caixa guarda os pontos a 1 m dentro da borda, e a distância deixa os de fora',
+			async (center, distance) => {
+				const expected = insideOf(center, distance);
+
+				expect(await idsInRadius(collection, center, distance)).toEqual(expected);
+				expect(expected.length).toBeGreaterThanOrEqual(24);
+				// The box went with the statement, so the points inside got through it.
+				expect(await statementOn(collection)).toMatch(boxIn(31983));
+			},
+		);
+
+		it('o círculo que chega ao polo vira uma faixa de todas as longitudes, que a UTM converte, e bate com o gabarito', async () => {
+			const expected = insideOf(circle.center, 7_700_000);
+
+			expect(await idsInRadius(collection, circle.center, 7_700_000)).toEqual(expected);
+			expect(expected).toHaveLength(points.length);
+			expect(await statementOn(collection)).toMatch(boxIn(31983));
+		});
+
+		it('a faixa que cruza o equador a 90° do meridiano central, onde a UTM não tem valor, vai sem a caixa e bate com o gabarito', async () => {
+			const center: Position = [-46.7, -46];
+			const expected = insideOf(center, 4_800_000);
+
+			expect(await idsInRadius(collection, center, 4_800_000)).toEqual(expected);
+			expect(expected.length).toBeGreaterThan(0);
+			expect(await statementOn(collection)).not.toContain('ST_MakeEnvelope');
+		});
+	});
+
+	// A projection PROJ only approximates far from its center: the transverse Mercator of the zone by the series of
+	// Snyder, an SRID of its own, which only the database container of the suite has. The points were projected by the
+	// exact one, as another system would project them, and are read by the approximate one.
+	describe('a caixa numa projeção aproximada (D-007)', () => {
+		const collection = 'radius_approx';
+		const srid = 990_001;
+		const far: Position[] = [
+			[-20, -23],
+			[0, -23],
+		];
+		const points = [circle.center, ...far].flatMap((center) =>
+			edgeOf(center, center === circle.center ? circle.meters : 1_000_000),
+		);
+
+		// What the distance alone keeps, over the points as the column gives them back in 4326.
+		const insideOf = async (center: Position, distance: number) => {
+			const ids = await queryOn(
+				containerOf(),
+				`select id from ${collection} where ST_DWithin(ST_Transform(geometry, 4326)::geography, ST_SetSRID(ST_MakePoint(${center.map(String).join(', ')}), 4326)::geography, ${String(distance)}) order by id`,
+			);
+
+			return ids === '' ? [] : ids.split('\n').map(Number);
+		};
+
+		beforeAll(async () => {
+			await createCollectionOf(collection);
+			await queryOn(containerOf(), [
+				`insert into spatial_ref_sys (srid, proj4text) values (${String(srid)}, '+proj=tmerc +approx +lat_0=0 +lon_0=-45 +k=0.9996 +x_0=500000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs') on conflict do nothing`,
+				insertPoints(collection, points),
+				changeColumn(collection, columns.utm),
+				changeColumn(collection, {
+					type: `geometry(Point, ${String(srid)})`,
+					using: `ST_SetSRID(geometry, ${String(srid)})`,
+					geography: '',
+				}),
+			]);
+		});
+
+		it('perto do centro dela, a borda volta ao lugar, e a caixa vai', async () => {
+			const expected = await insideOf(circle.center, circle.meters);
+
+			expect(await idsInRadius(collection, circle.center, circle.meters)).toEqual(expected);
+			expect(expected).toHaveLength(24);
+			expect(await statementOn(collection)).toMatch(boxIn(srid));
+		});
+
+		it.each(far)(
+			'em volta de [%d, %d], longe do centro, a borda volta a quilômetros de onde estava, e o raio vai sem a caixa (V-178)',
+			async (...center) => {
+				const expected = await insideOf(center, 1_000_000);
+
+				expect(await idsInRadius(collection, center, 1_000_000)).toEqual(expected);
+				expect(expected.length).toBeGreaterThan(0);
+				expect(await statementOn(collection)).not.toContain('ST_MakeEnvelope');
+			},
+		);
+	});
+
+	describe.each([
+		{ collection: 'radius_indexed', name: 'geometry em 4326, como o Directus a cria', column: undefined },
+		{ collection: 'radius_indexed_utm', name: 'em SIRGAS 2000 / UTM 23S', column: columns.utm },
+		{ collection: 'radius_indexed_geography', name: 'geography', column: columns.geography },
+	])('o índice conferido, não suposto, numa coluna $name (D-049)', ({ collection, column }) => {
 		const index = `${collection}_geometry_gist`;
 		const user = () => (hasCustomPermissionRules() ? as('maria') : as('admin'));
 
 		// A collection only this test reads, with points enough for Postgres to weigh the index: 20,000 around São Paulo,
 		// half of them in the south zone, spread as in the measurements (F02-07), with the GiST the extension offers (§7.6).
 		beforeAll(async () => {
-			const admin = as('admin');
-
-			await admin.request(
-				createCollection({
-					collection,
-					schema: {},
-					meta: {},
-					fields: [
-						{ field: 'id', type: 'integer', schema: { is_primary_key: true, has_auto_increment: true } },
-						{ field: 'geometry', type: 'geometry.Point', schema: {}, meta: {} },
-						{ field: 'region', type: 'string', schema: {} },
-					],
-				}),
-			);
+			await createCollectionOf(collection);
 
 			if (hasCustomPermissionRules()) {
-				const [policy] = await admin.request(readPolicies({ filter: { name: { _eq: 'South zone' } } }));
-
-				await admin.request(
-					createPermission({ policy: policy?.id, collection, action: 'read', fields: ['*'], permissions: southZone }),
-				);
+				await permit(collection, 'South zone', southZone);
 			}
 
 			await queryOn(containerOf(), [
@@ -478,33 +745,16 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 					-23.55 + 0.5 * sqrt(-2 * ln(1 - random())) * cos(2 * pi() * random())
 				), 4326)
 				from generate_series(1, 20000)`,
+				...(column === undefined ? [] : [changeColumn(collection, column)]),
 				`create index ${index} on ${collection} using gist (geometry)`,
 				`analyze ${collection}`,
 			]);
 		});
 
-		// The statement of the last radius of the collection, with its values, as the observer of the suite saw it reach the
-		// database (test/measure/observer/).
-		const statementOf = async () => {
-			const read = await as('admin').request(
-				customEndpoint<{ statement: string } | null>({
-					path: '/geospatial-test-observer/last',
-					method: 'GET',
-					params: { collection },
-				}),
-			);
-
-			if (read === null) {
-				throw new Error('The observer saw no radius of the collection.');
-			}
-
-			return read.statement;
-		};
-
 		it('o plano do raio passa pelo GiST, e não varre a tabela', async () => {
 			const container = containerOf();
 			const items = await radius(user(), { fields: 'id', limit: -1 }, collection);
-			const { reads } = summaryOfPlan(await planOf(container, await statementOf()));
+			const { reads } = summaryOfPlan(await planOf(container, await statementOn(collection)));
 
 			expect(reads.some((read) => read.includes(index))).toBe(true);
 			expect(reads.filter((read) => read.includes('Seq Scan') || read.includes(`${collection}_pkey`))).toEqual([]);
@@ -513,7 +763,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 			const rule = hasCustomPermissionRules() ? "region = 'south' and " : '';
 			const inside = await queryOn(
 				container,
-				`select count(*) from ${collection} where ${rule}ST_DWithin(geometry::geography, ST_SetSRID(ST_MakePoint(${circle.center.map(String).join(', ')}), 4326)::geography, ${String(circle.meters)})`,
+				`select count(*) from ${collection} where ${rule}ST_DWithin(${column?.geography ?? 'geometry::geography'}, ST_SetSRID(ST_MakePoint(${circle.center.map(String).join(', ')}), 4326)::geography, ${String(circle.meters)})`,
 			);
 
 			expect(items.length).toBeGreaterThan(0);
