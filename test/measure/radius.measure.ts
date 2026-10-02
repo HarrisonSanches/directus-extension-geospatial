@@ -6,6 +6,7 @@ import { log, seconds } from '../environment.ts';
 import { queryOn } from '../postgres.ts';
 import { circle } from '../seed.ts';
 import { machineOf, method, planOf, quick, resultsOf, series, summaryOf, summaryOfPlan } from './measure.ts';
+import { limitMaximum } from 'directus-geospatial-contract';
 
 const combination = inject('combination');
 
@@ -18,9 +19,9 @@ const withVolume = combinations[combination].directus.version.startsWith('11.');
 // The volumes of the radius, past the items of the seed.
 const volumes = quick ? [10_000] : [10_000, 1_000_000];
 
-// The two pages of the radius of Maria: the first, of 100 items, as /items gives without a limit, and the whole circle.
-// Each page says its limit, since the radius reads a page without one as the whole circle.
-const pages = { first: 100, whole: -1 };
+// The two pages of the radius of Maria: the first, of 100 items, as /items gives without a limit, and the largest one
+// the contract takes, which the circle of 1 million points fills.
+const pages = { first: 100, largest: limitMaximum };
 
 const geo = { operation: 'radius', center: circle.center, distance: circle.meters };
 
@@ -103,7 +104,7 @@ const seriesOf = async (name: string, limit: number) => {
 
 const pagesOf = async (name: string) => ({
 	first: await seriesOf(`${name}-first`, pages.first),
-	whole: await seriesOf(`${name}-whole`, pages.whole),
+	largest: await seriesOf(`${name}-largest`, pages.largest),
 });
 
 // Adds the points up to the volume by SQL, into the column Directus created, since through the API a million would take
@@ -172,7 +173,7 @@ describe.runIf(combinations[combination].database.client === 'postgres')('as med
 
 				// The index changes how the database finds the items, and never which ones.
 				expect(withIndex.first.items).toBe(withoutIndex.first.items);
-				expect(withIndex.whole.items).toBe(withoutIndex.whole.items);
+				expect(withIndex.largest.items).toBe(withoutIndex.largest.items);
 
 				const sizes = await sql(
 					"select pg_size_pretty(pg_table_size('occurrences')) || ' | ' || pg_size_pretty(pg_relation_size('occurrences_geometry_gist'))",

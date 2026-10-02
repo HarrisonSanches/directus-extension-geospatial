@@ -19,7 +19,7 @@ import {
 import { planOf, summaryOfPlan } from './measure/measure.ts';
 import { callsOn, queryOn } from './postgres.ts';
 import { circle, northZone, southZone, wgs84 } from './seed.ts';
-import type { Capabilities, Item, Position } from 'directus-geospatial-contract';
+import { type Capabilities, type Item, limitMaximum, type Position } from 'directus-geospatial-contract';
 
 const postgis = combinations[inject('combination')].database.client === 'postgres';
 
@@ -34,6 +34,14 @@ const radius = (client: Client, params: Record<string, unknown> = {}, collection
 	client.request(
 		customEndpoint<Item[]>({ path: `/geospatial/items/${collection}`, method: 'GET', params: { geo, ...params } }),
 	);
+
+const withoutGeo = (item: Item) => Object.fromEntries(Object.entries(item).filter(([name]) => name !== '$geo'));
+
+// The items of the radius in the order of the primary key, as /items gives them, without the values the radius
+// calculates, which /items does not have: the tests of parity compare what each user receives, and the order has tests
+// of its own.
+const inOrderOfKey = async (client: Client, params: Record<string, unknown> = {}, collection = 'occurrences') =>
+	(await radius(client, { limit: limitMaximum, ...params, sort: 'id' }, collection)).map(withoutGeo);
 
 const distanceOf = ({ coordinates: [longitude, latitude] }: Occurrence['geometry']) => {
 	const [centerLongitude, centerLatitude] = circle.center;
@@ -177,7 +185,7 @@ const isPoint = (value: unknown): value is Occurrence['geometry'] =>
 // A radius against its gabarito where PostGIS converts the geometry on the way out: the same items, in the same order,
 // each with the geometry a point in 4326 less than a billionth of a degree from the one of the gabarito, which is under
 // a millimeter.
-const expectIn4326 = (items: Item[], expected: Read[]) => {
+const expectIn4326 = (items: Record<string, unknown>[], expected: Read[]) => {
 	expect(items.map((item) => Object.keys(item))).toEqual(expected.map((item) => Object.keys(item)));
 
 	for (const [index, { geometry, ...rest }] of expected.entries()) {
@@ -211,11 +219,14 @@ describe('o raio no estilo do /items', () => {
 		});
 	});
 
-	it.runIf(postgis)('com a ordem, que o raio ainda não trata, o pedido volta recusado, e não ignorado', async () => {
-		expect(await errorOf(radius(as('admin'), { sort: 'region' }))).toMatchObject({
-			errors: [{ extensions: { code: 'INVALID_QUERY', reason: 'The radius does not take sort yet' } }],
-		});
-	});
+	it.runIf(postgis)(
+		'com a ordem por uma relação, que o raio ainda não trata, o pedido volta recusado, e não ignorado',
+		async () => {
+			expect(await errorOf(radius(as('admin'), { sort: 'author.name' }))).toMatchObject({
+				errors: [{ extensions: { code: 'INVALID_QUERY', reason: 'The radius does not take sort by a relation yet' } }],
+			});
+		},
+	);
 
 	it.skipIf(postgis)(
 		'onde o raio não roda, ele responde indisponível, com o motivo, antes de montar a query permitida',
@@ -242,7 +253,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		async () => {
 			const expected = await expectedFor(as('maria'));
 
-			expect(await radius(as('maria'), { fields: 'id,region,geometry' })).toEqual(expected);
+			expect(await inOrderOfKey(as('maria'), { fields: 'id,region,geometry' })).toEqual(expected);
 			expect(expected.length).toBeGreaterThan(0);
 			expect(expected.every(({ region }) => region === 'south')).toBe(true);
 		},
@@ -250,7 +261,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 
 	it('o raio do admin devolve o gabarito, com os pontos a 2 m da borda do lado certo', async () => {
 		const expected = await expectedFor(as('admin'));
-		const items = await radius(as('admin'), { fields: 'id,region,geometry', limit: -1 });
+		const items = await inOrderOfKey(as('admin'), { fields: 'id,region,geometry' });
 
 		expect(items).toEqual(expected);
 
@@ -286,14 +297,122 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		const items = await radius(as('admin'), { fields: 'id,region' });
 
 		expect(items.length).toBeGreaterThan(0);
-		expect(items.every((item) => Object.keys(item).sort().join() === 'id,region')).toBe(true);
+		expect(items.every((item) => Object.keys(item).sort().join() === '$geo,id,region')).toBe(true);
 	});
 
-	it('o limit e o offset fatiam os itens do círculo, na ordem da chave primária', async () => {
-		const expected = (await expectedFor(as('admin'))).map(({ id }) => id);
-		const items = await radius(as('admin'), { fields: 'id', limit: 3, offset: 2 });
+	it('o limit, o offset e a página fatiam os itens do círculo, na ordem da lista', async () => {
+		const ids = async (page: Record<string, unknown>) =>
+			(await radius(as('admin'), { fields: 'id', ...page })).map(({ id }) => id);
+		const all = await ids({ limit: limitMaximum });
 
-		expect(items.map(({ id }) => id)).toEqual(expected.slice(2, 5));
+		expect(await ids({ limit: 3, offset: 2 })).toEqual(all.slice(2, 5));
+		expect(await ids({ limit: 3, page: 2 })).toEqual(all.slice(3, 6));
+		expect(all).toHaveLength((await expectedFor(as('admin'))).length);
+	});
+
+	describe('a distância no $geo e a ordem natural (F02-10)', () => {
+		const user = () => (hasCustomPermissionRules() ? as('maria') : as('admin'));
+
+		// The distance of an item, from its geometry in GeoJSON, by GeographicLib.
+		const geodesicOf = ({ geometry }: Item) => (isPoint(geometry) ? distanceOf(geometry) : Number.NaN);
+
+		it('cada item traz no $geo a distância da GeographicLib, a 1 mm, e a lista vem pela distância', async () => {
+			const expected = await expectedFor(user());
+			const items = await radius(user(), { fields: 'id,region,geometry', limit: limitMaximum });
+
+			expect(items.map(({ id }) => id).sort((a, b) => Number(a) - Number(b))).toEqual(expected.map(({ id }) => id));
+
+			for (const item of items) {
+				expect(Math.abs((item.$geo.distance ?? Number.NaN) - geodesicOf(item))).toBeLessThan(0.001);
+			}
+
+			// The order of the distance, with a tie by the primary key, and that of GeographicLib, within its millimeter.
+			const ordered = [...items].sort(
+				(a, b) => (a.$geo.distance ?? 0) - (b.$geo.distance ?? 0) || Number(a.id) - Number(b.id),
+			);
+
+			expect(items).toEqual(ordered);
+			expect(items.slice(1).every((item, index) => geodesicOf(item) >= geodesicOf(items[index] ?? item) - 0.002)).toBe(
+				true,
+			);
+			expect(items.length).toBeGreaterThan(1);
+		});
+
+		it('os itens à mesma distância vêm pela chave primária', async () => {
+			const collection = 'radius_ties';
+			const [longitude, latitude] = circle.center;
+			const at = (meters: number) => {
+				const { lon2, lat2 } = wgs84.Direct(latitude, longitude, 0, meters);
+
+				return `ST_SetSRID(ST_MakePoint(${String(lon2)}, ${String(lat2)}), 4326)`;
+			};
+
+			await createCollectionOf(collection);
+			// Two places, at 1 km and at 2 km, with their items interleaved by the key.
+			await queryOn(
+				containerOf(),
+				`insert into ${collection} (id, region, geometry) values ${[1, 2, 3, 4, 5, 6]
+					.map((id) => `(${String(id)}, 'south', ${at(id % 2 === 1 ? 1_000 : 2_000)})`)
+					.join(', ')}`,
+			);
+
+			const items = await radius(as('admin'), { fields: 'id' }, collection);
+
+			expect(items.map(({ id }) => id)).toEqual([1, 3, 5, 2, 4, 6]);
+			expect(new Set(items.slice(0, 3).map(({ $geo }) => $geo.distance)).size).toBe(1);
+		});
+
+		it.each(['status', '-status'] as const)(
+			'com sort=%s, a lista segue a ordem da página, como a do /items, e termina na chave',
+			async (sort) => {
+				const page: Page = { fields: ['id', 'status'] };
+				const descending = sort.startsWith('-');
+				const expected = (await expectedFor(user(), page)).sort(
+					(a, b) =>
+						(descending ? -1 : 1) * String(a.status).localeCompare(String(b.status)) || Number(a.id) - Number(b.id),
+				);
+				const items = (await radius(user(), { ...paramsOf(page), sort, limit: limitMaximum })).map(withoutGeo);
+
+				expect(items).toEqual(expected);
+
+				// The same order of /items, which leaves the tie as it comes.
+				const fromItems = await user().request(
+					readItems('occurrences', { fields: ['id', 'status', 'geometry'], sort: [sort], limit: -1 }),
+				);
+				const inside = new Set(expected.map(({ id }) => id));
+
+				expect(fromItems.filter(({ id }) => inside.has(id)).map(({ status }) => status)).toEqual(
+					expected.map(({ status }) => status),
+				);
+				expect(new Set(expected.map(({ status }) => status)).size).toBeGreaterThan(1);
+			},
+		);
+
+		it.runIf(hasCustomPermissionRules())(
+			'o sort por um campo sem permissão dá ao raio o mesmo erro do /items',
+			async () => {
+				const client = as('withoutCategory');
+				const items = await errorsOf(client.request(readItems('occurrences', { sort: ['category'] })));
+
+				expect(await errorsOf(radius(client, { sort: 'category' }))).toEqual(items);
+				expect(items).toMatchObject([{ extensions: { code: 'FORBIDDEN' } }]);
+			},
+		);
+
+		it('o campo pedido só para ordenar fica fora dos itens', async () => {
+			const [item] = await radius(user(), { fields: 'id', sort: '-status', limit: 1 });
+
+			expect(Object.keys(item ?? {}).sort()).toEqual(['$geo', 'id']);
+		});
+
+		it.each([
+			['acima do máximo', 1001, 'must be <= 1000'],
+			['o -1, que no /items traz todos', -1, 'must be >= 1'],
+		])('o limit %s volta com o erro de query do Directus, com o motivo, antes do banco', async (_, limit, reason) => {
+			expect(await errorOf(radius(user(), { limit }))).toMatchObject({
+				errors: [{ extensions: { code: 'INVALID_QUERY', reason: `The limit is off the contract: ${reason}` } }],
+			});
+		});
 	});
 
 	describe('os outros papéis e o que a página manda (V-143)', () => {
@@ -310,7 +429,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 				const page: Page = { fields: ['id', 'region', 'category', 'geometry'] };
 				const expected = await expectedFor(as('twoPolicies'), page);
 
-				expect(await radius(as('twoPolicies'), paramsOf(page))).toEqual(expected);
+				expect(await inOrderOfKey(as('twoPolicies'), paramsOf(page))).toEqual(expected);
 				// Items only one of the policies lets through: north and not theft, and theft and not north.
 				expect(expected.some(({ region, category }) => region === 'north' && category !== 'theft')).toBe(true);
 				expect(expected.some(({ region, category }) => region !== 'north' && category === 'theft')).toBe(true);
@@ -327,7 +446,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 				};
 				const expected = await expectedFor(as('maria'), page);
 
-				expect(await radius(as('maria'), paramsOf(page))).toEqual(expected);
+				expect(await inOrderOfKey(as('maria'), paramsOf(page))).toEqual(expected);
 				// The filter and the search leave out items of the circle the radius alone would bring.
 				expect(expected.length).toBeGreaterThan(0);
 				expect(expected.length).toBeLessThan((await expectedFor(as('maria'))).length);
@@ -340,7 +459,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 				const page: Page = { fields: ['*'] };
 				const expected = await expectedFor(as('withoutCategory'), page);
 
-				expect(await radius(as('withoutCategory'), paramsOf(page))).toEqual(expected);
+				expect(await inOrderOfKey(as('withoutCategory'), paramsOf(page))).toEqual(expected);
 				expect(expected.length).toBeGreaterThan(0);
 				expect(expected.every((item) => !('category' in item))).toBe(true);
 			});
@@ -374,7 +493,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 				expect(visible.some(({ region, geometry }) => region === 'north' && geometry === null)).toBe(true);
 				expect(hidden.some((id) => inside.includes(id))).toBe(true);
 
-				const items = await radius(client, { fields: 'id,region,geometry', limit: -1 });
+				const items = await inOrderOfKey(client, { fields: 'id,region,geometry' });
 
 				expect(items).toEqual(await expectedFor(client));
 				expect(items.length).toBeGreaterThan(0);
@@ -521,7 +640,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 				customEndpoint<Item[]>({ path: `/items/${collection}`, method: 'GET', params: { sort: 'id', limit: -1 } }),
 			);
 
-			expect(await radius(as('admin'), { fields: '*', limit: -1 }, collection)).toEqual(items);
+			expect(await inOrderOfKey(as('admin'), { fields: '*' }, collection)).toEqual(items);
 			// The values /items gives are not the ones the database holds.
 			expect(items[0]).toMatchObject({ secret: '**********', tags: ['a', 'b'], day: '2026-09-01' });
 		});
@@ -554,7 +673,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		it('o raio bate com o gabarito, com a geometria em 4326, e o SRID vem da coluna', async () => {
 			const expected = await expectedFor(user());
 
-			expectIn4326(await radius(user(), { fields: 'id,region,geometry', limit: -1 }, collection), expected);
+			expectIn4326(await inOrderOfKey(user(), { fields: 'id,region,geometry' }, collection), expected);
 			expect(expected.length).toBeGreaterThan(0);
 		});
 
@@ -563,7 +682,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 			async () => {
 				const client = as('geometryInPart');
 				const expected = await expectedFor(client);
-				const items = await radius(client, { fields: 'id,region,geometry', limit: -1 }, collection);
+				const items = await inOrderOfKey(client, { fields: 'id,region,geometry' }, collection);
 
 				expectIn4326(items, expected);
 				expect(items.some(({ region }) => region === 'north')).toBe(false);
@@ -577,7 +696,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 				const [item] = await as('admin').request(
 					customEndpoint<Item[]>({ path: `/items/${collection}`, method: 'GET', params: { sort: 'id', limit: 1 } }),
 				);
-				const [inRadius] = await radius(as('admin'), { fields: 'id,geometry', limit: -1 }, collection);
+				const [inRadius] = await radius(as('admin'), { fields: 'id,geometry' }, collection);
 
 				expect(isPoint(item?.geometry) && item.geometry.coordinates[0]).toBeGreaterThan(180);
 				expect(isPoint(inRadius?.geometry) && Math.abs(inRadius.geometry.coordinates[0])).toBeLessThanOrEqual(180);
@@ -609,7 +728,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 			.join(', ')}`;
 
 	const idsInRadius = async (collection: string, center: Position, distance: number) =>
-		(await radius(as('admin'), { fields: 'id', limit: -1, geo: { ...geo, center, distance } }, collection)).map(
+		(await inOrderOfKey(as('admin'), { fields: 'id', geo: { ...geo, center, distance } }, collection)).map(
 			({ id }) => id,
 		);
 
@@ -753,7 +872,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 
 		it('o plano do raio passa pelo GiST, e não varre a tabela', async () => {
 			const container = containerOf();
-			const items = await radius(user(), { fields: 'id', limit: -1 }, collection);
+			const items = await radius(user(), { fields: 'id', limit: limitMaximum }, collection);
 			const { reads } = summaryOfPlan(await planOf(container, await statementOn(collection)));
 
 			expect(reads.some((read) => read.includes(index))).toBe(true);
@@ -769,6 +888,22 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 			expect(items.length).toBeGreaterThan(0);
 			expect(items).toHaveLength(Number(inside));
 		});
+
+		it.runIf(column === undefined)(
+			'sem o limit, o raio devolve a página padrão do /items, e não o círculo inteiro (A-044)',
+			async () => {
+				const ids = async (page: Record<string, unknown>) =>
+					(await radius(user(), { fields: 'id', ...page }, collection)).map(({ id }) => id);
+				const all = await ids({ limit: limitMaximum });
+				const items = await user().request(
+					customEndpoint<Item[]>({ path: `/items/${collection}`, method: 'GET', params: { fields: 'id' } }),
+				);
+
+				expect(all.length).toBeGreaterThan(items.length);
+				expect(await ids({})).toEqual(all.slice(0, items.length));
+				expect(items).toHaveLength(100);
+			},
+		);
 	});
 
 	describe('num único pedido ao banco', () => {
