@@ -120,11 +120,27 @@ export type Radius = {
 export type Position = [number, number];
 
 /**
- * An item of the collection, with the fields the request asks for, the geometries in GeoJSON and the other values as the database returns them.
+ * An item of the collection, with the fields the request asks for, the geometries in GeoJSON and the other values as the database returns them, and the values the operation calculates in $geo.
  */
 export type Item = {
+	$geo: GeoValues;
 	[key: string]: unknown;
 };
+
+/**
+ * The values the operation calculates for an item, in a reserved field, the way Directus keeps its own in $meta.
+ */
+export type GeoValues = {
+	/**
+	 * The distance from the center of the radius to the item, in meters over the ellipsoid: to its nearest part, and zero when the item covers the center.
+	 */
+	distance?: number;
+};
+
+/**
+ * How many items a page brings, up to the maximum of the contract.
+ */
+export type Limit = number;
 
 /**
  * The codes of the errors of the extension, in the extensions.code of the error format of Directus. Each one starts with GEOSPATIAL_, so it never collides with a code of Directus.
@@ -206,11 +222,15 @@ export type ItemsData = {
 		 */
 		search?: string;
 		/**
-		 * How many items, as in /items, with -1 for all of them.
+		 * The sort of /items, by fields separated by commas, with a minus for descending. It orders by the values the user can read, and an item whose field a policy holds back sorts as an empty one. Fields of a relation are refused for now. Without it, the items come in the natural order of the operation.
 		 */
-		limit?: number;
+		sort?: string;
 		/**
-		 * How many items to skip, in the order of the primary key.
+		 * How many items, as in /items. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT. The items beyond the maximum come by the next pages.
+		 */
+		limit?: Limit;
+		/**
+		 * How many items to skip, in the order of the list.
 		 */
 		offset?: number;
 		/**
@@ -223,7 +243,7 @@ export type ItemsData = {
 
 export type ItemsErrors = {
 	/**
-	 * The geo is off the contract, or the request carries a parameter the operation does not take yet (code INVALID_QUERY of Directus).
+	 * The geo or the limit is off the contract, or the request carries a parameter the operation does not take yet (code INVALID_QUERY of Directus).
 	 */
 	400: Errors;
 	/**
@@ -244,7 +264,7 @@ export type ItemsError = ItemsErrors[keyof ItemsErrors];
 
 export type ItemsResponses = {
 	/**
-	 * The items, in the order of the primary key.
+	 * The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key.
 	 */
 	200: {
 		data: Array<Item>;

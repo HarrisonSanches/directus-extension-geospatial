@@ -97,15 +97,24 @@ paths:
           description: The search of /items.
           schema:
             type: string
+        - name: sort
+          in: query
+          description: >-
+            The sort of /items, by fields separated by commas, with a minus for descending. It orders by the values the
+            user can read, and an item whose field a policy holds back sorts as an empty one. Fields of a relation are
+            refused for now. Without it, the items come in the natural order of the operation.
+          schema:
+            type: string
         - name: limit
           in: query
-          description: How many items, as in /items, with -1 for all of them.
+          description: >-
+            How many items, as in /items. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT. The items
+            beyond the maximum come by the next pages.
           schema:
-            type: integer
-            minimum: -1
+            $ref: '#/components/schemas/Limit'
         - name: offset
           in: query
-          description: How many items to skip, in the order of the primary key.
+          description: How many items to skip, in the order of the list.
           schema:
             type: integer
             minimum: 0
@@ -117,7 +126,9 @@ paths:
             minimum: 1
       responses:
         '200':
-          description: The items, in the order of the primary key.
+          description: >-
+            The items, in the natural order of the operation, the distance for the radius, or in the sort of the request,
+            and then by the primary key.
           content:
             application/json:
               schema:
@@ -130,8 +141,8 @@ paths:
                       $ref: '#/components/schemas/Item'
         '400':
           description: >-
-            The geo is off the contract, or the request carries a parameter the operation does not take yet (code
-            INVALID_QUERY of Directus).
+            The geo or the limit is off the contract, or the request carries a parameter the operation does not take yet
+            (code INVALID_QUERY of Directus).
           content:
             application/json:
               schema:
@@ -352,8 +363,30 @@ components:
     Item:
       description: >-
         An item of the collection, with the fields the request asks for, the geometries in GeoJSON and the other values
-        as the database returns them.
+        as the database returns them, and the values the operation calculates in $geo.
       type: object
+      required: [$geo]
+      properties:
+        $geo:
+          $ref: '#/components/schemas/GeoValues'
+      additionalProperties: true
+    GeoValues:
+      description: >-
+        The values the operation calculates for an item, in a reserved field, the way Directus keeps its own in $meta.
+      type: object
+      additionalProperties: false
+      properties:
+        distance:
+          description: >-
+            The distance from the center of the radius to the item, in meters over the ellipsoid: to its nearest part,
+            and zero when the item covers the center.
+          type: number
+          minimum: 0
+    Limit:
+      description: How many items a page brings, up to the maximum of the contract.
+      type: integer
+      minimum: 1
+      maximum: 1000
     ErrorCode:
       description: >-
         The codes of the errors of the extension, in the extensions.code of the error format of Directus. Each one
