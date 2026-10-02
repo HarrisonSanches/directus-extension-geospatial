@@ -18,7 +18,13 @@ const permitted = () =>
 		.from('occurrences')
 		.where('occurrences.region', 'south');
 
-const radius = { geometry: 'geometry', key: 'id', center: [-46.7, -23.65] as [number, number], distance: 10_000 };
+const radius = {
+	collection: 'occurrences',
+	geometry: 'geometry',
+	key: 'id',
+	center: [-46.7, -23.65] as [number, number],
+	distance: 10_000,
+};
 
 const statementOf = (builder: { toSQL: () => { sql: string; bindings: readonly unknown[] } }) => {
 	const { sql, bindings } = builder.toSQL();
@@ -27,7 +33,7 @@ const statementOf = (builder: { toSQL: () => { sql: string; bindings: readonly u
 };
 
 describe('o raio no PostGIS', () => {
-	it('envolve a query permitida num SQL só, sobre o texto da geometria que ela expõe (A-023)', async () => {
+	it('mede na coluna, dentro da query permitida, e guarda o valor que ela expõe, num SQL só (D-049)', async () => {
 		const { builder } = postgis.radius(database, { ...radius, permitted: permitted(), limit: 100, offset: 0 });
 
 		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis.sql');
@@ -37,5 +43,29 @@ describe('o raio no PostGIS', () => {
 		const { builder } = postgis.radius(database, { ...radius, permitted: permitted(), limit: null, offset: 200 });
 
 		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis-offset.sql');
+	});
+
+	it('o círculo que cruza o antimeridiano usa uma caixa de cada lado', async () => {
+		const { builder } = postgis.radius(database, {
+			...radius,
+			center: [179.99, 10],
+			permitted: permitted(),
+			limit: 100,
+			offset: 0,
+		});
+
+		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis-antimeridian.sql');
+	});
+
+	it('o círculo que cobre o mundo vai sem a caixa, só com a distância', async () => {
+		const { builder } = postgis.radius(database, {
+			...radius,
+			distance: 20_000_000,
+			permitted: permitted(),
+			limit: 100,
+			offset: 0,
+		});
+
+		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis-world.sql');
 	});
 });

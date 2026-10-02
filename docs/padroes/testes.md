@@ -48,7 +48,8 @@ um JWT, porque o Directus procura o token estático no banco antes de qualquer r
 **A suíte carrega uma segunda extensão,** a de `test/hook/`, ao lado da extensão, em toda rodada. Os hooks dela no
 `items.query` mudam a leitura de uma coleção própria, a `hooked_occurrences`, e registram o que recebem, para a
 paridade com o `/items` alcançar também os hooks de outras extensões (V-144, V-174). A soma da cobertura lê só o bundle
-da extensão, então o código dela fica de fora, e só uma rodada com pacotes além dos da suíte deixa de somar.
+da extensão, então o código dela fica de fora, e só uma rodada com pacotes além dos da suíte deixa de somar. A suíte
+carrega também o observador de `test/measure/observer/`, para o teste do índice ler o SQL do raio.
 
 **Os dados de teste entram pela API do Directus,** com o `@directus/sdk`: o esquema, os papéis, as políticas e os
 itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. Os papéis de sempre, em
@@ -79,7 +80,11 @@ lê uma coleção que só ele usa, porque os outros testes da combinação rodam
 permitida rodando sozinha antes do envelope (V-142).
 
 **Índice conferido, não suposto.** A operação que a matriz declara "no banco com índice" tem um teste que lê o
-`EXPLAIN` e falha se o plano varrer a tabela.
+`EXPLAIN` e falha se o plano varrer a tabela. O plano é o do SQL que chegou ao banco: o observador de
+`test/measure/observer/` o entrega com os valores, e o teste roda o `EXPLAIN` pelo psql do container. A coleção é só
+do teste, com pontos bastantes para o Postgres pesar o índice, porque numa tabela pequena ele varre a tabela de
+propósito, e com o GiST que a extensão oferece ao admin (§7.6). O mesmo teste confere que a caixa não perdeu nenhum
+item que a distância sozinha manteria.
 
 **Toda resposta da extensão passa pelo contrato.** O `fetch` da suíte (`test/contract.ts`), que o cliente do SDK usa,
 confere cada resposta de `/geospatial/*` contra o `openapi.yaml`: a rota, o método e o status precisam estar nele, e o
@@ -149,10 +154,11 @@ com o rastro do Playwright guardado para investigar.
 - o Directus roda como numa instalação: com o build de produção, sem o `NODE_V8_COVERAGE`, que deixa o código mais
   lento, e sem a extensão de `test/hook/`.
 
-**O tempo de dentro do Directus vem de uma extensão que só a medição carrega,** a de `test/measure/observer/`. Ela
-marca o `items.query` da coleção medida e os eventos `query` e `query-response` da conexão do Directus, e entrega ao
-admin o tempo de montar a query permitida, do hook até o SQL do raio, o do banco, e o SQL com os valores, para o
-`EXPLAIN (ANALYZE, BUFFERS)`. O produto não muda para ser medido.
+**O tempo de dentro do Directus vem de uma extensão de teste,** a de `test/measure/observer/`, que a medição e a
+suíte carregam. Ela marca o `items.query` de cada coleção e os eventos `query` e `query-response` da conexão do
+Directus, e entrega ao admin, da coleção que o pedido nomear, o tempo de montar a query permitida, do hook até o SQL do
+raio, o do banco, e o SQL com os valores, para o `EXPLAIN (ANALYZE, BUFFERS)`. Sem nomear, ela entrega a coleção da
+medição. O produto não muda para ser medido.
 
 **Os números ficam em `test-results/measure/`,** fora do Git, um arquivo por combinação, com os planos ao lado, e vão
 para uma V-xx em `verificacoes.md` com a unidade, a máquina, as versões e a data. Com `MEASURE_QUICK=1`, cada série

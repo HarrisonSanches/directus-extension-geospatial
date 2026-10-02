@@ -16,7 +16,8 @@ import {
 	type Occurrence,
 	type Role,
 } from './directus.ts';
-import { callsOn } from './postgres.ts';
+import { planOf, summaryOfPlan } from './measure/measure.ts';
+import { callsOn, queryOn } from './postgres.ts';
 import { circle, southZone, wgs84 } from './seed.ts';
 import type { Capabilities, Item } from 'directus-geospatial-contract';
 
@@ -108,9 +109,7 @@ describe('o raio no estilo do /items', () => {
 		);
 
 		expect(operations.radius).toEqual(
-			postgis
-				? { level: 'unindexed' }
-				: { level: 'unavailable', reason: 'It does not run on the database in use yet.' },
+			postgis ? { level: 'indexed' } : { level: 'unavailable', reason: 'It does not run on the database in use yet.' },
 		);
 	});
 
@@ -437,6 +436,88 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 			expect(await radius(as('admin'), { fields: '*', limit: -1 }, collection)).toEqual(items);
 			// The values /items gives are not the ones the database holds.
 			expect(items[0]).toMatchObject({ secret: '**********', tags: ['a', 'b'], day: '2026-09-01' });
+		});
+	});
+
+	describe('o índice conferido, não suposto (D-049)', () => {
+		const collection = 'radius_indexed';
+		const index = `${collection}_geometry_gist`;
+		const user = () => (hasCustomPermissionRules() ? as('maria') : as('admin'));
+
+		// A collection only this test reads, with points enough for Postgres to weigh the index: 20,000 around São Paulo,
+		// half of them in the south zone, spread as in the measurements (F02-07), with the GiST the extension offers (§7.6).
+		beforeAll(async () => {
+			const admin = as('admin');
+
+			await admin.request(
+				createCollection({
+					collection,
+					schema: {},
+					meta: {},
+					fields: [
+						{ field: 'id', type: 'integer', schema: { is_primary_key: true, has_auto_increment: true } },
+						{ field: 'geometry', type: 'geometry.Point', schema: {}, meta: {} },
+						{ field: 'region', type: 'string', schema: {} },
+					],
+				}),
+			);
+
+			if (hasCustomPermissionRules()) {
+				const [policy] = await admin.request(readPolicies({ filter: { name: { _eq: 'South zone' } } }));
+
+				await admin.request(
+					createPermission({ policy: policy?.id, collection, action: 'read', fields: ['*'], permissions: southZone }),
+				);
+			}
+
+			await queryOn(containerOf(), [
+				'select setseed(0.5)',
+				`insert into ${collection} (region, geometry)
+				select case when random() < 0.5 then 'south' else 'north' end, ST_SetSRID(ST_MakePoint(
+					-46.63 + 0.5 * sqrt(-2 * ln(1 - random())) * cos(2 * pi() * random()),
+					-23.55 + 0.5 * sqrt(-2 * ln(1 - random())) * cos(2 * pi() * random())
+				), 4326)
+				from generate_series(1, 20000)`,
+				`create index ${index} on ${collection} using gist (geometry)`,
+				`analyze ${collection}`,
+			]);
+		});
+
+		// The statement of the last radius of the collection, with its values, as the observer of the suite saw it reach the
+		// database (test/measure/observer/).
+		const statementOf = async () => {
+			const read = await as('admin').request(
+				customEndpoint<{ statement: string } | null>({
+					path: '/geospatial-test-observer/last',
+					method: 'GET',
+					params: { collection },
+				}),
+			);
+
+			if (read === null) {
+				throw new Error('The observer saw no radius of the collection.');
+			}
+
+			return read.statement;
+		};
+
+		it('o plano do raio passa pelo GiST, e não varre a tabela', async () => {
+			const container = containerOf();
+			const items = await radius(user(), { fields: 'id', limit: -1 }, collection);
+			const { reads } = summaryOfPlan(await planOf(container, await statementOf()));
+
+			expect(reads.some((read) => read.includes(index))).toBe(true);
+			expect(reads.filter((read) => read.includes('Seq Scan') || read.includes(`${collection}_pkey`))).toEqual([]);
+
+			// The box only discards candidates: the circle keeps every item the distance alone keeps.
+			const rule = hasCustomPermissionRules() ? "region = 'south' and " : '';
+			const inside = await queryOn(
+				container,
+				`select count(*) from ${collection} where ${rule}ST_DWithin(geometry::geography, ST_SetSRID(ST_MakePoint(${circle.center.map(String).join(', ')}), 4326)::geography, ${String(circle.meters)})`,
+			);
+
+			expect(items.length).toBeGreaterThan(0);
+			expect(items).toHaveLength(Number(inside));
 		});
 	});
 

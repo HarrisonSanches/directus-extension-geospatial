@@ -4,6 +4,10 @@
 
 - Todo SQL que devolve dado de uma coleção começa pela query permitida que o Directus montou (D-001), e a parte
   espacial vai em volta dela. Não existe atalho: nem para o admin, nem para "só uma contagem".
+- O filtro que usa o índice entra como mais condições do `WHERE` da query permitida, sobre a coluna, porque o Directus
+  a ordena e o Postgres não achata uma subconsulta ordenada (D-049). Uma condição a mais só descarta linhas, e o
+  `WHERE` das políticas e os `CASE WHEN` não mudam. Em volta fica a guarda: o que sai é decidido pelo valor que a query
+  permitida expõe, nulo onde uma política esconde o campo.
 - Juntar duas coleções é juntar duas queries permitidas.
 
 ## SQL seguro

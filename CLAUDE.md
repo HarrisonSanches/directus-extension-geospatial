@@ -184,7 +184,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   da Maria com 1 milhão, de 1,8 a 2,0 s, com ou sem o GiST, porque o envelope lê o texto da geometria, e o JIT leva
   0,7 s disso. A medição rodou fora da máquina de referência, e o raio sem `limit` devolve o círculo inteiro, onde o
   `/items` devolve 100 (V-175, V-176, A-043, A-044, no plano).
-- Próximo passo: `/implement-issue F02-08`, o envelope com o índice.
+- F02-08 feita em 02/10/2026: o raio usa o índice. A caixa e o `ST_DWithin` leem a coluna e entram como mais condições
+  da query permitida, porque o Directus a ordena e o Postgres não achata uma subconsulta ordenada, e a guarda do nulo,
+  em volta, deixa fora o que uma política esconde (D-049, a opção da A-026, escolha do mantenedor). Com 1 milhão de
+  pontos e o GiST, o pedido da Maria caiu de 0,9 s para 50 a 64 ms na primeira página, na máquina de referência. Um
+  teste lê o `EXPLAIN` do SQL que chegou ao banco, que o observador da medição, agora também na suíte, entrega (V-177).
+- Próximo passo: `/implement-issue F02-09`, metros em qualquer SRID. A A-044, o raio sem `limit`, espera a decisão do
+  mantenedor, antes da F02-10.
 
 ## Documentação
 

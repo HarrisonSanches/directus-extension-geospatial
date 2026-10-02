@@ -107,6 +107,7 @@ export const radiusItems = async (
 
 	const { builder } = declared.envelope(knex, {
 		permitted,
+		collection,
 		geometry: found.field,
 		key: primary,
 		center: geo.center,
