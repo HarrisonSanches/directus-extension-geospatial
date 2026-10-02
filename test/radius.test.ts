@@ -527,9 +527,9 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		});
 	});
 
-	// A column in another SRID and a geography, which Directus never creates: Directus creates the collection, and the test
-	// changes the type of the column by SQL, in the container of the suite (V-25). Each one copies the occurrences, with
-	// their ids, so the gabarito of /items over them holds.
+	// A column in another SRID, a geography and a geometry with no SRID declared, which Directus never creates: Directus
+	// creates the collection, and the test changes the type of the column by SQL, in the container of the suite (V-25).
+	// Each one copies the occurrences, with their ids, so the gabarito of /items over them holds.
 	describe.each([
 		{ collection: 'radius_utm', name: 'em SIRGAS 2000 / UTM 23S', column: columns.utm },
 		{ collection: 'radius_geography', name: 'geography', column: columns.geography },
