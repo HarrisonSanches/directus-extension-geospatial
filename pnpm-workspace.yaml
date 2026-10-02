@@ -1,5 +1,7 @@
 packages:
   - packages/*
+  # Another extension for the integration suite, which loads beside the extension.
+  - test/hook
 
 catalog:
   '@commitlint/cli': 21.2.3

@@ -1,4 +1,4 @@
-import type { Permission } from '@directus/types';
+import type { Permission, Query } from '@directus/types';
 import knex from 'knex';
 import type { Load, ModulePath } from './modules.js';
 
@@ -32,25 +32,61 @@ export const permission: Permission = {
 	fields: ['*'],
 };
 
-// What the chain handed to getDBQuery, and whose policies it read.
+type Filter = (query: Query, meta: Record<string, unknown>, context: unknown) => Query;
+
+// The emitter of the core events, as Directus has it (api/src/emitter.ts): an instance, whose emitFilter calls the
+// filters of each event in order, each one with what the one before returned, and declares 3 parameters, since the
+// fourth has a default (V-174). The events go as a list, as the internals emit them.
+export class FakeEmitter {
+	private readonly filters = new Map<string, Filter[]>();
+
+	// What each emit received, as it came.
+	readonly emitted: { events: string[]; query: Query; meta: Record<string, unknown>; context: unknown }[] = [];
+
+	filter(event: string, handler: Filter): void {
+		this.filters.set(event, [...(this.filters.get(event) ?? []), handler]);
+	}
+
+	emitFilter(events: string[], query: Query, meta: Record<string, unknown>, context: unknown = null): Promise<Query> {
+		let updated = query;
+
+		this.emitted.push({ events, query: structuredClone(query), meta, context });
+
+		for (const name of events) {
+			for (const handler of this.filters.get(name) ?? []) {
+				updated = handler(updated, { event: name, ...meta }, context);
+			}
+		}
+
+		return Promise.resolve(updated);
+	}
+}
+
+// What the chain handed to getAstFromQuery and to getDBQuery, and whose policies it read.
 export interface Received {
+	getAstFromQuery: unknown[];
 	getDBQuery: unknown[];
 	fetchPolicies: unknown[];
 }
 
+export const nothingReceived = (): Received => ({ getAstFromQuery: [], getDBQuery: [], fetchPolicies: [] });
+
 // The modules of the chain as Directus 11.17 has them (V-146): each function with the arity of its source, and each
 // step returning the shape Directus returns. getDBQuery builds the query of the table it gets.
-export const directus11 = (received: Received = { getDBQuery: [], fetchPolicies: [] }): FakeModules => ({
+export const directus11 = (received: Received = nothingReceived(), emitter = new FakeEmitter()): FakeModules => ({
+	emitter: { default: emitter },
 	'database/get-ast-from-query/get-ast-from-query': {
-		getAstFromQuery: withArity(2, (options: { collection: string }) =>
-			Promise.resolve({
+		getAstFromQuery: withArity(2, (options: { collection: string }) => {
+			received.getAstFromQuery.push(options);
+
+			return Promise.resolve({
 				type: 'root',
 				name: options.collection,
 				children: [{ type: 'field', name: 'collection' }],
 				query: {},
 				cases: [],
-			}),
-		),
+			});
+		}),
 	},
 	'permissions/modules/process-ast/process-ast': {
 		processAst: withArity(2, (options: { ast: unknown }) => Promise.resolve(options.ast)),
@@ -80,8 +116,8 @@ export const directus11 = (received: Received = { getDBQuery: [], fetchPolicies:
 });
 
 // Directus 12 adds the module that refuses an inactive collection (V-146).
-export const directus12 = (received?: Received): FakeModules => ({
-	...directus11(received),
+export const directus12 = (received?: Received, emitter?: FakeEmitter): FakeModules => ({
+	...directus11(received, emitter),
 	'permissions/modules/assert-collection-active/assert-collection-active': {
 		assertCollectionActive: withArity(2, () => Promise.resolve()),
 	},

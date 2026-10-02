@@ -10,6 +10,10 @@ import { extension, log, newSecret, openCoverage, seconds, startEnvironment } fr
 import { readLicenseKey } from './license.ts';
 import { seed } from './seed.ts';
 
+// The other extension of the suite, whose hooks on items.query the radius respects as /items does (V-144). It loads in
+// every run, and the coverage, which reads only the bundle of the extension, leaves its code out (test/coverage.ts).
+const testHook = 'test/hook';
+
 interface Started {
 	combination: Combination;
 	directus: Directus;
@@ -86,7 +90,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 	const coverage = await mkdtemp(join(tmpdir(), 'geospatial-coverage-'));
 	const licenseKey = await readLicenseKey();
 	const results = await Promise.allSettled(
-		selected.map((combination) => start(combination, coverage, licenseKey, [extension, ...extensions])),
+		selected.map((combination) => start(combination, coverage, licenseKey, [extension, testHook, ...extensions])),
 	);
 	const started = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
 	const failure = results.find((result) => result.status === 'rejected');
@@ -104,7 +108,8 @@ export default async function setup(project: TestProject): Promise<() => Promise
 		try {
 			await Promise.all(started.map(({ stop }) => stop()));
 
-			// A run with other packages is not the suite, and its coverage would replace the one of the suite.
+			// A run with packages besides the ones of the suite is not the suite, and its coverage would replace the one of
+			// the suite.
 			if (extensions.length === 0) {
 				await openCoverage(coverage, combinations[first].directus.image);
 				await collectCoverage(coverage, new URL('../coverage/integration/coverage-final.json', import.meta.url));

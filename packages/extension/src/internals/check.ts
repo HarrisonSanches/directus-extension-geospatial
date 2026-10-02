@@ -1,7 +1,7 @@
 import type { Internals } from 'directus-geospatial-contract';
 import type { Adapter } from './adapters.js';
-import type { Context } from './chain.js';
-import { functions, type Load, type ModulePath, takeFrom } from './modules.js';
+import { chain, type Context } from './chain.js';
+import { functions, type Load, type ModulePath, ownerOf, takeFrom } from './modules.js';
 
 type Loaded = { module: Record<string, unknown> } | { reason: string };
 
@@ -25,18 +25,20 @@ const loadWith =
 const collection = 'directus_collections';
 
 // The chain on a collection of Directus itself, with no accountability, as Directus reads for itself, which goes the
-// way of the admin: it reads no row, no permission and no policy, and the builder at the end never runs (V-146).
+// way of the admin: it reads no row, no permission and no policy, and the builder at the end never runs (V-146). It
+// emits no event, so no hook of another extension runs for a read that no one asked for.
 const shapeProblemsOf = async (
 	adapter: Adapter,
 	modules: ReadonlyMap<ModulePath, Record<string, unknown>>,
 	context: Context,
 ): Promise<string[]> => {
 	try {
-		const { builder } = await adapter.permittedQuery(
-			takeFrom(modules),
-			{ collection, query: { fields: ['collection'], limit: 1 }, accountability: null },
-			context,
-		);
+		const take = takeFrom(modules);
+		const request = { collection, query: { fields: ['collection'], limit: 1 }, accountability: null };
+
+		await adapter.beforeHooks(take, request, context);
+
+		const { builder } = await chain(take, request, context);
 
 		// The name alone, since Postgres quotes it with double quotes, and SQLite with backticks.
 		const { sql } = builder.toSQL();
@@ -67,7 +69,8 @@ const problemsOf = async (
 			continue;
 		}
 
-		const value = found.module[name];
+		const owner = ownerOf(found.module, name);
+		const value = isRecord(owner) ? owner[name] : undefined;
 
 		modules.set(path, found.module);
 

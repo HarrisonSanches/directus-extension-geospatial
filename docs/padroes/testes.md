@@ -45,6 +45,11 @@ para não quebrar os outros testes da combinação, que rodam em paralelo. A cob
 pela pasta de cobertura da rodada, que o setup global entrega a todos os testes. Com o banco fora, o teste entra com
 um JWT, porque o Directus procura o token estático no banco antes de qualquer rota (V-124).
 
+**A suíte carrega uma segunda extensão,** a de `test/hook/`, ao lado da extensão, em toda rodada. Os hooks dela no
+`items.query` mudam a leitura de uma coleção própria, a `hooked_occurrences`, e registram o que recebem, para a
+paridade com o `/items` alcançar também os hooks de outras extensões (V-144, V-174). A soma da cobertura lê só o bundle
+da extensão, então o código dela fica de fora, e só uma rodada com pacotes além dos da suíte deixa de somar.
+
 **Os dados de teste entram pela API do Directus,** com o `@directus/sdk`: o esquema, os papéis, as políticas e os
 itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. Os papéis de sempre, em
 `test/seed.ts`:

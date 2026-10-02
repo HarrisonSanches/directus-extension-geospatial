@@ -93,6 +93,10 @@ contrato servem a todas as camadas.
   carregador de `internals/modules.ts`: um import estático do que uma versão não tem derrubaria a extensão ao carregar
   (V-146). A checagem recebe o carregador, e o teste unitário passa um falso. A forma do que cada passo da cadeia
   devolve é conferida, e o resto do tipo vem das declarações, que a paridade com o `/items` confirma.
+- **A query permitida segue a ordem do `readByQuery`:** o que a versão faz antes dos hooks, que é o único passo de cada
+  adaptador, o `items.query` pelo emissor dos eventos do núcleo, e a cadeia sobre a query que os hooks devolveram
+  (V-144, V-174). A operação lê a página que voltou dos hooks. A checagem ao subir monta a cadeia sem emitir, para
+  nenhum hook de outra extensão rodar numa leitura que ninguém pediu.
 - **Uma operação é um módulo profundo:** a interface é pequena (entrada validada, partes do resultado, nível em
   cada banco), e a implementação rica fica atrás dela.
 - **Exportações nomeadas.** `export default` só onde o Directus exige, no registro das superfícies.

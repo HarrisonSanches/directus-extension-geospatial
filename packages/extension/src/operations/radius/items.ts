@@ -42,6 +42,18 @@ const chainQueryOf = (page: Query, fields: string[]): Query => {
 	return query;
 };
 
+// A query of the page that asks what the radius does not take yet is refused, instead of having it quietly left out:
+// the one of the request, and the one the hooks of items.query returned.
+const takenBy = (query: Query): Query => {
+	const unsupported = unsupportedIn(query);
+
+	if (unsupported !== undefined) {
+		throw new InvalidQueryError({ reason: `The radius does not take ${unsupported} yet` });
+	}
+
+	return query;
+};
+
 // The window of the page over the items inside the circle, as /items reads limit, offset and page.
 const windowOf = ({ limit, offset, page }: Query) => {
 	const requested = limit ?? -1;
@@ -58,11 +70,7 @@ export const radiusItems = async (
 	{ collection, geo, page, accountability }: RadiusRequest,
 	{ knex, schema, client, internals, permittedQuery, logger, valuesOf }: Engine,
 ): Promise<Item[]> => {
-	const unsupported = unsupportedIn(page);
-
-	if (unsupported !== undefined) {
-		throw new InvalidQueryError({ reason: `The radius does not take ${unsupported} yet` });
-	}
+	takenBy(page);
 
 	const checked = await internals();
 
@@ -80,18 +88,21 @@ export const radiusItems = async (
 	const context = { schema, knex };
 	const found = geometryFieldOf(schema, collection, geo.field);
 
+	// The hooks of items.query get the page as /items hands it to them, and the radius reads the page they return
+	// (V-144).
+	const request = { collection, query: page, accountability };
+
 	// Whoever cannot read the collection learns nothing of its fields: the chain refuses them first.
 	if ('problem' in found) {
-		await permittedQuery({ collection, query: chainQueryOf(page, []), accountability }, context);
+		await permittedQuery(request, context, (hooked) => chainQueryOf(takenBy(hooked), []));
 
 		throw new InvalidQueryError({ reason: found.problem });
 	}
 
 	// The geometry goes by its name, so a user who cannot read it gets the error of /items, instead of the field
 	// quietly missing from the * (V-143).
-	const { builder: permitted } = await permittedQuery(
-		{ collection, query: chainQueryOf(page, [found.field]), accountability },
-		context,
+	const { builder: permitted, query } = await permittedQuery(request, context, (hooked) =>
+		chainQueryOf(takenBy(hooked), [found.field]),
 	);
 
 	const { builder } = declared.envelope(knex, {
@@ -100,7 +111,7 @@ export const radiusItems = async (
 		key: primary,
 		center: geo.center,
 		distance: geo.distance,
-		...windowOf(page),
+		...windowOf(query),
 	});
 
 	const rows = await failClosed(async () => {
@@ -110,7 +121,7 @@ export const radiusItems = async (
 	}, logger);
 
 	const values = await valuesOf(collection, rows);
-	const fields = page.fields ?? ['*'];
+	const fields = query.fields ?? ['*'];
 
 	if (fields.includes('*') || fields.includes(found.field)) {
 		return values;

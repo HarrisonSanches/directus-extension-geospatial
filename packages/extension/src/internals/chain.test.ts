@@ -1,7 +1,7 @@
 import type { Accountability } from '@directus/types';
 import { describe, expect, it } from 'vitest';
 import { chain } from './chain.js';
-import { context, directus11, permission, type Received, withArity } from './fake-directus.js';
+import { context, directus11, nothingReceived, permission, withArity } from './fake-directus.js';
 import { takeFrom } from './modules.js';
 
 const maria: Accountability = {
@@ -15,7 +15,7 @@ const maria: Accountability = {
 const admin: Accountability = { ...maria, role: 'admin', roles: ['admin'], user: 'admin', admin: true };
 
 const chainAs = async (accountability: Accountability | null) => {
-	const received: Received = { getDBQuery: [], fetchPolicies: [] };
+	const received = nothingReceived();
 	const take = takeFrom(new Map(Object.entries(directus11(received))));
 	const { builder } = await chain(take, { collection: 'occurrences', query: {}, accountability }, context);
 
@@ -41,7 +41,7 @@ describe('a cadeia do ItemsService até o getDBQuery', () => {
 	});
 
 	it('passa ao getDBQuery só as relações de um para muitos do nível', async () => {
-		const received: Received = { getDBQuery: [], fetchPolicies: [] };
+		const received = nothingReceived();
 		const o2m = { type: 'o2m', name: 'comments' };
 		const modules = {
 			...directus11(received),
