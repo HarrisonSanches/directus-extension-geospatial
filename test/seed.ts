@@ -182,5 +182,10 @@ export const seed = async (
 			'South zone with geometry': { filter: southZone },
 			'North zone without geometry': { filter: northZone, fields: everyFieldBut('geometry') },
 		}),
+		// The status in the south zone, and the north zone without it, for the order by a field a policy holds back.
+		statusInPart: await userOf('Status in part', 'status-in-part@example.com', {
+			'South zone with status': { filter: southZone },
+			'North zone without status': { filter: northZone, fields: everyFieldBut('status') },
+		}),
 	};
 };

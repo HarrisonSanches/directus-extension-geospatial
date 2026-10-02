@@ -389,6 +389,36 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		);
 
 		it.runIf(hasCustomPermissionRules())(
+			'o item cujo campo de ordem uma política esconde ordena como vazio, e não revela o valor pela posição (V-179)',
+			async () => {
+				const client = as('statusInPart');
+				const page: Page = { fields: ['id', 'region', 'status'] };
+				// Postgres puts the empty ones last in an ascending order.
+				const expected = (await expectedFor(client, page)).sort(
+					(a, b) =>
+						Number(typeof a.status !== 'string') - Number(typeof b.status !== 'string') ||
+						String(a.status).localeCompare(String(b.status)) ||
+						Number(a.id) - Number(b.id),
+				);
+				const items = (await radius(client, { ...paramsOf(page), sort: 'status', limit: limitMaximum })).map(
+					withoutGeo,
+				);
+
+				expect(items).toEqual(expected);
+				expect(expected.some(({ region, status }) => region === 'north' && typeof status !== 'string')).toBe(true);
+
+				// /items orders by the column itself, so an item of the north, whose status the user does not see, lands
+				// among the others by the status it has.
+				const fromItems = await client.request(
+					readItems('occurrences', { fields: ['id', 'region', 'status'], sort: ['status'], limit: -1 }),
+				);
+				const north = fromItems.map(({ region }) => region === 'north');
+
+				expect(north.indexOf(true)).toBeLessThan(north.lastIndexOf(false));
+			},
+		);
+
+		it.runIf(hasCustomPermissionRules())(
 			'o sort por um campo sem permissão dá ao raio o mesmo erro do /items',
 			async () => {
 				const client = as('withoutCategory');

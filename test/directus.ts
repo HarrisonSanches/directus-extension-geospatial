@@ -7,7 +7,14 @@ import type { Database, Spatial } from 'directus-geospatial-contract';
 // The users the suite calls Directus as. Each one but the public has a static token of its own. The ones without a field
 // read the south zone, as Maria (test/seed.ts).
 export type Role =
-	'admin' | 'maria' | 'twoPolicies' | 'withoutCategory' | 'withoutGeometry' | 'geometryInPart' | 'public';
+	| 'admin'
+	| 'maria'
+	| 'twoPolicies'
+	| 'withoutCategory'
+	| 'withoutGeometry'
+	| 'geometryInPart'
+	| 'statusInPart'
+	| 'public';
 
 // The database and the spatial extension a combination runs, with the versions as they report them.
 export interface DatabaseVersions {
