@@ -13,6 +13,9 @@ import { seed } from './seed.ts';
 // The other extension of the suite, whose hooks on items.query the radius respects as /items does (V-144). It loads in
 // every run, and the coverage, which reads only the bundle of the extension, leaves its code out (test/coverage.ts).
 const testHook = 'test/hook';
+// The extension that hands over the statement of the radius with its values, which the measurements time and the suite
+// reads the plan of (test/measure/observer/).
+const observer = 'test/measure/observer';
 
 interface Started {
 	combination: Combination;
@@ -103,7 +106,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 		coverage,
 		recordsCoverage: !measuring,
 		licenseKey,
-		packages: measuring ? [extension, ...extensions] : [extension, testHook, ...extensions],
+		packages: measuring ? [extension, ...extensions] : [extension, testHook, observer, ...extensions],
 	};
 	const results = await Promise.allSettled(selected.map((combination) => start(combination, run)));
 	const started = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));

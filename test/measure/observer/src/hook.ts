@@ -1,7 +1,7 @@
 import { defineHook } from '@directus/extensions-sdk';
 import type { Query } from '@directus/types';
 import type { Knex } from 'knex';
-import { answered, collection, hooked, sent } from './reads.js';
+import { answered, hooked, sent } from './reads.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
@@ -12,12 +12,12 @@ const isValue = (value: unknown): value is Knex.Value =>
 const uidOf = (event: unknown): string | undefined =>
 	isRecord(event) && typeof event.__knexQueryUid === 'string' ? event.__knexQueryUid : undefined;
 
-// Times the reads of the collection of the measurements inside Directus, through what Directus already emits: the
-// hooks of items.query, and the events of its connection, the one the radius runs on (V-141).
+// Times the reads of the radius inside Directus, through what Directus already emits: the hooks of items.query, and the
+// events of its connection, the one the radius runs on (V-141).
 export default defineHook(({ filter }, { database }) => {
 	filter<Query>('items.query', (query, meta) => {
-		if (meta.collection === collection) {
-			hooked();
+		if (typeof meta.collection === 'string') {
+			hooked(meta.collection);
 		}
 
 		return query;

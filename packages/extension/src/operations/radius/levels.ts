@@ -15,9 +15,9 @@ const notYet: RadiusLevel = { level: 'unavailable', reason: 'It does not run on 
 // The level of the radius in each database Directus runs on, in one place. The type keeps it complete: a database
 // without a level does not compile (D-002).
 export const radiusLevels: Record<Database['client'], RadiusLevel> = {
-	// In the database, and without the index: the envelope reads the geometry the permitted query exposes, as text
-	// (A-023).
-	postgres: { level: 'unindexed', envelope: postgis.radius },
+	// In the database, with the index: the envelope reads the column inside the permitted query, and the GiST answers its
+	// box (D-049).
+	postgres: { level: 'indexed', envelope: postgis.radius },
 	sqlite: notYet,
 	cockroachdb: notYet,
 	mysql: notYet,

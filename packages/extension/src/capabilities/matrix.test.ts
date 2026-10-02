@@ -25,7 +25,7 @@ const clientsOfContract = () => {
 describe('a matriz de capacidades', () => {
 	it('o raio roda no PostGIS sem o índice, enquanto o envelope lê o texto da query permitida (A-023)', () => {
 		expect(matrixOf({ client: 'postgres', spatial: postgis, internals: accepted })).toEqual({
-			radius: { level: 'unindexed' },
+			radius: { level: 'indexed' },
 		});
 	});
 
@@ -54,7 +54,7 @@ describe('a matriz de capacidades', () => {
 	});
 
 	it('a rota lê o nível pelo banco e pelos internos, sem a extensão espacial', () => {
-		expect(capabilityOf('radius', { client: 'postgres', internals: accepted })).toEqual({ level: 'unindexed' });
+		expect(capabilityOf('radius', { client: 'postgres', internals: accepted })).toEqual({ level: 'indexed' });
 		expect(capabilityOf('radius', { client: 'postgres', internals: refused }).level).toBe('unavailable');
 	});
 

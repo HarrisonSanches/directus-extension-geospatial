@@ -5,7 +5,10 @@ import type { Knex } from 'knex';
 interface RadiusEnvelope {
 	// The query of what the user can read, as Directus built it, which the envelope reads as a subquery.
 	permitted: Knex.QueryBuilder;
-	// The column of the permitted query with the geometry, which it exposes as text, and null where a policy hides it.
+	// The table of the collection, which the permitted query reads by its name.
+	collection: string;
+	// The geometry field, a column of the table and of the permitted query, which exposes it as text, and null where a
+	// policy hides it.
 	geometry: string;
 	// The primary key, which orders the items.
 	key: string;
