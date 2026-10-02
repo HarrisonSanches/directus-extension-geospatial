@@ -3,7 +3,7 @@ import type { Internals, Radius } from 'directus-geospatial-contract';
 import { describe, expect, it } from 'vitest';
 import type { Request } from '../../internals/chain.js';
 import { database } from '../../internals/fake-directus.js';
-import { type Engine, radiusItems, type RadiusRequest } from './items.js';
+import { type Engine, itemsOf, radiusItems, type RadiusRequest, unaskedOf } from './items.js';
 
 const maria: Accountability = {
 	role: 'operator',
@@ -55,6 +55,7 @@ const engineWith = (overrides: Partial<Engine> = {}) => {
 		},
 		logger: { error: (error: unknown) => logged.push(error) },
 		valuesOf: (_, rows) => Promise.resolve(rows),
+		defaultLimit: 100,
 		...overrides,
 	};
 
@@ -71,7 +72,8 @@ const refused: Internals = { status: 'refused', problems: { '12': ['missing'] } 
 
 describe('o raio, antes do banco', () => {
 	it.each([
-		['um parâmetro que o raio ainda não trata', { page: { fields: ['*'], sort: ['region'] } }, {}, 'INVALID_QUERY'],
+		['um parâmetro que o raio ainda não trata', { page: { fields: ['*'], group: ['region'] } }, {}, 'INVALID_QUERY'],
+		['o limit acima do máximo do contrato', { page: { fields: ['*'], limit: 1001 } }, {}, 'INVALID_QUERY'],
 		['os internos recusados', {}, { internals: () => Promise.resolve(refused) }, 'GEOSPATIAL_INTERNALS_UNSUPPORTED'],
 		['um banco onde o raio não roda', {}, { client: 'sqlite' as const }, 'GEOSPATIAL_OPERATION_UNAVAILABLE'],
 		['uma coleção que o esquema não tem', { collection: 'nowhere' }, {}, 'FORBIDDEN'],
@@ -104,10 +106,10 @@ describe('o raio, antes do banco', () => {
 });
 
 describe('a página que os hooks de items.query devolvem (V-144)', () => {
-	it('também passa pelo que o raio aceita: um hook que pede a ordem tem o pedido recusado, e não ignorado', async () => {
+	it('também passa pelo que o raio aceita: um hook que pede a ordem por uma relação tem o pedido recusado, e não ignorado', async () => {
 		const { engine } = engineWith({
 			permittedQuery: (request, _, queryOf = (hooked) => hooked) => {
-				const hooked = { ...request.query, sort: ['region'] };
+				const hooked = { ...request.query, sort: ['author.name'] };
 
 				return Promise.resolve({ builder: database.select('id').from('occurrences'), query: queryOf(hooked) });
 			},
@@ -115,7 +117,7 @@ describe('a página que os hooks de items.query devolvem (V-144)', () => {
 
 		await expect(radiusWith({}, engine)).rejects.toMatchObject({
 			code: 'INVALID_QUERY',
-			extensions: { reason: 'The radius does not take sort yet' },
+			extensions: { reason: 'The radius does not take sort by a relation yet' },
 		});
 	});
 });
@@ -124,13 +126,23 @@ describe('a query permitida do raio', () => {
 	it.each([
 		['a página toda', { fields: ['id'], limit: 10, offset: 5 }, ['id', 'geometry']],
 		['a página pelo número', { fields: ['id', 'region'], limit: 10, page: 3 }, ['id', 'region', 'geometry']],
-		['sem os campos', { limit: -1 }, ['*', 'geometry']],
+		['sem os campos', { limit: 1000 }, ['*', 'geometry']],
 	])('%s: sai sem limite, sem deslocamento e sem página, com a geometria pelo nome', async (_, page: Query, fields) => {
 		const { engine, built } = engineWith();
 
 		await radiusWith({ page }, engine).catch(() => undefined);
 
 		expect(built).toEqual([{ collection: 'occurrences', query: { fields, limit: -1 }, accountability: maria }]);
+	});
+
+	it('com o sort, a ordem vai à cadeia, que confere a permissão dos campos, e eles são lidos pelo nome', async () => {
+		const { engine, built } = engineWith();
+
+		await radiusWith({ page: { fields: ['id'], sort: ['-status'] } }, engine).catch(() => undefined);
+
+		expect(built.map(({ query }) => query)).toEqual([
+			{ fields: ['id', 'geometry', 'status'], sort: ['-status'], limit: -1 },
+		]);
 	});
 
 	it('com o banco fora, o raio falha fechado, com a causa só no log', async () => {
@@ -141,5 +153,29 @@ describe('a query permitida do raio', () => {
 			status: 503,
 		});
 		expect(logged).toHaveLength(1);
+	});
+});
+
+describe('os itens que o raio devolve', () => {
+	it.each([
+		['com fields=*, nenhum campo sai', { fields: ['*'], sort: ['status'] }, []],
+		['sem os campos, como o * do /items', { sort: ['status'] }, []],
+		['sem a geometria nos campos, ela sai', { fields: ['id'] }, ['geometry']],
+		['o campo lido só para ordenar sai', { fields: ['id', 'geometry'], sort: ['-status'] }, ['status']],
+		['o campo pedido e usado na ordem fica', { fields: ['id', 'status'], sort: ['-status'] }, ['geometry']],
+	])('%s', (_, query: Query, unasked) => {
+		expect(unaskedOf(query, 'geometry')).toEqual(unasked);
+	});
+
+	it('cada item leva a distância no $geo, sem os campos que a página não pediu', () => {
+		const values = [
+			{ id: 1, status: 'open', geometry: { type: 'Point', coordinates: [-46.7, -23.65] } },
+			{ id: 2, status: 'closed', geometry: { type: 'Point', coordinates: [-46.7, -23.6] } },
+		];
+
+		expect(itemsOf(values, [0, 5_558.6], ['status', 'geometry'])).toEqual([
+			{ id: 1, $geo: { distance: 0 } },
+			{ id: 2, $geo: { distance: 5_558.6 } },
+		]);
 	});
 });

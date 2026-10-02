@@ -5,8 +5,9 @@ import { type Box, boxesOf, ringOf } from './box.js';
 // The SRID of what comes in, the center of a request, and of what goes out, the geometry of the items (D-007).
 const wgs84 = 4326;
 
-// The column the rows bring the geometry in 4326 in, where the column keeps another SRID. No field of Directus is named
-// with a colon.
+// The columns the rows bring the distance from the center in, and the geometry in 4326, where the column keeps another
+// SRID. No field of Directus is named with a colon.
+const measured = 'geospatial:distance';
 const converted = 'geospatial:4326';
 
 const isRow = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -129,8 +130,11 @@ export const postgis: SpatialAdapter = {
 	// V-143). The rows keep the columns of the permitted query, the geometry still as text, which Directus turns into
 	// GeoJSON as it does for /items (V-173). In another SRID, what comes in goes to the one of the column, and the stage
 	// the index answers reads the column as it is. Only the distance reads a projected column in 4326, on what the box
-	// left, since geography takes degrees. What goes out goes to 4326 from the text the permitted query exposes.
-	radius: (knex, { permitted, collection, geometry, key, column, boxes, center, distance, limit, offset }) => {
+	// left, since geography takes degrees. What goes out goes to 4326 from the text the permitted query exposes, and so
+	// does the distance, which orders the list unless the page asks its own order. The order of the page reads the values
+	// the permitted query exposes, where Directus orders /items by the column itself, so an item whose field a policy
+	// holds back sorts as an empty one, and its place in the list tells nothing of the value (V-179).
+	radius: (knex, { permitted, collection, geometry, key, column, boxes, center, distance, order, limit, offset }) => {
 		const raw = `${collection}.${geometry}`;
 		const [longitude, latitude] = center;
 		const near = permitted.clone();
@@ -165,26 +169,43 @@ export const postgis: SpatialAdapter = {
 			);
 		}
 
-		const builder = knex.select('p.*').from(near.as('p')).whereNotNull(`p.${geometry}`).orderBy(`p.${key}`);
+		// The geometry the permitted query exposes, in 4326.
+		const exposed =
+			column.srid === wgs84
+				? knex.raw('ST_GeomFromText(??, 4326)', [`p.${geometry}`])
+				: knex.raw('ST_Transform(ST_GeomFromText(??, ?), 4326)', [`p.${geometry}`, column.srid]);
+
+		const builder = knex
+			.select(
+				'p.*',
+				knex.raw('ST_Distance(?::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography) as ??', [
+					exposed,
+					longitude,
+					latitude,
+					measured,
+				]),
+			)
+			.from(near.as('p'))
+			.whereNotNull(`p.${geometry}`);
 
 		if (column.srid !== wgs84) {
-			builder.select(
-				knex.raw('ST_AsText(ST_Transform(ST_GeomFromText(??, ?), 4326)) as ??', [
-					`p.${geometry}`,
-					column.srid,
-					converted,
-				]),
-			);
+			builder.select(knex.raw('ST_AsText(?) as ??', [exposed, converted]));
 		}
 
-		if (limit !== null) {
-			builder.limit(limit);
+		if (order.length === 0) {
+			builder.orderBy(measured);
 		}
+
+		for (const { field, direction } of order) {
+			builder.orderBy(`p.${field}`, direction);
+		}
+
+		builder.orderBy(`p.${key}`).limit(limit);
 
 		if (offset > 0) {
 			builder.offset(offset);
 		}
 
-		return column.srid === wgs84 ? { builder } : { builder, converted };
+		return column.srid === wgs84 ? { builder, distance: measured } : { builder, distance: measured, converted };
 	},
 };
