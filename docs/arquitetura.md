@@ -775,7 +775,7 @@ Fica num servidor próprio do autor, com volume moderado (alguns milhões de pon
 - **Mais próximos:** o `<->` acha os candidatos pelo índice, e o `geography` dá a ordem exata.
 - **Medições** (distância, área, perímetro, comprimento) sempre em `geography`.
 - **Qualquer SRID.** O motor lê o SRID da coluna, converte a entrada do usuário (que chega em 4326) para esse SRID, para usar o índice, e devolve o resultado em 4326 para o mapa. Colunas `geography` também são suportadas. O Directus não trata SRID, então a extensão funciona onde o mapa nativo falha, por exemplo com SIRGAS 2000 / UTM 23S (EPSG:31983).
-  - O tipo e o SRID vêm do catálogo do banco, a cada pedido, porque o esquema do Directus lê uma `geography` e uma `geometry` como o mesmo tipo e não guarda o SRID (V-178). Uma `geometry` sem SRID declarado fica com o 4326, em que o Directus grava.
+  - O tipo e o SRID vêm do catálogo do banco, a cada pedido, porque o esquema do Directus lê uma `geography` e uma `geometry` como o mesmo tipo e não guarda o SRID (D-050, V-178). Uma `geometry` sem SRID declarado fica com o 4326, em que o Directus grava.
   - A caixa vai para o SRID da coluna com cada lado cortado em trechos curtos, porque a projeção curva os lados. Ela só vale onde a conversão é de um para um: a borda volta para 4326 e precisa cair onde estava. Onde o PROJ não a converte, ou não a traz de volta, o raio vai sem a caixa, mais lento e igualmente exato.
   - A distância lê a coluna em 4326 só nos candidatos que a caixa deixou, e a geometria sai em 4326, convertida do texto que a query permitida expõe.
   - Numa coluna `geography`, o próprio `ST_DWithin` traz a caixa do índice. Uma caixa em graus teria arestas geodésicas e não conteria o círculo.
