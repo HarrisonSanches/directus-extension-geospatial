@@ -53,6 +53,8 @@ export interface Occurrence {
 
 interface Schema {
 	occurrences: Occurrence[];
+	// The same occurrences, in the collection whose reads the hooks of the other extension of the suite change.
+	hooked_occurrences: Occurrence[];
 }
 
 export type Client = DirectusClient<Schema> & RestClient<Schema>;

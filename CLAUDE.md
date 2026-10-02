@@ -172,7 +172,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   que esconde o `conceal`, converte as datas, o CSV e o resto e faz o GeoJSON do texto da query permitida, então o
   `ST_AsGeoJSON` saiu do envelope. A coleção inativa do 12 a própria cadeia já recusava, pelo `processAst` (V-173,
   A-042, no plano).
-- Próximo passo: `/implement-issue F02-06`, o hook `items.query` de outra extensão, respeitado.
+- F02-06 feita em 01/10/2026: o raio emite o `items.query` como o `readByQuery`, pelo emissor dos eventos do núcleo,
+  depois do que a versão faz antes dos hooks e antes da cadeia, e lê a página que os hooks devolveram. O `emitFilter` é
+  um método da instância que o módulo exporta, e a checagem o confere pela aridade, 3, sem emitir na partida. A suíte
+  carrega em toda rodada uma segunda extensão, a de `test/hook/`, cujos hooks mudam uma coleção própria, e a cobertura
+  continua somada pela catraca (V-174).
+- Próximo passo: `/implement-issue F02-07`, o modo de medição, e os números do raio.
 
 ## Documentação
 

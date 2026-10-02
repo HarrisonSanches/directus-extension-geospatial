@@ -127,17 +127,11 @@ const northZone = { region: { _eq: 'north' } };
 const everyFieldBut = (field: keyof Occurrence) =>
 	(['id', 'geometry', 'region', 'category', 'status', 'occurred_at'] as const).filter((name) => name !== field);
 
-// Builds the schema, the roles and the data through the API, so each database stores them the way Directus writes to
-// it. Without custom permission rules, as on the Core tier of Directus 12, the roles get no policy, and their users
-// only have a session (V-114).
-export const seed = async (
-	admin: Client,
-	newSecret: () => string,
-	customPermissionRules: boolean,
-): Promise<Record<Exclude<Role, 'admin' | 'public'>, string>> => {
-	await admin.request(
+// A collection of occurrences, as Directus creates it in each database.
+export const createOccurrences = (admin: Client, collection: 'occurrences' | 'hooked_occurrences') =>
+	admin.request(
 		createCollection({
-			collection: 'occurrences',
+			collection,
 			schema: {},
 			meta: {},
 			fields: [
@@ -154,6 +148,16 @@ export const seed = async (
 			],
 		}),
 	);
+
+// Builds the schema, the roles and the data through the API, so each database stores them the way Directus writes to
+// it. Without custom permission rules, as on the Core tier of Directus 12, the roles get no policy, and their users
+// only have a session (V-114).
+export const seed = async (
+	admin: Client,
+	newSecret: () => string,
+	customPermissionRules: boolean,
+): Promise<Record<Exclude<Role, 'admin' | 'public'>, string>> => {
+	await createOccurrences(admin, 'occurrences');
 
 	await admin.request(createItems('occurrences', occurrences));
 

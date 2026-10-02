@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { adapters } from './adapters.js';
 import { checkInternals } from './check.js';
-import { context, database, directus11, directus12, type FakeModules, loaderOf, withArity } from './fake-directus.js';
+import {
+	context,
+	database,
+	directus11,
+	directus12,
+	FakeEmitter,
+	type FakeModules,
+	loaderOf,
+	withArity,
+} from './fake-directus.js';
 import type { Load } from './modules.js';
 
 const check = (modules: FakeModules, only?: string) =>
@@ -166,5 +175,46 @@ describe('a checagem recusa o que não é o que o adaptador espera', () => {
 				],
 			},
 		});
+	});
+});
+
+describe('o emissor dos eventos do núcleo, que os hooks de items.query ouvem (V-144)', () => {
+	const emitter = '@directus/api/emitter';
+
+	it('sem o emissor, nenhum adaptador serve', async () => {
+		const modules = directus12();
+
+		delete modules.emitter;
+
+		expect(await check(modules, '12')).toEqual({
+			status: 'refused',
+			problems: { '12': [`${emitter} could not be imported (ERR_MODULE_NOT_FOUND)`] },
+		});
+	});
+
+	it.each([
+		['sem o emitFilter', { default: {} }, `${emitter} has no function emitFilter`],
+		[
+			'com o emitFilter fora do objeto padrão',
+			{ emitFilter: withArity(3, () => null) },
+			`${emitter} has no function emitFilter`,
+		],
+		[
+			'com o emitFilter de outra aridade',
+			{ default: { emitFilter: withArity(4, () => null) } },
+			`${emitter}: emitFilter declares 4 parameters, and the adapter expects 3`,
+		],
+	])('%s, o adaptador recusa o Directus', async (_, module, problem) => {
+		expect(await check({ ...directus12(), emitter: module }, '12')).toEqual({
+			status: 'refused',
+			problems: { '12': [problem] },
+		});
+	});
+
+	it('a checagem não emite evento nenhum, então nenhum hook de outra extensão roda na partida', async () => {
+		const fake = new FakeEmitter();
+
+		expect(await check(directus12(undefined, fake))).toEqual({ status: 'accepted', adapter: '12' });
+		expect(fake.emitted).toEqual([]);
 	});
 });

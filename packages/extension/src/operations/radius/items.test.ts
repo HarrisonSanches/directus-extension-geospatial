@@ -47,10 +47,11 @@ const engineWith = (overrides: Partial<Engine> = {}) => {
 		schema,
 		client: 'postgres',
 		internals: () => Promise.resolve({ status: 'accepted', adapter: '12' }),
-		permittedQuery: (request) => {
-			built.push(request);
+		// With no hook of items.query, the chain gets what the radius asks of the page as it came.
+		permittedQuery: (request, _, queryOf = (hooked) => hooked) => {
+			built.push({ ...request, query: queryOf(request.query) });
 
-			return Promise.resolve({ builder: database.select('id', 'geometry').from('occurrences') });
+			return Promise.resolve({ builder: database.select('id', 'geometry').from('occurrences'), query: request.query });
 		},
 		logger: { error: (error: unknown) => logged.push(error) },
 		valuesOf: (_, rows) => Promise.resolve(rows),
@@ -99,6 +100,23 @@ describe('o raio, antes do banco', () => {
 			extensions: { reason: 'The field region of occurrences is not a geometry' },
 		});
 		expect(built.map(({ query }) => query.fields)).toEqual([['*']]);
+	});
+});
+
+describe('a página que os hooks de items.query devolvem (V-144)', () => {
+	it('também passa pelo que o raio aceita: um hook que pede a ordem tem o pedido recusado, e não ignorado', async () => {
+		const { engine } = engineWith({
+			permittedQuery: (request, _, queryOf = (hooked) => hooked) => {
+				const hooked = { ...request.query, sort: ['region'] };
+
+				return Promise.resolve({ builder: database.select('id').from('occurrences'), query: queryOf(hooked) });
+			},
+		});
+
+		await expect(radiusWith({}, engine)).rejects.toMatchObject({
+			code: 'INVALID_QUERY',
+			extensions: { reason: 'The radius does not take sort yet' },
+		});
 	});
 });
 

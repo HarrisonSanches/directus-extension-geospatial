@@ -1,6 +1,5 @@
 import type { InternalsAccepted } from 'directus-geospatial-contract';
-import type { Knex } from 'knex';
-import { chain, type Context, type Request } from './chain.js';
+import type { Context, Request } from './chain.js';
 import { type FunctionName, functions, type ModulePath, type Take } from './modules.js';
 
 export interface Adapter {
@@ -10,11 +9,14 @@ export interface Adapter {
 	uses: readonly FunctionName[];
 	// The modules the Directus it was written for does not have, and why one that has them is not that Directus.
 	lacks: readonly { module: ModulePath; because: string }[];
-	// The query of what the accountability can read, built as the readByQuery of that Directus builds it.
-	permittedQuery: (take: Take, request: Request, context: Context) => Promise<{ builder: Knex.QueryBuilder }>;
+	// What the readByQuery of that Directus does before the hooks of items.query, which then change the query, and the
+	// chain builds the permitted query of what they returned (V-142, V-144).
+	beforeHooks: (take: Take, request: Request, context: Context) => Promise<void>;
 }
 
-const chainFunctions = [
+// The steps of the readByQuery the same in 11.17 and in 12: the hooks of items.query, and the chain up to getDBQuery.
+const readFunctions = [
+	'emitFilter',
 	'getAstFromQuery',
 	'processAst',
 	'parseCurrentLevel',
@@ -27,7 +29,7 @@ const chainFunctions = [
 // adapter would run first, so it refuses that Directus (V-146).
 const v11: Adapter = {
 	name: '11.17',
-	uses: chainFunctions,
+	uses: readFunctions,
 	lacks: [
 		{
 			module: functions.assertCollectionActive.module,
@@ -35,20 +37,16 @@ const v11: Adapter = {
 				'this Directus refuses an inactive collection before the hooks of items.query, which this adapter does not',
 		},
 	],
-	permittedQuery: chain,
+	beforeHooks: () => Promise.resolve(),
 };
 
 // Directus 12, whose readByQuery refuses an inactive collection before the hooks of items.query (V-142).
 const v12: Adapter = {
 	name: '12',
-	uses: [...chainFunctions, 'assertCollectionActive'],
+	uses: [...readFunctions, 'assertCollectionActive'],
 	lacks: [],
-	permittedQuery: async (take, request, context) => {
-		const { collection, accountability } = request;
-
+	beforeHooks: async (take, { collection, accountability }, context) => {
 		await take('assertCollectionActive')({ accountability, collection, action: 'read' }, context);
-
-		return chain(take, request, context);
 	},
 };
 

@@ -113,3 +113,21 @@ declare module '@directus/api/permissions/modules/assert-collection-active/asser
 		context: { schema: SchemaOverview; knex: ApiExtensionContext['database'] },
 	): Promise<void>;
 }
+
+// The emitter of the core events, where the filter of each hook of every extension registers (api/src/emitter.ts,
+// V-144). The emitter in the context of an extension is another one, only for the events between extensions (A-024).
+// Its emitFilter calls the filters of each event in order, each one with what the one before returned.
+declare module '@directus/api/emitter' {
+	import type { EventContext } from '@directus/types';
+
+	const emitter: {
+		emitFilter<T>(
+			event: string | string[],
+			payload: T,
+			meta: Record<string, unknown>,
+			context?: EventContext | null,
+		): Promise<T>;
+	};
+
+	export default emitter;
+}
