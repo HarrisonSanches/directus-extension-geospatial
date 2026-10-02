@@ -825,3 +825,19 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Guardar o tipo e o SRID por esquema do Directus: um `ALTER` feito por SQL deixaria o SRID guardado velho, e a caixa errada, sem erro. O custo da leitura fica para a F03 medir (A-047).
   - Numa `geography`, uma caixa em graus convertida para ela: as arestas seriam geodésicas e não conteriam o círculo.
 - **Consequências:** a extensão mede em metros onde o mapa nativo falha, como na SIRGAS 2000 / UTM 23S, cujo `/items` devolve os metros da projeção como se fossem graus (V-178). Cada pedido faz uma leitura a mais no banco, e duas numa coluna projetada. Um círculo que a projeção não cobre varre a tabela, com o resultado certo. Os testes da caixa conferem no SQL que chegou ao banco que ela estava lá, porque o resultado certo também sai sem ela.
+
+## D-051 — A página do raio: até 1.000 itens, sem o `-1`, e a ordem pelo valor exposto
+
+- **Estado:** aceita em 02/10/2026. Detalha a D-016 e a D-049.
+- **Onde:** §7.8 · `docs/padroes/api-e-contrato.md` · `docs/padroes/banco-e-sql.md` · V-176 · V-179.
+- **Contexto:** o raio responde no formato do `/items`, que traz todos os itens com o `limit=-1` e, sem o `limit`, a página padrão do Directus (V-176). O padrão da API diz que todo `limit` tem máximo. Com o `sort`, o Directus ordena pela coluna crua, também onde uma política esconde o campo de ordem (V-179).
+- **Decisão:**
+  - O `limit` vai de 1 a 1.000, o schema `Limit` do contrato, e fora disso o pedido volta com o `INVALID_QUERY` e o motivo, antes do banco. Sem o `limit`, vale o `QUERY_LIMIT_DEFAULT` do Directus em execução, sem passar do máximo. O círculo inteiro vem por páginas, e depois pelo cursor (F02-14).
+  - Sem o `sort`, a lista segue a ordem natural, a distância até o centro; com ele, a ordem da página. Nos dois casos, ela termina pela chave primária.
+  - A ordem lê os valores que a query permitida expõe, e não a coluna crua: o item cujo campo de ordem uma política esconde ordena como vazio. O `sort` vai à cadeia, e o Directus recusa o campo que o usuário não pode ler, como no `/items`.
+  - A distância vai no `$geo` de cada item, calculada do texto que a query permitida expõe.
+- **Alternativas descartadas:**
+  - O `-1` trazendo todos, como no `/items`: num círculo de 1 milhão de pontos, uma resposta só teria centenas de MB (D-006).
+  - O `-1` cortado no máximo, como faz o `QUERY_LIMIT_MAX` do Directus: quem pede todos recebe 1.000 e acha que veio tudo.
+  - A ordem pela coluna crua, como no `/items`: a posição do item na lista revela o valor que a política esconde, e as colunas cruas teriam de entrar no `select` da query permitida.
+- **Consequências:** o raio difere do `/items` em dois pontos, os dois a favor de quem usa e do banco: o `-1` e o `limit` acima de 1.000 voltam com erro, e o item com o campo de ordem escondido não revela o valor pela posição. A configuração dos limites pelo admin fica para a F02-12.

@@ -35,6 +35,8 @@
 
 - Toda ordenação termina pela chave primária, para o cursor não pular nem repetir itens e para o relatório gerado
   de novo sair igual.
+- A ordem lê os valores que a query permitida expõe, nunca a coluna crua, para a posição de um item não revelar o
+  valor que uma política esconde (D-051, V-179).
 - Toda consulta tem um tempo máximo pelo tipo: tile, página, contagem ou análise. No Postgres, é o
   `SET LOCAL statement_timeout` dentro da transação; nos outros bancos, o equivalente de cada um, registrado como
   V-xx.

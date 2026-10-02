@@ -916,7 +916,7 @@ O prefixo `/geospatial` vem do nome do pacote (7.5). As rotas de relatório est�
 
 - **Autenticação:** a do Directus (sessão, token ou `access_token`). O papel público também vale: se ele pode ler uma coleção, a extensão atende anônimos, com limite de pedidos por IP.
 - **Erros:** no formato do Directus, com códigos próprios para operação indisponível, geometria inválida, limite excedido, consulta desconhecida (a interface registra de novo) e tempo esgotado.
-- **Paginação:** por `limit` e `cursor`. O formato do `/items` também aceita `page` e `offset`, por compatibilidade, mas fica mais lento em páginas fundas.
+- **Paginação:** por `limit` e `cursor`. O formato do `/items` também aceita `page` e `offset`, por compatibilidade, mas fica mais lento em páginas fundas. O `limit` vai até 1.000, e o `-1` do `/items`, que traz todos, é recusado; sem ele, vale a página padrão do Directus (D-051).
 - **Nomes das operações** (D-024): o id de cada uma é o termo canônico do glossário em camelCase: `radius`, `byArea`, `measure`, `nearest`, `trajectory`, `corridor`, `countByRegion`, `geofence`, `densityGrid`, `hotspots`, `buffer`, `center` e `simplify`.
 - **Valores calculados** (distância, posição ao longo da linha, tempo desde o ponto anterior, contagem da região, foco do ponto) vêm num campo reservado, `$geo`, na mesma convenção do `$meta` do Directus. Nas formas, os números de cada uma (a contagem da célula da grade ou do foco) vão nas propriedades do GeoJSON.
 - **Contrato primeiro:** um documento OpenAPI publicado em `GET /geospatial/openapi.json`. Os tipos do SDK e a validação saem desse mesmo contrato.
