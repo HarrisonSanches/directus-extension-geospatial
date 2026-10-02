@@ -90,10 +90,25 @@ export const machineOf = async (container: string) => {
 // statement, and does not only estimate it. psql opens a connection of its own, whose caches start empty, and planning
 // there took longer than the whole statement in Directus. So the statement runs once before, in the same connection,
 // with its plan thrown away, as in the connections Directus keeps open.
-export const planOf = (container: string, statement: string): Promise<string> => {
+export const planOf = (container: string, statement: string, settings: readonly string[] = []): Promise<string> => {
 	const explain = `explain (analyze, buffers) ${statement}`;
 
-	return queryOn(container, ['\\o /dev/null', explain, '\\o', explain]);
+	return queryOn(container, [...settings, '\\o /dev/null', explain, '\\o', explain]);
+};
+
+// The time Postgres takes to plan and to run a statement, in a series by the method, in one connection, as the
+// connections Directus keeps open. EXPLAIN ANALYZE without the timing of each node runs the statement and keeps its rows
+// in the database, so the series compares what each statement costs there, apart from the network.
+export const timesOf = async (container: string, statement: string, settings: readonly string[] = []) => {
+	const explain = `explain (analyze, timing off) ${statement}`;
+	const output = await queryOn(container, [
+		...settings,
+		...Array.from({ length: method.warmUps + method.runs }, () => explain),
+	]);
+	const planning = [...output.matchAll(/Planning Time: ([\d.]+) ms/g)].map((match) => Number(match[1]));
+	const execution = [...output.matchAll(/Execution Time: ([\d.]+) ms/g)].map((match) => Number(match[1]));
+
+	return summaryOf(execution.map((time, run) => time + (planning[run] ?? 0)).slice(method.warmUps));
 };
 
 // What a plan says in a line: the time Postgres took to plan and to run the statement, the nodes that read a table, the
