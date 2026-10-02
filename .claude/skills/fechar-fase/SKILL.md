@@ -24,6 +24,7 @@ O plano fica num repositório privado, clonado ao lado deste em `../directus-ext
 - **Matriz de capacidades:** a linha de cada operação que a fase entregou está declarada para cada banco e coberta pelos testes de contrato (D-002).
 - **Pendências:** as `P-xx` que a fase precisava resolver viraram `V-xx` em `docs/verificacoes.md`, ou têm consequência decidida.
 - **Achados abertos** da fase: resolvidos, ou com consequência decidida.
+- **Sugestões anotadas** nos achados abertos e nas issues que ainda não foram feitas (as linhas "Sugestão da Fxx-yy"): cada uma decidida pelo mantenedor, que a transforma em issue, a põe numa issue existente ou a descarta com o motivo, ou levada de propósito para a próxima fase.
 - **Documentação pública:** o README e o site cobrem o que a fase mudou para quem usa.
 
 Se houver ❌, **não feche**. Liste o que falta e pergunte se isso vira issue nova ou mudança de plano (achado).

@@ -42,7 +42,7 @@ O plano fica num repositório privado, clonado ao lado deste em `../directus-ext
 - **Comandos no ambiente** (instalar algo no sistema, Docker fora dos testes, bancos fora dos containers de teste, publicar no npm) só com confirmação explícita do mantenedor, pedida na hora, dizendo o que o comando faz e como desfazer.
 - **Siga o que o repositório já faz** (nomes, organização, estilo) e o que está em `docs/padroes/`.
 - **Afirmação sobre ferramenta de terceiros** (Directus, PostGIS, MapLibre, bancos, bibliotecas) se confere no código-fonte ou na documentação oficial. O fato relevante vai para `docs/verificacoes.md` como `V-xx`; uma pendência confirmada deixa de ser `P-xx` e vira `V-xx`.
-- **Fora do escopo da issue, não mexa**, mesmo que veja algo errado. Anote em "sugestões".
+- **Fora do escopo da issue, não mexa**, mesmo que veja algo errado. Anote em "sugestões", que o passo "Registrar" leva para o plano.
 
 ## Explicar na conversa (parte da entrega, não opcional)
 
@@ -68,6 +68,9 @@ Não existe guia didático em arquivo. A documentação pública (README, site) 
 - Estado da issue na tabela: "feita" só com todos os critérios ✅ e a lista "Pronto quer dizer" de `docs/padroes/README.md` valendo.
 - Surpresa, inviabilidade ou mudança no que a issue pedia viram uma entrada em `../directus-extension-geospatial-plan/achados.md`. Se a mudança alterar o plano, pergunte antes ao mantenedor e edite a fase junto com o achado.
 - Decisão nova: pergunte ao mantenedor. Se ele aprovar, ela vira uma `D-0xx` em `docs/decisoes.md`.
+- **Toda sugestão do relatório fica anotada no plano**, para não se perder com a conversa, sempre a decidir pelo mantenedor. A nota diz o que mudaria, por quê, com o número ou o fato que a sustenta, e onde se aplica, e não muda o escopo de nada:
+  - na issue que ela afeta, se a issue já existe, numa linha "**Sugestão da Fxx-yy** (a fonte), a decidir aqui: …";
+  - senão, num achado aberto em `../directus-extension-geospatial-plan/achados.md`, com a recomendação na consequência.
 - Não mexa em `historico.md`: ele é atualizado no fechamento da fase (skill `fechar-fase`).
 
 ## Reportar no fim
@@ -77,7 +80,7 @@ Não existe guia didático em arquivo. A documentação pública (README, site) 
 3. **Resultado resumido** da verificação: passou ou falhou, contagens, cobertura do código novo e as primeiras linhas de erro.
 4. **O que aprender aqui:** os conceitos novos em três ou quatro linhas.
 5. **Decisões tomadas fora da issue**, se houve, e por quê.
-6. **Sugestões** para a issue, a fase ou os padrões, sem editar por conta própria.
-7. **O versionamento feito:** os commits no ramo, no padrão de `docs/padroes/git-e-entrega.md` e sem a linha de coautoria; o push, depois de ler o diff inteiro; e o pull request para o `develop`, com o título no mesmo padrão e a descrição terminando nos rodapés `Refs: <issue>` e `Co-Authored-By:`. Confira pelo `viewerMergeBodyText` da API do GitHub que a caixa do squash termina nesses dois rodapés, com uma linha só de coautoria. Dê o link dele. Se o plano mudou (o estado da issue, um achado), também o commit e o push no repositório do plano, sem coautoria.
+6. **Sugestões** para a issue, a fase ou os padrões, sem editar por conta própria, cada uma com o lugar do plano onde ficou anotada.
+7. **O versionamento feito:** os commits no ramo, no padrão de `docs/padroes/git-e-entrega.md` e sem a linha de coautoria; o push, depois de ler o diff inteiro; e o pull request para o `develop`, com o título no mesmo padrão e a descrição terminando nos rodapés `Refs: <issue>` e `Co-Authored-By:`. Confira pelo `viewerMergeBodyText` da API do GitHub que a caixa do squash termina nesses dois rodapés, com uma linha só de coautoria. Dê o link dele. Se o plano mudou (o estado da issue, um achado, uma sugestão anotada), também o commit e o push no repositório do plano, sem coautoria.
 
 **Não avance para a próxima issue nem faça o merge.** Espere o mantenedor revisar e pedir.
