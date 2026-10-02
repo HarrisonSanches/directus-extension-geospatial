@@ -14,7 +14,7 @@ sem um teste que a quebraria se ela deixasse de ser verdade. A primeira dessas p
 | **Contrato da API**       | Rota respondendo fora do OpenAPI                                       | O `fetch` da suíte, com o Ajv, valida cada resposta contra o documento        | A cada push                                                                                               |
 | **Ponta a ponta**         | O Studio montado: o mapa abre, os tiles chegam, o clique abre o drawer | Playwright com `@axe-core/playwright`                                         | O curto, em pull request que toca a interface, bloqueando o merge; o completo, à noite e antes da release |
 | **Mutação**               | Teste que executa o código sem testar nada                             | StrykerJS com o executor do Vitest, no módulo de permissões                   | Toda noite                                                                                                |
-| **Medição**               | Regressão de desempenho                                                | k6 nos tiles, `EXPLAIN ANALYZE` no SQL, `bench` do Vitest no que é JavaScript | Sob demanda; os números vão para `verificacoes.md` e para o histórico                                     |
+| **Medição**               | Regressão de desempenho                                                | k6 nos tiles, `EXPLAIN ANALYZE` no SQL, `bench` do Vitest no que é JavaScript | Sob demanda, pelo `pnpm measure`; os números vão para `verificacoes.md` e para o histórico                |
 
 Quanto mais baixa a camada, mais testes: muitos unitários, bons de integração, poucos e valiosos de ponta a
 ponta.
@@ -136,6 +136,28 @@ com o rastro do Playwright guardado para investigar.
   teste sobe com o `NODE_V8_COVERAGE`, para com tempo de gravar a cobertura, e ela é convertida pela mesma biblioteca
   do Vitest e somada à dos unitários no `pnpm test:coverage` (V-117). Como os dois lados dividem o código em trechos
   com posições um pouco diferentes, essa soma é um piso, e o critério de 90% se lê em linhas (V-118).
+
+## A medição
+
+**O `pnpm measure` mede sob demanda,** fora do `pnpm check` e da CI, pelo método da F01-16 (A-036):
+
+- cada série começa com 3 aquecimentos, que deixam de fora os primeiros pedidos, os que carregam o esquema, as
+  permissões e as páginas da tabela, e segue com 20 medidas, uma de cada vez, com a mediana e o p95 pelo posto mais
+  próximo: das 20, o p95 é a 19ª em ordem;
+- o volume entra por SQL, na coluna que o Directus criou, porque pela API um milhão levaria uns 30 min (V-164);
+- uma combinação de cada vez, porque dois bancos medidos lado a lado dividem o processador;
+- o Directus roda como numa instalação: com o build de produção, sem o `NODE_V8_COVERAGE`, que deixa o código mais
+  lento, e sem a extensão de `test/hook/`.
+
+**O tempo de dentro do Directus vem de uma extensão que só a medição carrega,** a de `test/measure/observer/`. Ela
+marca o `items.query` da coleção medida e os eventos `query` e `query-response` da conexão do Directus, e entrega ao
+admin o tempo de montar a query permitida, do hook até o SQL do raio, o do banco, e o SQL com os valores, para o
+`EXPLAIN (ANALYZE, BUFFERS)`. O produto não muda para ser medido.
+
+**Os números ficam em `test-results/measure/`,** fora do Git, um arquivo por combinação, com os planos ao lado, e vão
+para uma V-xx em `verificacoes.md` com a unidade, a máquina, as versões e a data. Com `MEASURE_QUICK=1`, cada série
+roda no menor volume, com 1 aquecimento e 2 medidas, para conferir em poucos minutos que a medição funciona antes da
+rodada longa, cujos números são os que valem.
 
 ## Os ensaios de falha viram testes
 

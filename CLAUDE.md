@@ -177,7 +177,14 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   um método da instância que o módulo exporta, e a checagem o confere pela aridade, 3, sem emitir na partida. A suíte
   carrega em toda rodada uma segunda extensão, a de `test/hook/`, cujos hooks mudam uma coleção própria, e a cobertura
   continua somada pela catraca (V-174).
-- Próximo passo: `/implement-issue F02-07`, o modo de medição, e os números do raio.
+- F02-07 feita em 02/10/2026: o `pnpm measure` mede sob demanda, fora da CI, pelo método da F01-16. Ele sobe o 11.17
+  com o PostGIS 3.2 e o 3.6 e o 12, carrega o volume por SQL, mede e derruba tudo em uns 8 min, e o `MEASURE_QUICK=1`
+  confere em 1 min que ele funciona. A extensão de `test/measure/observer/`, que só a medição carrega, mede dentro do
+  Directus a montagem da query permitida e o banco, sem mudar o produto. A query permitida custa de 3 a 4 ms, e o raio
+  da Maria com 1 milhão, de 1,8 a 2,0 s, com ou sem o GiST, porque o envelope lê o texto da geometria, e o JIT leva
+  0,7 s disso. A medição rodou fora da máquina de referência, e o raio sem `limit` devolve o círculo inteiro, onde o
+  `/items` devolve 100 (V-175, V-176, A-043, A-044, no plano).
+- Próximo passo: `/implement-issue F02-08`, o envelope com o índice.
 
 ## Documentação
 

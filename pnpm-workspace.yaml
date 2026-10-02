@@ -2,6 +2,8 @@ packages:
   - packages/*
   # Another extension for the integration suite, which loads beside the extension.
   - test/hook
+  # The extension of the measurements, which times the reads of the radius inside Directus.
+  - test/measure/observer
 
 catalog:
   '@commitlint/cli': 21.2.3

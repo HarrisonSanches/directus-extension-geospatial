@@ -1,0 +1,11 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["node"],
+		"noEmit": true,
+		// The same as packages/extension: the declarations of @directus/types import optional peers that this extension
+		// does not use, and its own code is still checked against them.
+		"skipLibCheck": true
+	},
+	"include": ["src"]
+}

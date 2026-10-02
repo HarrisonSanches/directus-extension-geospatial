@@ -1,6 +1,7 @@
 import type { KnipConfig } from 'knip';
 import extension from './packages/extension/package.json' with { type: 'json' };
 import testHook from './test/hook/package.json' with { type: 'json' };
+import observer from './test/measure/observer/package.json' with { type: 'json' };
 
 // Each extension starts at the sources of the bundle in its Directus manifest, which Knip does not read by itself.
 const entriesOf = (manifest: { 'directus:extension': { entries: { source: string }[] } }) =>
@@ -18,5 +19,6 @@ export default {
 			ignoreDependencies: ['@directus/api'],
 		},
 		'test/hook': { entry: entriesOf(testHook) },
+		'test/measure/observer': { entry: entriesOf(observer) },
 	},
 } satisfies KnipConfig;

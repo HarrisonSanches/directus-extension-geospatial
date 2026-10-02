@@ -28,6 +28,18 @@ export default defineConfig({
 					testTimeout: 30_000,
 				},
 			})),
+			// The measurements, which only pnpm measure runs, one combination at a time: the radius on 11.17 with the oldest and
+			// the newest PostGIS, and the permitted query on 11.17 and on 12 (F02-07). INTEGRATION picks others.
+			...selectCombinations(process.env.INTEGRATION ?? '11.17-postgis,11.17-postgis-newest,12-postgis').map(
+				(combination) => ({
+					test: {
+						name: `measure:${combination}`,
+						include: ['test/measure/*.measure.ts'],
+						provide: { combination, extensions: ['test/measure/observer'], measure: true },
+						testTimeout: 30_000,
+					},
+				}),
+			),
 		],
 	},
 });

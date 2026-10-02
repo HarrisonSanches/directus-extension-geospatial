@@ -36,22 +36,33 @@ export const versionsOf = async (database: StartedPostgreSqlContainer): Promise<
 	return { database: { client: 'postgres', version: postgres }, spatial: { name: 'postgis', version: postgis } };
 };
 
-// How many times Postgres ran the statements whose text holds a piece, as pg_stat_statements counts them, with the
-// values of each statement apart from its text. The suite loads it in each PostGIS container, and a test reads it by the
-// id of the container, which the global setup hands over.
-export const callsOn = async (container: string, piece: string): Promise<number> => {
+// Runs a query with psql inside the database container of a combination, by the id of the container, which the global
+// setup hands to the tests, and returns the rows as text, as query does. Several commands run one after the other, in
+// the same connection, each a query or a command of psql.
+export const queryOn = async (container: string, commands: string | readonly string[]): Promise<string> => {
 	const runtime = await getContainerRuntimeClient();
-	const literal = `'${piece.replaceAll("'", "''")}'`;
 	const { output, exitCode } = await runtime.container.exec(runtime.container.getById(container), [
 		'psql',
 		...['--username', directusDatabase, '--dbname', directusDatabase, '--tuples-only', '--no-align'],
-		...['--set', 'ON_ERROR_STOP=1'],
-		...['--command', `select coalesce(sum(calls), 0) from pg_stat_statements where strpos(query, ${literal}) > 0`],
+		...['--set', 'ON_ERROR_STOP=1', ...[commands].flat().flatMap((command) => ['--command', command])],
 	]);
 
 	if (exitCode !== 0) {
-		throw new Error(`The statistics of the statements could not be read: ${output}`);
+		throw new Error(`The query failed in the database container: ${output}`);
 	}
 
-	return Number(output.trim());
+	return output.trim();
+};
+
+// How many times Postgres ran the statements whose text holds a piece, as pg_stat_statements counts them, with the
+// values of each statement apart from its text. The suite loads it in each PostGIS container.
+export const callsOn = async (container: string, piece: string): Promise<number> => {
+	const literal = `'${piece.replaceAll("'", "''")}'`;
+
+	return Number(
+		await queryOn(
+			container,
+			`select coalesce(sum(calls), 0) from pg_stat_statements where strpos(query, ${literal}) > 0`,
+		),
+	);
 };
