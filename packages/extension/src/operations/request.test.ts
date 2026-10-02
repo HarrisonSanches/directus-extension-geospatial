@@ -25,6 +25,15 @@ describe('o geo do pedido', () => {
 			}),
 		);
 	});
+
+	it('o SRID não vem no pedido: o motor o lê da coluna (D-007)', () => {
+		expect(() => geoOf(JSON.stringify({ ...radius, srid: 31983 }))).toThrow(
+			expect.objectContaining({
+				code: 'INVALID_QUERY',
+				extensions: { reason: expect.stringContaining('must NOT have additional properties') as string },
+			}),
+		);
+	});
 });
 
 describe('a página que o raio ainda não trata', () => {

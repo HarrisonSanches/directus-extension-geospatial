@@ -1,6 +1,6 @@
 import type { Position } from 'directus-geospatial-contract';
 
-// A box in degrees of WGS 84: west, south, east and north.
+// A box: west, south, east and north, in degrees of WGS 84, or in the units of the SRID of a column.
 export type Box = [west: number, south: number, east: number, north: number];
 
 // A degree of latitude is at least this long, at the equator, and a degree of longitude at least this times the cosine
@@ -51,4 +51,25 @@ export const boxesOf = ([longitude, latitude]: Position, meters: number): Box[] 
 	}
 
 	return [[west, south, east, north]];
+};
+
+// How many segments each side of a box is cut into, before it goes to another SRID.
+const segments = 64;
+
+// The sides of a box, each cut into short segments, as a closed ring. A projection bends the sides of a box in degrees,
+// so its corners alone, in another SRID, would miss where a side bulges out (D-007).
+export const ringOf = ([west, south, east, north]: Box): Position[] => {
+	const along = ([fromX, fromY]: Position, [toX, toY]: Position) =>
+		Array.from({ length: segments }, (_, step): Position => [
+			fromX + ((toX - fromX) * step) / segments,
+			fromY + ((toY - fromY) * step) / segments,
+		]);
+
+	return [
+		...along([west, south], [east, south]),
+		...along([east, south], [east, north]),
+		...along([east, north], [west, north]),
+		...along([west, north], [west, south]),
+		[west, south],
+	];
 };

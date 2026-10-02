@@ -1,6 +1,6 @@
 import geographiclib from 'geographiclib-geodesic';
 import { describe, expect, it } from 'vitest';
-import { type Box, boxesOf } from './box.js';
+import { type Box, boxesOf, ringOf } from './box.js';
 
 const wgs84 = geographiclib.Geodesic.WGS84;
 
@@ -84,5 +84,48 @@ describe('a caixa do primeiro estágio do raio', () => {
 
 	it('o círculo que cobre o mundo inteiro dispensa a caixa', () => {
 		expect(boxesOf([-46.7, -23.65], 20_000_000)).toBeNull();
+	});
+});
+
+describe('a borda da caixa, para outro SRID', () => {
+	const box: Box = [-46.8, -23.75, -46.6, -23.55];
+
+	it('passa pelos quatro cantos e fecha onde começou', () => {
+		const ring = ringOf(box);
+
+		expect(ring.at(0)).toEqual([-46.8, -23.75]);
+		expect(ring.at(-1)).toEqual([-46.8, -23.75]);
+		expect(ring).toEqual(
+			expect.arrayContaining([
+				[-46.6, -23.75],
+				[-46.6, -23.55],
+				[-46.8, -23.55],
+			]),
+		);
+	});
+
+	it('corta cada lado em 64 trechos, todos sobre o lado', () => {
+		const ring = ringOf(box);
+		const [west, south, east, north] = box;
+
+		expect(ring).toHaveLength(4 * 64 + 1);
+		expect(
+			ring.every(
+				([longitude, latitude]) =>
+					(longitude === west || longitude === east || latitude === south || latitude === north) &&
+					longitude >= west &&
+					longitude <= east &&
+					latitude >= south &&
+					latitude <= north,
+			),
+		).toBe(true);
+
+		const steps = ring.slice(1).map(([longitude, latitude], index) => {
+			const [previousLongitude, previousLatitude] = ring[index] ?? [longitude, latitude];
+
+			return Math.hypot(longitude - previousLongitude, latitude - previousLatitude);
+		});
+
+		expect(Math.max(...steps)).toBeCloseTo((east - west) / 64, 12);
 	});
 });

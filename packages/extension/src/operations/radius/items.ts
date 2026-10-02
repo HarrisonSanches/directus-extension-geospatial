@@ -54,6 +54,14 @@ const takenBy = (query: Query): Query => {
 	return query;
 };
 
+// A row with the geometry in 4326 in place of the one the permitted query exposes, in the same order of the fields.
+const in4326 = (row: Record<string, unknown>, geometry: string, converted: string) =>
+	Object.fromEntries(
+		Object.entries(row)
+			.filter(([name]) => name !== converted)
+			.map(([name, value]) => [name, name === geometry ? row[converted] : value]),
+	);
+
 // The window of the page over the items inside the circle, as /items reads limit, offset and page.
 const windowOf = ({ limit, offset, page }: Query) => {
 	const requested = limit ?? -1;
@@ -105,20 +113,26 @@ export const radiusItems = async (
 		chainQueryOf(takenBy(hooked), [found.field]),
 	);
 
-	const { builder } = declared.envelope(knex, {
-		permitted,
-		collection,
-		geometry: found.field,
-		key: primary,
-		center: geo.center,
-		distance: geo.distance,
-		...windowOf(query),
-	});
+	const { adapter } = declared;
 
+	// The SRID comes from the column, never from the request, and the boxes go in it (D-007).
 	const rows = await failClosed(async () => {
+		const column = await adapter.columnOf(knex, collection, found.field);
+		const { builder, converted } = adapter.radius(knex, {
+			permitted,
+			collection,
+			geometry: found.field,
+			column,
+			boxes: await adapter.boxesIn(knex, column, geo.center, geo.distance),
+			key: primary,
+			center: geo.center,
+			distance: geo.distance,
+			...windowOf(query),
+		});
 		const result: unknown = await builder;
+		const read = Array.isArray(result) ? result.filter(isRow) : [];
 
-		return Array.isArray(result) ? result.filter(isRow) : [];
+		return converted === undefined ? read : read.map((row) => in4326(row, found.field, converted));
 	}, logger);
 
 	const values = await valuesOf(collection, rows);
