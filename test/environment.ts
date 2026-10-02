@@ -133,13 +133,21 @@ interface Options {
 	packages?: readonly string[];
 	// An image of Directus in place of the one of the combination, for a test that changes it.
 	directus?: DirectusImage;
+	// Whether Node records the coverage of the Directus processes. The measurements run without it, as an installation
+	// runs, since recording it slows the code down.
+	coverage?: boolean;
 }
 
 // Starts the database and the Directus of one combination.
 export const startEnvironment = async (
 	combination: Combination,
 	root: string,
-	{ name = combination, packages = [extension], directus: image = combinations[combination].directus }: Options = {},
+	{
+		name = combination,
+		packages = [extension],
+		directus: image = combinations[combination].directus,
+		coverage: recordsCoverage = true,
+	}: Options = {},
 ): Promise<Environment> => {
 	const { database } = combinations[combination];
 
@@ -149,8 +157,10 @@ export const startEnvironment = async (
 	// The container user of Directus writes the coverage here, so the folder is open to any user.
 	const coverage = join(root, name);
 
-	await mkdir(coverage);
-	await chmod(coverage, 0o777);
+	if (recordsCoverage) {
+		await mkdir(coverage);
+		await chmod(coverage, 0o777);
+	}
 
 	const admin = { email: 'admin@example.com', password: newSecret(), token: newSecret() };
 	const copies = await copiesOf(packages);
@@ -169,13 +179,12 @@ export const startEnvironment = async (
 			// Directus 12 sends the telemetry anyway, because both the Core tier and the license require it (V-116).
 			TELEMETRY: 'false',
 			// Node writes the coverage of each process when it exits, and pm2 waits this long before killing Directus.
-			NODE_V8_COVERAGE: coverageInContainer,
-			PM2_KILL_TIMEOUT: '30000',
+			...(recordsCoverage && { NODE_V8_COVERAGE: coverageInContainer, PM2_KILL_TIMEOUT: '30000' }),
 		})
 		// The coverage comes back through a mount.
 		.withCopyFilesToContainer(copies.map(({ files }) => files))
 		.withCopyDirectoriesToContainer(copies.map(({ directories }) => directories))
-		.withBindMounts([{ source: coverage, target: coverageInContainer, mode: 'rw' }])
+		.withBindMounts(recordsCoverage ? [{ source: coverage, target: coverageInContainer, mode: 'rw' }] : [])
 		.withExposedPorts(8055)
 		// /server/health refuses a request without a session from Directus 12 on (V-110).
 		.withWaitStrategy(Wait.forHttp('/server/ping', 8055))

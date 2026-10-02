@@ -1,0 +1,39 @@
+{
+	"name": "directus-extension-geospatial-test-observer",
+	"version": "0.0.0",
+	"private": true,
+	"description": "An extension for the measurements, which times inside Directus the reads of the radius of a collection.",
+	"license": "MIT",
+	"type": "module",
+	"directus:extension": {
+		"type": "bundle",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"entries": [
+			{
+				"type": "hook",
+				"name": "geospatial-test-observer",
+				"source": "src/hook.ts"
+			},
+			{
+				"type": "endpoint",
+				"name": "geospatial-test-observer-reads",
+				"source": "src/endpoint.ts"
+			}
+		],
+		"host": "^11.17.0 || ^12.4.0"
+	},
+	"scripts": {
+		"build": "directus-extension build --no-minify"
+	},
+	"devDependencies": {
+		"@directus/errors": "catalog:",
+		"@directus/extensions-sdk": "catalog:",
+		"@directus/types": "catalog:",
+		"@types/node": "catalog:node22",
+		"knex": "catalog:",
+		"pino": "catalog:"
+	}
+}

@@ -20,13 +20,20 @@ interface Started {
 	stop: () => Promise<void>;
 }
 
+// How a run starts each Directus: the folder of the coverage, whether Node records it, the key of the tests, and the
+// packages beside the extension.
+interface Run {
+	coverage: string;
+	recordsCoverage: boolean;
+	licenseKey: string | undefined;
+	packages: readonly string[];
+}
+
 // Starts the database and the Directus of one combination, with the packages of the run, and builds the schema, the
 // roles and the data.
 const start = async (
 	combination: Combination,
-	coverage: string,
-	licenseKey: string | undefined,
-	packages: readonly string[],
+	{ coverage, recordsCoverage, licenseKey, packages }: Run,
 ): Promise<Started> => {
 	const {
 		directus: container,
@@ -34,7 +41,7 @@ const start = async (
 		admin: credentials,
 		backend,
 		stop,
-	} = await startEnvironment(combination, coverage, { packages });
+	} = await startEnvironment(combination, coverage, { packages, coverage: recordsCoverage });
 	const images = combinations[combination];
 	const admin = connect(url, credentials.token);
 
@@ -79,6 +86,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 	// Two projects of a run can share a combination, which starts once.
 	const selected = [...new Set(project.vitest.projects.flatMap(({ config }) => config.provide.combination ?? []))];
 	const extensions = [...new Set(project.vitest.projects.flatMap(({ config }) => config.provide.extensions ?? []))];
+	const measuring = project.vitest.projects.some(({ config }) => config.provide.measure === true);
 	const [first] = selected;
 
 	// A run of the unit tests alone starts nothing.
@@ -89,9 +97,15 @@ export default async function setup(project: TestProject): Promise<() => Promise
 	// A folder for each Directus of the run, the ones of the tests included, with the coverage of its processes.
 	const coverage = await mkdtemp(join(tmpdir(), 'geospatial-coverage-'));
 	const licenseKey = await readLicenseKey();
-	const results = await Promise.allSettled(
-		selected.map((combination) => start(combination, coverage, licenseKey, [extension, testHook, ...extensions])),
-	);
+	// A run of the measurements loads only its own packages beside the extension, and Directus runs without the coverage,
+	// as an installation runs it.
+	const run: Run = {
+		coverage,
+		recordsCoverage: !measuring,
+		licenseKey,
+		packages: measuring ? [extension, ...extensions] : [extension, testHook, ...extensions],
+	};
+	const results = await Promise.allSettled(selected.map((combination) => start(combination, run)));
 	const started = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
 	const failure = results.find((result) => result.status === 'rejected');
 

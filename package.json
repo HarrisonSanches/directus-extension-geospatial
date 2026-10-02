@@ -11,12 +11,13 @@
 		"format:check": "prettier --check .",
 		"knip": "knip",
 		"lint": "eslint --max-warnings 0 . && redocly lint",
+		"measure": "pnpm --filter directus-extension-geospatial build && pnpm --filter directus-extension-geospatial-test-observer build && vitest run --project \"measure:*\" --no-file-parallelism",
 		"prepare": "husky",
 		"test": "vitest run --project unit",
 		"test:bind-license": "node test/bind-license.ts",
 		"test:coverage": "vitest run --project unit --coverage && pnpm test:integration && node test/coverage.ts && node test/ratchet.ts",
 		"test:integration": "pnpm --filter directus-extension-geospatial build --no-minify --sourcemap && pnpm --filter directus-extension-geospatial-test-hook build && vitest run --project \"integration:*\"",
-		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension && tsc -p test/hook"
+		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension && tsc -p test/hook && tsc -p test/measure/observer"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "catalog:",

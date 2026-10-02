@@ -35,6 +35,9 @@ declare module 'vitest' {
 		combination: Combination;
 		// The packages a project loads into Directus beside the extension, by their folder in the repository.
 		extensions: string[];
+		// Whether a project measures (test/measure/), whose Directus runs as an installation runs it: without the coverage
+		// and without the other extension of the suite.
+		measure: boolean;
 		// The Directus of each combination the global setup started.
 		directus: Partial<Record<Combination, Directus>>;
 		// The folder where each Directus of the run gets a folder for the coverage of its processes (test/coverage.ts).
