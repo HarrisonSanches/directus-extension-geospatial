@@ -86,7 +86,7 @@ Uma extensão não consegue adicionar operadores novos ao sistema de filtros nat
 
 1. O Studio ou o SDK chama o endpoint com a sessão ou o token do usuário, sem privilégio extra.
 2. A extensão pede às funções internas do Directus, que são a mesma cadeia usada pelo `ItemsService`, a query do que esse usuário pode ver na coleção. Essa query já vem com o filtro de permissão (o item passa se bater com pelo menos uma política), o filtro da página, a busca e as regras por campo. O Directus a monta sem executar.
-3. O adaptador do banco envolve essa query com a parte espacial (tile, distância, mais próximos, agrupamento, junção com outra coleção) e executa tudo num SQL só.
+3. O adaptador do banco envolve essa query com a parte espacial (tile, distância, mais próximos, agrupamento, junção com outra coleção) e executa tudo num SQL só. O filtro que usa o índice entra como mais condições da própria query, sobre a coluna, porque o Directus a ordena e uma condição em volta não chegaria ao índice. Ele só descarta linhas, e o que sai continua decidido pelo valor que a query expõe (D-049).
 
 ### Exemplo
 
@@ -771,6 +771,7 @@ Fica num servidor próprio do autor, com volume moderado (alguns milhões de pon
 **O problema.** Em SRID 4326, as coordenadas estão em graus, e as funções sobre `geometry` calculam em graus. Converter para `geography` dá o resultado em metros, mas impede o uso do índice espacial da coluna.
 
 - **Metros sem perder o índice: filtro em dois estágios.** Primeiro, uma caixa no SRID da coluna, que usa o índice e descarta quase tudo. Depois, o teste exato em metros com `geography`, só no que sobrou. O tamanho da caixa é calculado a partir do raio e da latitude, para ela sempre conter o círculo. O resultado é exato e o esquema não muda.
+  - Os dois estágios leem a coluna e entram como mais condições da query permitida, porque o Directus a ordena e uma condição em volta não chegaria ao índice. Em volta fica só a guarda: sai o item cujo valor exposto não é nulo, e o que uma política esconde fica fora (D-049).
 - **Mais próximos:** o `<->` acha os candidatos pelo índice, e o `geography` dá a ordem exata.
 - **Medições** (distância, área, perímetro, comprimento) sempre em `geography`.
 - **Qualquer SRID.** O motor lê o SRID da coluna, converte a entrada do usuário (que chega em 4326) para esse SRID, para usar o índice, e devolve o resultado em 4326 para o mapa. Colunas `geography` também são suportadas. O Directus não trata SRID, então a extensão funciona onde o mapa nativo falha, por exemplo com SIRGAS 2000 / UTM 23S (EPSG:31983).

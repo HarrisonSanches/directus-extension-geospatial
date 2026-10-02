@@ -122,6 +122,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Contexto:** em SRID 4326, `geometry` calcula em graus, e converter para `geography` impede o uso do índice. Além disso, o Directus não trata SRID.
 - **Decisão:**
   - Primeiro uma caixa no SRID da coluna, que usa o índice; depois o teste exato em `geography`.
+  - Os dois estágios leem a coluna, como mais condições da query permitida, e a guarda do nulo fica em volta (D-049).
   - Os mais próximos usam `<->` e a ordem exata em `geography`.
   - As medições são sempre em `geography`.
   - A entrada é convertida para o SRID da coluna, e a saída sai em 4326.
@@ -789,3 +790,19 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Parâmetros soltos na URL (`operation=radius&center=-46.7,-23.65&distance=1000`), como na prova da F01: dividem o espaço de nomes com os parâmetros do `/items`, e uma entrada aninhada, como o polígono do "Por área", não cabe.
   - Os colchetes do `qs` (`geo[center][0]=-46.7`): os números chegariam como texto, a profundidade e o tamanho das listas esbarram nos limites do Directus (`QUERYSTRING_MAX_PARSE_DEPTH` e `QUERYSTRING_ARRAY_LIMIT`), e o SDK do Directus não manda assim.
 - **Consequências:** o `geo` passa pelo mesmo `JSON.parse` e pela mesma validação do contrato no `GET`, no `SEARCH` e na consulta registrada. Na URL, o JSON vai codificado, como o `filter`. Depois da primeira publicação, mudar o formato quebra cliente, então ele só muda numa versão major (`docs/padroes/api-e-contrato.md`).
+
+## D-049 — O raio mede na coluna, dentro da query permitida, e a guarda do nulo fica em volta
+
+- **Estado:** aceita em 02/10/2026. Detalha a D-001 e a D-007.
+- **Onde:** §5 · §7.6 · `docs/padroes/banco-e-sql.md` · V-142 · V-143 · V-177.
+- **Contexto:** a query permitida expõe cada coluna num `CASE WHEN` com a regra da política, e a geometria como texto (V-142). O envelope da F02-04 media sobre esse texto, em volta da query, e nenhum índice enxerga um texto calculado: com 1 milhão de pontos, o raio da Maria levava perto de 1 s no banco, com ou sem o GiST (V-177). Uma condição em volta não chega à coluna, nem por um join pela chave primária, porque o Directus ordena toda query permitida e o Postgres não achata uma subconsulta ordenada (V-177).
+- **Decisão:**
+  - Os dois estágios do filtro, a caixa `&&` e o `ST_DWithin` em `geography`, leem a coluna e entram como mais condições do `WHERE` da query permitida. Os `CASE WHEN` e o `WHERE` das políticas ficam como o Directus os escreveu.
+  - Em volta, a guarda: só sai o item cujo valor exposto pela query permitida não é nulo. Onde uma política esconde a geometria, o `CASE WHEN` a deixa nula, e o item fica fora, mesmo com a posição dentro do círculo.
+  - A caixa sai do raio e da latitude e sempre contém o círculo: duas caixas onde ele cruza o antimeridiano, uma faixa de todas as longitudes onde ele chega a um polo, e nenhuma onde ele cobre o mundo.
+  - O mesmo desenho vale nos outros bancos: o teste exato na coluna e a guarda do nulo em volta (F02-11 no SQLite, F15 nos outros).
+- **Alternativas descartadas:**
+  - A caixa na coluna e o teste exato sobre o texto exposto (A-023): devolve os mesmos itens, mas converte o texto de cada candidato, e fica de 20% a 30% mais lenta (V-177). O texto também perde o SRID, que a F02-09 precisa, e no SQLite tem só 6 casas (A-026).
+  - A caixa em volta, por um join pela chave primária: o `ORDER BY` da query permitida a mantém fechada, e ela segue lida inteira.
+  - Tirar o `ORDER BY` de dentro da query permitida: com a caixa dentro, ele só ordena os candidatos, e a medição não mostrou ganho.
+- **Consequências:** com 1 milhão de pontos e o GiST, o raio da Maria cai de quase 1 s para algumas dezenas de ms no banco (V-177), e a matriz o declara "no banco com índice". A regra de ouro passa a depender também da guarda do nulo, que o teste do vazamento da F02-05 confere. Uma condição a mais dentro da query permitida só pode descartar linhas, nunca acrescentar, e a extensão segue sem escrever regra de permissão. O teste do `EXPLAIN` reprova o plano que varre a tabela. O JIT ainda custa uns 20 ms por pedido, e desligá-lo fica para a F03 (A-037).
