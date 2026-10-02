@@ -29,7 +29,7 @@ const centers: [number, number][] = [
 	[-150, -89.95],
 ];
 
-const distances = [1, 1_000, 10_000, 250_000, 2_000_000];
+const distances = [1, 1_000, 10_000, 250_000, 2_000_000, 7_700_000];
 
 const azimuths = Array.from({ length: 24 }, (_, index) => index * 15 - 180);
 
@@ -73,6 +73,13 @@ describe('a caixa do primeiro estágio do raio', () => {
 
 	it('o círculo que chega a um polo fica numa faixa de todas as longitudes', () => {
 		expect(boxesOf([30, 89.95], 10_000)).toEqual([[-180, expect.any(Number) as number, 180, 90]]);
+	});
+
+	it('o círculo largo demais para as longitudes fica numa faixa de todas elas, sem chegar a um polo', () => {
+		const boxes = boxesOf([0, 10], 7_700_000);
+
+		expect(boxes).toEqual([[-180, expect.any(Number) as number, 180, expect.any(Number) as number]]);
+		expect(boxes?.[0]?.[3]).toBeLessThan(90);
 	});
 
 	it('o círculo que cobre o mundo inteiro dispensa a caixa', () => {
