@@ -118,11 +118,12 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-007 — Metros com filtro em dois estágios e suporte a qualquer SRID
 
 - **Estado:** aceita em 23/09/2026.
-- **Onde:** §7.6 · V-25, V-42.
+- **Onde:** §7.6 · V-25, V-42 · D-049 · D-050.
 - **Contexto:** em SRID 4326, `geometry` calcula em graus, e converter para `geography` impede o uso do índice. Além disso, o Directus não trata SRID.
 - **Decisão:**
   - Primeiro uma caixa no SRID da coluna, que usa o índice; depois o teste exato em `geography`.
   - Os dois estágios leem a coluna, como mais condições da query permitida, e a guarda do nulo fica em volta (D-049).
+  - Em outro SRID, o tipo e o SRID vêm do catálogo, e a caixa só vai onde o PROJ a traz de volta (D-050).
   - Os mais próximos usam `<->` e a ordem exata em `geography`.
   - As medições são sempre em `geography`.
   - A entrada é convertida para o SRID da coluna, e a saída sai em 4326.
@@ -806,3 +807,21 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - A caixa em volta, por um join pela chave primária: o `ORDER BY` da query permitida a mantém fechada, e ela segue lida inteira.
   - Tirar o `ORDER BY` de dentro da query permitida: com a caixa dentro, ele só ordena os candidatos, e a medição não mostrou ganho.
 - **Consequências:** com 1 milhão de pontos e o GiST, o raio da Maria cai de quase 1 s para algumas dezenas de ms no banco (V-177), e a matriz o declara "no banco com índice". A regra de ouro passa a depender também da guarda do nulo, que o teste do vazamento da F02-05 confere. Uma condição a mais dentro da query permitida só pode descartar linhas, nunca acrescentar, e a extensão segue sem escrever regra de permissão. O teste do `EXPLAIN` reprova o plano que varre a tabela. O JIT ainda custa uns 20 ms por pedido, e desligá-lo fica para a F03 (A-037).
+
+## D-050 — Em qualquer SRID, o tipo e o SRID vêm do catálogo, e a caixa só vai onde o PROJ a traz de volta
+
+- **Estado:** aceita em 02/10/2026. Detalha a D-007.
+- **Onde:** §7.6 · `docs/padroes/banco-e-sql.md` · V-25 · V-178.
+- **Contexto:** o Directus só cria `geometry` em 4326 (V-25), e o esquema dele lê uma `geography` e uma `geometry` como o mesmo `geometry.Point`, sem o SRID (V-178). Uma projeção curva os lados de uma caixa em graus, e o PROJ converte sem erro pontos muito longe do centro de uma projeção. Numa projeção aproximada, a borda de uma caixa de 1.000 km volta a 3,1 km de onde estava a 25° do meridiano central, e a 1.060 km a 45° (V-178).
+- **Decisão:**
+  - O tipo e o SRID da coluna vêm do catálogo do banco, a cada pedido, depois da cadeia, e nunca do pedido. Uma `geometry` sem SRID declarado fica com o 4326, em que o Directus grava.
+  - Numa coluna em outro SRID, a caixa em graus vai para o SRID dela com cada lado cortado em trechos curtos, e a coluna fica como está, no estágio que o índice responde. A distância lê a coluna em 4326 só nos candidatos, e a geometria sai em 4326, convertida do texto que a query permitida expõe.
+  - A caixa convertida só vai onde a borda volta para 4326 a menos de 1 mm de onde estava. Onde o PROJ não a converte, ou não a traz de volta, o raio vai sem a caixa, mais lento e igualmente exato.
+  - Numa coluna `geography`, o próprio `ST_DWithin` traz a caixa do índice, e a extensão não põe outra.
+- **Alternativas descartadas:**
+  - Converter só o centro para o SRID da coluna e medir em metros da projeção: a escala muda fora da zona, e o círculo deixaria itens de fora sem erro.
+  - A caixa pelos quatro cantos: no círculo de 2.000 km em volta de São Paulo, ela deixou de fora pontos a 1 m dentro da borda (V-178).
+  - Confiar em toda conversão que o PROJ faz sem erro: numa projeção aproximada, a caixa sairia a quilômetros do círculo.
+  - Guardar o tipo e o SRID por esquema do Directus: um `ALTER` feito por SQL deixaria o SRID guardado velho, e a caixa errada, sem erro. O custo da leitura fica para a F03 medir (A-047).
+  - Numa `geography`, uma caixa em graus convertida para ela: as arestas seriam geodésicas e não conteriam o círculo.
+- **Consequências:** a extensão mede em metros onde o mapa nativo falha, como na SIRGAS 2000 / UTM 23S, cujo `/items` devolve os metros da projeção como se fossem graus (V-178). Cada pedido faz uma leitura a mais no banco, e duas numa coluna projetada. Um círculo que a projeção não cobre varre a tabela, com o resultado certo. Os testes da caixa conferem no SQL que chegou ao banco que ela estava lá, porque o resultado certo também sai sem ela.

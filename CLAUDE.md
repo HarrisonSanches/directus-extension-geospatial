@@ -193,7 +193,8 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   em 4326. O esquema do Directus lê as duas como `geometry.Point` e não guarda o SRID, então o motor os lê do catálogo,
   a cada pedido. A caixa vai para o SRID da coluna com a borda cortada em trechos curtos, e só onde o PROJ a traz de
   volta ao mesmo lugar, e na `geography` o próprio `ST_DWithin` usa o índice. Com o SRID sem tipo, o `ST_Transform`
-  lia o número como um texto do PROJ, e a caixa ficava de fora com o resultado certo: só o `EXPLAIN` reprovou (V-178).
+  lia o número como um texto do PROJ, e a caixa ficava de fora com o resultado certo: só o `EXPLAIN` reprovou (D-050,
+  V-178).
 - Próximo passo: a decisão do mantenedor sobre a A-044, o raio sem `limit`, e depois `/implement-issue F02-10`.
 
 ## Documentação
