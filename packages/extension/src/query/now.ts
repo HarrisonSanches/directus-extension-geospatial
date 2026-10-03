@@ -25,7 +25,8 @@ const instantOf = (value: string, base: Date): Date => {
 	const between = value.includes(')') ? /\(([^()]+)\)/.exec(value)?.[1] : undefined;
 	const sign = between?.startsWith('-') === true ? -1 : 1;
 	const unsigned = between !== undefined && /^[-+]/.test(between) ? between.slice(1) : between;
-	const [, amount, unit = 'days'] = /^(-?(?:\d+)?\.?\d+) *([a-z]+)?$/i.exec(unsigned ?? '') ?? [];
+	// The amount as the syntax of ms takes it: digits, with an optional fraction.
+	const [, amount, unit = 'days'] = /^(-?(?:\d+(?:\.\d+)?|\.\d+)) *([a-z]+)?$/i.exec(unsigned ?? '') ?? [];
 	const add = adderOf.get(unit.toLowerCase());
 
 	return amount === undefined || add === undefined ? base : add(base, sign * Number.parseFloat(amount));

@@ -53,6 +53,30 @@ describe('o $NOW do filtro, no registro', () => {
 		expect(pinnedNow({ occurred_at: { _gte: now } }, registeredAt)).toEqual({ occurred_at: { _gte: instant } });
 	});
 
+	it('um ajuste com milhares de dígitos, que nunca vale, deixa o minuto do registro, e sai logo', () => {
+		const startedAt = performance.now();
+
+		expect(pinnedNow({ occurred_at: { _gte: `$NOW(${'1'.repeat(200_000)}!)` } }, registeredAt)).toEqual({
+			occurred_at: { _gte: '2026-10-03T14:37:00.000Z' },
+		});
+		expect(performance.now() - startedAt).toBeLessThan(100);
+	});
+
+	it.each([
+		['.5 h', '2026-10-03T15:07:00.000Z'],
+		['-.5 h', '2026-10-03T14:07:00.000Z'],
+		['1.25 minutes', '2026-10-03T14:38:15.000Z'],
+		// A number Directus does not read leaves the minute of the registration as it is.
+		['5.', '2026-10-03T14:37:00.000Z'],
+		['..5', '2026-10-03T14:37:00.000Z'],
+		['5..5', '2026-10-03T14:37:00.000Z'],
+		['1e3', '2026-10-03T14:37:00.000Z'],
+	])('o número de $NOW(%s) se lê como o Directus o lê', (adjustment, instant) => {
+		expect(pinnedNow({ occurred_at: { _gte: `$NOW(${adjustment})` } }, registeredAt)).toEqual({
+			occurred_at: { _gte: instant },
+		});
+	});
+
 	it('vale em qualquer lugar do filtro: nas listas, no _and, no _or e num campo de uma relação', () => {
 		expect(
 			pinnedNow(
