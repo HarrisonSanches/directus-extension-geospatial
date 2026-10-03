@@ -245,7 +245,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
     - o formato do `/items` (`GET` ou `SEARCH /geospatial/items/:coleção`, com o parâmetro `geo`);
     - a consulta registrada (`POST /geospatial/queries`, mais tiles, uma rota para cada parte do resultado e exportação; D-022).
   - **Convenções do Directus:** autenticação, formato de erro e valores calculados em `$geo`.
-  - **OpenAPI** em `/geospatial/openapi.json`, como fonte dos tipos e da validação. A entrada é validada antes de chegar ao banco.
+  - **OpenAPI** em `/geospatial/openapi.json`, como fonte dos tipos e da validação. A entrada é validada antes de chegar ao banco. Desde 03/10/2026, na F02-12, o documento é OpenAPI 3.2, por escolha do mantenedor, porque é a versão que descreve o `SEARCH`, pelo `additionalOperations` (V-181).
   - **SDK** `directus-geospatial-sdk`, com comandos usados em `client.request`.
 - **Alternativas descartadas:**
   - Só a consulta registrada: difícil para quem integra.
@@ -865,5 +865,5 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Consequências:**
   - O SQLite passa a ter o raio, com a paridade inteira com o `/items`.
   - A resposta da lista de itens ganha o `meta`, que o SDK do Directus deixa de fora e o SDK da extensão vai expor (F02-18).
-  - A ordem natural de um círculo grande lê até 50.001 linhas por pedido no servidor.
+  - A ordem natural de um círculo grande lê até 50.001 linhas por pedido no servidor, que as mede em fatias de 1.000, cedendo a vez ao laço de eventos entre elas, porque o limitador de pressão do Directus responde 503 a todo pedido quando o laço atrasa mais de 500 ms (V-181, na F02-12).
   - Numa linha, num polígono ou num `geometry` genérico, o raio no SQLite fica indisponível, com o motivo.

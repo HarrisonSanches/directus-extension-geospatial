@@ -1,3 +1,4 @@
+import { setImmediate as nextTurn } from 'node:timers/promises';
 import type { Position } from 'directus-geospatial-contract';
 import geographiclib from 'geographiclib-geodesic';
 
@@ -6,9 +7,6 @@ import geographiclib from 'geographiclib-geodesic';
 // the natural order, over at most the limit of items the server takes.
 
 const wgs84 = geographiclib.Geodesic.WGS84;
-
-// The most items of a circle the server measures and orders, the volume §7.4 names (D-052).
-export const serverLimit = 50_000;
 
 const point = /^POINT\s*\(\s*(\S+)\s+(\S+)\s*\)$/;
 
@@ -41,6 +39,29 @@ const compareKeys = (a: unknown, b: unknown) => {
 	return left < right ? -1 : Number(left > right);
 };
 
+// How many rows the server measures at a time, a few milliseconds of work.
+const slice = 1_000;
+
+// Each row with its distance, measured in slices, with a turn of the event loop between them, so a large circle does not
+// hold the other requests back: the partitioning of "Don't Block the Event Loop", of Node. A turn by setImmediate runs
+// after the I/O of the other requests, and a resolved promise would not, since its microtasks run before. Directus
+// answers 503 to every request while its event loop lags more than 500 ms (V-181).
+const measuredInSlices = async <Row>(rows: Row[], measure: (row: Row) => number) => {
+	const measured: { row: Row; distance: number }[] = [];
+
+	for (let start = 0; start < rows.length; start += slice) {
+		if (start > 0) {
+			await nextTurn();
+		}
+
+		for (const row of rows.slice(start, start + slice)) {
+			measured.push({ row, distance: measure(row) });
+		}
+	}
+
+	return measured;
+};
+
 interface Window {
 	geometry: string;
 	key: string;
@@ -54,13 +75,11 @@ interface Window {
 // The rows of a circle, which the database read in the order of the primary key, in the natural order of the radius:
 // the distance from the center, then the key, with the window of the page. Past the cap, only the first rows by the key
 // are measured and ordered, and the list says so.
-export const naturalOrderOf = <Row extends Record<string, unknown>>(
+export const naturalOrderOf = async <Row extends Record<string, unknown>>(
 	rows: Row[],
 	{ geometry, key, center, limit, offset, cap }: Window,
-): { rows: Row[]; distances: number[]; capped: boolean } => {
-	const measured = rows
-		.slice(0, cap)
-		.map((row) => ({ row, distance: distanceFrom(center, pointOf(row[geometry])) }))
+): Promise<{ rows: Row[]; distances: number[]; capped: boolean }> => {
+	const measured = (await measuredInSlices(rows.slice(0, cap), (row) => distanceFrom(center, pointOf(row[geometry]))))
 		.sort((a, b) => a.distance - b.distance || compareKeys(a.row[key], b.row[key]))
 		.slice(offset, offset + limit);
 

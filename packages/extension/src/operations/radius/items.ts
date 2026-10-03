@@ -5,12 +5,13 @@ import type { Knex } from 'knex';
 import type { Logger } from 'pino';
 import type { MeasuringAdapter, RadiusEnvelope, SelectingAdapter } from '../../db/adapter.js';
 import { failClosed } from '../../db/fail-closed.js';
-import { InternalsUnsupportedError, OperationUnavailableError } from '../../errors.js';
+import { InternalsUnsupportedError, InvalidInputError, OperationUnavailableError } from '../../errors.js';
 import type { PermittedQuery } from '../../internals/permitted.js';
+import { limits } from '../../limits.js';
 import { collectionOf } from '../collection.js';
 import { geometryFieldOf, limitOf, sortOf, unsupportedIn } from '../request.js';
 import type { RadiusLevel } from './levels.js';
-import { distanceFrom, naturalOrderOf, pointOf, serverLimit } from './server.js';
+import { distanceFrom, naturalOrderOf, pointOf } from './server.js';
 
 export interface RadiusRequest {
 	collection: string;
@@ -145,9 +146,9 @@ const measuredByServer = async (
 		return { rows, distances: rows.map((row) => distanceFrom(center, pointOf(row[geometry]))), capped: false };
 	}
 
-	const rows = rowsIn(await adapter.radius(knex, { ...envelope, limit: serverLimit + 1, offset: 0 }).builder);
+	const rows = rowsIn(await adapter.radius(knex, { ...envelope, limit: limits.server + 1, offset: 0 }).builder);
 
-	return naturalOrderOf(rows, { geometry, key, center, ...page, cap: serverLimit });
+	return naturalOrderOf(rows, { geometry, key, center, ...page, cap: limits.server });
 };
 
 // The items of a collection within a distance of a point, out of the permitted query of whoever asks, in one SQL
@@ -183,7 +184,7 @@ export const radiusItems = async (
 	if ('problem' in found) {
 		await permittedQuery(request, context, (hooked) => chainQueryOf(takenBy(hooked, defaultLimit), []));
 
-		throw new InvalidQueryError({ reason: found.problem });
+		throw new InvalidInputError({ reason: found.problem });
 	}
 
 	// The geometry goes by its name, so a user who cannot read it gets the error of /items, instead of the field
@@ -226,5 +227,5 @@ export const radiusItems = async (
 	const values = await valuesOf(collection, rows);
 	const data = itemsOf(values, distances, unaskedOf(query, found.field));
 
-	return capped ? { data, meta: { capped: { limit: serverLimit } } } : { data };
+	return capped ? { data, meta: { capped: { limit: limits.server } } } : { data };
 };

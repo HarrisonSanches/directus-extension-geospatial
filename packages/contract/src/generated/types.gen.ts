@@ -46,7 +46,7 @@ export type InternalsRefused = {
 };
 
 /**
- * An OpenAPI 3.1 document, as the OpenAPI Specification describes it.
+ * An OpenAPI 3.2 document, as the OpenAPI Specification describes it.
  */
 export type OpenApiDocument = {
 	openapi: string;
@@ -138,6 +138,27 @@ export type GeoValues = {
 };
 
 /**
+ * The items an operation selects, and what the response tells about the list.
+ */
+export type Items = {
+	data: Array<Item>;
+	meta?: ItemsMeta;
+};
+
+/**
+ * The body of the SEARCH: the spatial operation, and the query of /items, as Directus takes it in the body of its own SEARCH.
+ */
+export type ItemsSearch = {
+	geo: Geo;
+	/**
+	 * The query of /items, with the fields, the filter, the search, the sort, the limit, the offset and the page, as Directus reads them in a body, with the fields as a list.
+	 */
+	query?: {
+		[key: string]: unknown;
+	};
+};
+
+/**
  * What the response tells about the list, the way /items of Directus does in its meta. It only carries what applies to the response.
  */
 export type ItemsMeta = {
@@ -163,7 +184,11 @@ export type Limit = number;
  * The codes of the errors of the extension, in the extensions.code of the error format of Directus. Each one starts with GEOSPATIAL_, so it never collides with a code of Directus.
  */
 export type ErrorCode =
-	'GEOSPATIAL_DATABASE_UNAVAILABLE' | 'GEOSPATIAL_INTERNALS_UNSUPPORTED' | 'GEOSPATIAL_OPERATION_UNAVAILABLE';
+	| 'GEOSPATIAL_DATABASE_UNAVAILABLE'
+	| 'GEOSPATIAL_INTERNALS_UNSUPPORTED'
+	| 'GEOSPATIAL_OPERATION_UNAVAILABLE'
+	| 'GEOSPATIAL_INVALID_INPUT'
+	| 'GEOSPATIAL_LIMIT_EXCEEDED';
 
 /**
  * The error format of Directus.
@@ -260,7 +285,7 @@ export type ItemsData = {
 
 export type ItemsErrors = {
 	/**
-	 * The geo or the limit is off the contract, or the request carries a parameter the operation does not take yet (code INVALID_QUERY of Directus).
+	 * The geo is off the contract, or the field it names is not a geometry (code GEOSPATIAL_INVALID_INPUT). A parameter of /items is off, such as the limit, or the operation does not take it yet (code INVALID_QUERY of Directus).
 	 */
 	400: Errors;
 	/**
@@ -283,10 +308,7 @@ export type ItemsResponses = {
 	/**
 	 * The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key.
 	 */
-	200: {
-		data: Array<Item>;
-		meta?: ItemsMeta;
-	};
+	200: Items;
 };
 
 export type ItemsResponse = ItemsResponses[keyof ItemsResponses];

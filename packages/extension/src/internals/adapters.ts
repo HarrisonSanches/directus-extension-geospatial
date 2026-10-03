@@ -25,11 +25,15 @@ const readFunctions = [
 	'getDBQuery',
 ] as const;
 
+// How Directus reads the query of /items from the body of a SEARCH, the same in 11.17 and in 12
+// (api/src/middleware/validate-batch.ts, V-181).
+const pageFunctions = ['sanitizeQuery', 'validateQuery'] as const;
+
 // Directus 11.17, which has no inactive collections. A Directus that has them refuses one before the hooks, which this
 // adapter would run first, so it refuses that Directus (V-146).
 const v11: Adapter = {
 	name: '11.17',
-	uses: readFunctions,
+	uses: [...readFunctions, ...pageFunctions],
 	lacks: [
 		{
 			module: functions.assertCollectionActive.module,
@@ -43,7 +47,7 @@ const v11: Adapter = {
 // Directus 12, whose readByQuery refuses an inactive collection before the hooks of items.query (V-142).
 const v12: Adapter = {
 	name: '12',
-	uses: [...readFunctions, 'assertCollectionActive'],
+	uses: [...readFunctions, ...pageFunctions, 'assertCollectionActive'],
 	lacks: [],
 	beforeHooks: async (take, { collection, accountability }, context) => {
 		await take('assertCollectionActive')({ accountability, collection, action: 'read' }, context);

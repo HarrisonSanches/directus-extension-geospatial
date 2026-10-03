@@ -1,6 +1,6 @@
 import { ForbiddenError } from '@directus/errors';
 import { defineEndpoint } from '@directus/extensions-sdk';
-import { measured, takeLast } from './reads.js';
+import { measured, takeLag, takeLast } from './reads.js';
 
 export default defineEndpoint({
 	id: 'geospatial-test-observer',
@@ -30,6 +30,17 @@ export default defineEndpoint({
 			const sql = database.raw(statement.sql.replaceAll(/\$\d+/g, '?'), statement.bindings).toQuery();
 
 			res.json({ data: { build, database: answer, statement: sql } });
+		});
+
+		// The longest the event loop of Directus ran late since the last read. Only the admin reads it.
+		router.get('/lag', (req, res, next) => {
+			if (req.accountability?.admin !== true) {
+				next(new ForbiddenError());
+
+				return;
+			}
+
+			res.json({ data: takeLag() });
 		});
 	},
 });

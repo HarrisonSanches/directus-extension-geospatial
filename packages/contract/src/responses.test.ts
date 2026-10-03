@@ -57,6 +57,21 @@ describe('as respostas conferidas contra o contrato', () => {
 		]);
 	});
 
+	it('um método que o OpenAPI não nomeia, como o SEARCH, vem do additionalOperations do 3.2', () => {
+		const search = (status: number, body: unknown) =>
+			errorsOf({ method: 'SEARCH', path: '/geospatial/items/occurrences', status, contentType: json, body });
+		const tooLarge = { errors: [{ message: 'Too large.', extensions: { code: 'GEOSPATIAL_LIMIT_EXCEEDED' } }] };
+
+		expect(search(200, { data: [{ id: 1, $geo: { distance: 2 } }] })).toEqual([]);
+		expect(search(413, tooLarge)).toEqual([]);
+		expect(search(200, { data: [{ id: 1 }] })).toEqual([
+			"The response 200 of SEARCH /geospatial/items/occurrences is off the contract at /data/0: must have required property '$geo'.",
+		]);
+		expect(
+			errorsOf({ method: 'PATCH', path: '/geospatial/items/occurrences', status: 200, contentType: json, body: {} }),
+		).toEqual(['The contract has no response 200 for PATCH /geospatial/items/occurrences.']);
+	});
+
 	it('o próprio documento, servido pela rota dele, está no contrato', () => {
 		expect(
 			errorsOf({ method: 'GET', path: '/geospatial/openapi.json', status: 200, contentType: json, body: openapi }),
@@ -67,7 +82,7 @@ describe('as respostas conferidas contra o contrato', () => {
 // A document with the shapes the contract of the extension does not have yet: a response with no body, one that is
 // not JSON, and a path with a parameter.
 const example: OpenApiDocument = {
-	openapi: '3.1.0',
+	openapi: '3.2.0',
 	info: { title: 'Example', version: '1.0.0' },
 	paths: {
 		'/geospatial/queries/{id}': {
@@ -94,6 +109,14 @@ describe('as formas de resposta que as próximas rotas trazem', () => {
 		expect(errorsOfExample({ ...forgotten, body: 'gone' })).toEqual([
 			'The response 204 of DELETE /geospatial/queries/abc has a body, and the contract declares none.',
 		]);
+	});
+
+	it('um item de rota que não é um objeto não tem operação nenhuma', () => {
+		const { errorsOf: errorsOfBroken } = contractOf({ ...example, paths: { '/geospatial/broken': null } });
+
+		expect(
+			errorsOfBroken({ method: 'GET', path: '/geospatial/broken', status: 200, contentType: json, body: {} }),
+		).toEqual(['The contract has no response 200 for GET /geospatial/broken.']);
 	});
 
 	it('um corpo que não é JSON passa pelo tipo, sem o schema', () => {

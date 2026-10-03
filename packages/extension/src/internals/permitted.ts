@@ -2,10 +2,9 @@ import type { Query } from '@directus/types';
 import type { Internals } from 'directus-geospatial-contract';
 import type { Knex } from 'knex';
 import type { Logger } from 'pino';
-import { InternalsUnsupportedError } from '../errors.js';
-import { adapters } from './adapters.js';
+import { acceptedWith, offOnMismatch } from './accepted.js';
 import { chain, type Context, type Request } from './chain.js';
-import { functions, InternalsMismatchError, type Load, load as loadDirectus, takeFrom } from './modules.js';
+import { type Load, load as loadDirectus } from './modules.js';
 
 // The permitted query of a request, and the query of the page as the hooks of items.query returned it, which the
 // operation reads its page by. The query of the request is the page as Directus sanitized it for /items, and queryOf
@@ -21,36 +20,23 @@ export type PermittedQuery = (
 // of items.query, and the chain (V-144). With the internals refused, every operation is off, and the request never
 // reaches the chain (§5, protection 2). A step that returns another shape at the time of a request turns the operation
 // off the same way, and the shape goes to the log, since the response carries no detail of the internals.
-export const permittedQueryWith =
-	(internals: () => Promise<Internals>, logger: Pick<Logger, 'error'>, load: Load = loadDirectus): PermittedQuery =>
-	async (request, context, queryOf = (hooked) => hooked) => {
-		const checked = await internals();
-		const adapter = checked.status === 'accepted' ? adapters.find(({ name }) => name === checked.adapter) : undefined;
+export const permittedQueryWith = (
+	internals: () => Promise<Internals>,
+	logger: Pick<Logger, 'error'>,
+	load: Load = loadDirectus,
+): PermittedQuery => {
+	const accepted = acceptedWith(internals, load);
 
-		if (adapter === undefined) {
-			throw new InternalsUnsupportedError();
-		}
-
-		// Node keeps each module after its first import, the one of the check, so these cost nothing.
-		const modules = new Map(
-			await Promise.all(
-				adapter.uses.map(async (name) => {
-					const path = functions[name].module;
-
-					return [path, await load(path)] as const;
-				}),
-			),
-		);
-
-		const take = takeFrom(modules);
+	return async (request, context, queryOf = (hooked) => hooked) => {
+		const { adapter, take } = await accepted();
 		const { collection, accountability } = request;
 
-		try {
+		return offOnMismatch(async () => {
 			await adapter.beforeHooks(take, request, context);
 
 			// The hooks of other extensions change the query as the readByQuery lets them: through the emitter of the core
-			// events, where their filters register, with the same events, meta and context. The emitter in the context of an
-			// extension never reaches them (A-024).
+			// events, where their filters register, with the same events, meta and context. The emitter in the context of
+			// an extension never reaches them (A-024).
 			const query = await take('emitFilter')(
 				['items.query', `${collection}.items.query`],
 				request.query,
@@ -61,13 +47,6 @@ export const permittedQueryWith =
 			const { builder } = await chain(take, { collection, query: queryOf(query), accountability }, context);
 
 			return { builder, query };
-		} catch (error) {
-			if (error instanceof InternalsMismatchError) {
-				logger.error(error, 'The internals of Directus changed shape, so the geospatial operations are off');
-
-				throw new InternalsUnsupportedError();
-			}
-
-			throw error;
-		}
+		}, logger);
 	};
+};

@@ -25,3 +25,18 @@ export const OperationUnavailableError = createError<{ operation: string; reason
 	({ operation, reason }) => `The operation ${operation} is unavailable. ${reason}`,
 	501,
 );
+
+// An input off the contract, which never reaches the database: the reason says where and why, with the place and the
+// rule, and never the values the request sent (§7.8, D-045).
+export const InvalidInputError = createError<{ reason: string }>(
+	code('GEOSPATIAL_INVALID_INPUT'),
+	({ reason }) => `Invalid input. ${reason}.`,
+	400,
+);
+
+// A request past a limit of the extension, with the limit in the extensions (§7.8).
+export const LimitExceededError = createError<{ limit: number }>(
+	code('GEOSPATIAL_LIMIT_EXCEEDED'),
+	({ limit }) => `The request is larger than the extension takes, ${String(limit)} bytes.`,
+	413,
+);

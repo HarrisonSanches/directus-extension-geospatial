@@ -2,8 +2,10 @@
 
 ## Contrato primeiro
 
-- O documento OpenAPI 3.1, em `packages/contract/openapi.yaml`, é a fonte da verdade (D-016). Rota nova ou mudada
-  começa por ele. O pacote `directus-geospatial-contract` é privado: a extensão e o SDK o usam no workspace, e o
+- O documento OpenAPI 3.2, em `packages/contract/openapi.yaml`, é a fonte da verdade (D-016). Rota nova ou mudada
+  começa por ele. Um método que o OpenAPI não nomeia, como o `SEARCH`, vai no `additionalOperations` da rota, que o
+  Redocly confere e o gerador de tipos pula, e o corpo e a resposta dele vão em `components`, de onde os tipos saem
+  (V-181). O pacote `directus-geospatial-contract` é privado: a extensão e o SDK o usam no workspace, e o
   build de cada um embute o que precisa.
 - Dele saem:
   - os tipos TypeScript, pelo `@hey-api/openapi-ts`, só com os tipos, e não pelo `openapi-typescript`, que não aceita
@@ -30,15 +32,20 @@
   listados no schema `ErrorCode` do contrato: banco fora (`GEOSPATIAL_DATABASE_UNAVAILABLE`, 503), internos do Directus
   recusados (`GEOSPATIAL_INTERNALS_UNSUPPORTED`, 503), operação indisponível no banco
   (`GEOSPATIAL_OPERATION_UNAVAILABLE`, 501, com a operação e o motivo nas `extensions`, e o motivo nunca diz o banco,
-  D-042), geometria inválida, limite excedido, consulta desconhecida e tempo esgotado (§7.8).
+  D-042), entrada fora do contrato (`GEOSPATIAL_INVALID_INPUT`, 400, com o lugar e a regra no motivo, e nunca os
+  valores enviados), limite excedido (`GEOSPATIAL_LIMIT_EXCEEDED`, 413, com o limite nas `extensions`), geometria
+  inválida (F05), consulta desconhecida e tempo esgotado (§7.8).
 - **O `geo` do estilo do `/items`** vai em JSON, como o `filter` do Directus, que é como o SDK do Directus manda um
   parâmetro que não conhece (V-171), e não pelos colchetes do `qs`. É um objeto com a `operation`, o id da operação
   (D-024), e as entradas dela, que o contrato descreve num `oneOf` com o `discriminator` pela `operation`. O mesmo
-  objeto vai no corpo do `SEARCH` e da consulta registrada. O `field` diz o campo de geometria que a operação lê, e sem
+  objeto vai no corpo do `SEARCH`, `{ geo, query }`, com a `query` do `/items` como o Directus a lê no corpo do `SEARCH`
+  dele, no lugar da da URL (V-11, V-181), e no da consulta registrada. O `field` diz o campo de geometria que a operação lê, e sem
   ele vale o único da coleção; com dois ou mais, o pedido é recusado, até a configuração da coleção trazer o campo
   padrão (F06). A D-048 registra a escolha.
-- Um parâmetro do `/items` que a operação ainda não trata, como o `sort`, volta com o `INVALID_QUERY` do Directus, em
-  vez de ficar de fora calado, e o `geo` fora do contrato também, até os códigos próprios de entrada.
+- Um parâmetro do `/items` fora do lugar, como o `limit` acima do máximo, ou que a operação ainda não trata, volta com
+  o `INVALID_QUERY` do Directus, em vez de ficar de fora calado. O `geo`, o corpo do `SEARCH` e o campo que não é de
+  geometria, que são da extensão, voltam com o `GEOSPATIAL_INVALID_INPUT`, e o corpo acima de 256 KB, abaixo do 1 MB
+  do Directus (V-10), com o `GEOSPATIAL_LIMIT_EXCEEDED`. Os limites ficam num lugar só, em `limits.ts`.
 - A coleção que o esquema não tem responde `FORBIDDEN`, como a que o usuário não lê, como o `/items` faz. Um problema
   do campo de geometria só aparece depois de a cadeia do Directus conferir que o usuário lê a coleção.
 - Toda operação que devolve itens responde como o `/items` também fora das permissões (V-173): a coleção do sistema,

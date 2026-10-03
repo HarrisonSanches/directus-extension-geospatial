@@ -131,3 +131,22 @@ declare module '@directus/api/emitter' {
 
 	export default emitter;
 }
+
+// The query of /items as Directus reads it from a request, the URL or the body of a SEARCH: parsed, with the default
+// limits of the environment, and checked against the schema and the accountability (api/src/utils/sanitize-query.ts).
+declare module '@directus/api/utils/sanitize-query' {
+	import type { Accountability, Query, SchemaOverview } from '@directus/types';
+
+	export function sanitizeQuery(
+		rawQuery: Record<string, unknown>,
+		schema: SchemaOverview,
+		accountability?: Accountability | null,
+	): Promise<Query>;
+}
+
+// The check Directus runs on a sanitized query, which refuses one it would not run (api/src/utils/validate-query.ts).
+declare module '@directus/api/utils/validate-query' {
+	import type { Query } from '@directus/types';
+
+	export function validateQuery(query: Query): Query;
+}
