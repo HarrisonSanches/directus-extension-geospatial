@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { format, resolveConfig } from 'prettier';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { apiVersion, openapi } from './index.js';
+import { apiVersion, limitMaximum, openapi } from './index.js';
 
 const contract = join(import.meta.dirname, '..');
 const generated = join(import.meta.dirname, 'generated');
@@ -16,6 +16,12 @@ describe('contrato', () => {
 		const openapi: unknown = parse(await readFile(join(contract, 'openapi.yaml'), 'utf8'));
 
 		expect(openapi).toMatchObject({ info: { version: apiVersion } });
+	});
+
+	it('o máximo de uma página é o do documento', async () => {
+		const openapi: unknown = parse(await readFile(join(contract, 'openapi.yaml'), 'utf8'));
+
+		expect(openapi).toMatchObject({ components: { schemas: { Limit: { maximum: limitMaximum } } } });
 	});
 
 	it('o documento em JSON, que a extensão serve, é o openapi.yaml', async () => {

@@ -1,6 +1,6 @@
 import type { Query, SchemaOverview } from '@directus/types';
 import { describe, expect, it } from 'vitest';
-import { accountabilityOf, geometryFieldOf, geoOf, unsupportedIn } from './request.js';
+import { accountabilityOf, geometryFieldOf, geoOf, limitOf, sortOf, unsupportedIn } from './request.js';
 
 const radius = { operation: 'radius', center: [-46.7, -23.65], distance: 1000 };
 
@@ -45,7 +45,6 @@ describe('a página que o raio ainda não trata', () => {
 	});
 
 	it.each([
-		['a ordem, que chega no F02-10', { sort: ['region'] }, 'sort'],
 		['a agregação', { aggregate: { count: ['*'] } }, 'aggregate'],
 		['o agrupamento', { group: ['region'] }, 'group'],
 		['o deep das relações', { deep: { author: { _limit: 1 } } }, 'deep'],
@@ -57,6 +56,52 @@ describe('a página que o raio ainda não trata', () => {
 
 	it('um campo de uma relação também volta recusado', () => {
 		expect(unsupportedIn({ fields: ['id', 'author.name'] })).toBe('fields of a relation');
+	});
+
+	it('a ordem por campos da coleção passa, e a por uma relação ou uma função volta recusada', () => {
+		expect(unsupportedIn({ sort: ['status', '-occurred_at'] })).toBeUndefined();
+		expect(unsupportedIn({ sort: ['-author.name'] })).toBe('sort by a relation');
+		expect(unsupportedIn({ sort: ['year(occurred_at)'] })).toBe('sort by a function');
+	});
+});
+
+describe('a ordem da página', () => {
+	it('sem sort, a lista segue a ordem natural da operação', () => {
+		expect(sortOf({})).toEqual([]);
+	});
+
+	it('cada campo do sort, com o menos na frente para a ordem decrescente, como no /items', () => {
+		expect(sortOf({ sort: ['status', '-occurred_at'] })).toEqual([
+			{ field: 'status', direction: 'asc' },
+			{ field: 'occurred_at', direction: 'desc' },
+		]);
+	});
+});
+
+describe('o tamanho da página', () => {
+	it('sem o limit, vale a página padrão do Directus', () => {
+		expect(limitOf({}, 100)).toBe(100);
+	});
+
+	it('a página padrão nunca passa do máximo do contrato', () => {
+		expect(limitOf({}, 5000)).toBe(1000);
+	});
+
+	it('o limit dentro do contrato vale como veio', () => {
+		expect(limitOf({ limit: 1000 }, 100)).toBe(1000);
+	});
+
+	it.each([
+		['acima do máximo', 1001, 'must be <= 1000'],
+		['o -1, que no /items traz todos', -1, 'must be >= 1'],
+		['o zero', 0, 'must be >= 1'],
+	])('o limit %s volta com o erro de query do Directus, com o motivo', (_, limit, reason) => {
+		expect(() => limitOf({ limit }, 100)).toThrow(
+			expect.objectContaining({
+				code: 'INVALID_QUERY',
+				extensions: { reason: expect.stringContaining(reason) as string },
+			}),
+		);
 	});
 });
 

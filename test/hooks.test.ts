@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, inject, it } from 'vitest';
 import { combinations } from './combinations.ts';
 import { as, type Client, hasCustomPermissionRules, type Occurrence, type Role } from './directus.ts';
 import { circle, createOccurrences, occurrences, southZone, wgs84 } from './seed.ts';
-import type { Item } from 'directus-geospatial-contract';
+import { type Item, limitMaximum } from 'directus-geospatial-contract';
 
 const postgis = combinations[inject('combination')].database.client === 'postgres';
 
@@ -29,6 +29,13 @@ const geo = { operation: 'radius', center: circle.center, distance: circle.meter
 const radius = (client: Client, collection: string, params: Record<string, unknown> = {}) =>
 	client.request(
 		customEndpoint<Item[]>({ path: `/geospatial/items/${collection}`, method: 'GET', params: { geo, ...params } }),
+	);
+
+// The items of the radius in the order of the primary key, as /items gives them, without the values the radius
+// calculates, which /items does not have.
+const inOrderOfKey = async (client: Client, collection: string, params: Record<string, unknown>) =>
+	(await radius(client, collection, { ...params, sort: 'id', limit: limitMaximum })).map((item) =>
+		Object.fromEntries(Object.entries(item).filter(([name]) => name !== '$geo')),
 	);
 
 const distanceOf = ({ coordinates: [longitude, latitude] }: Occurrence['geometry']) => {
@@ -111,7 +118,7 @@ describe.runIf(postgis).each([
 	it.runIf(runs)('bate com o /items, que o hook também muda', async () => {
 		const expected = await expectedFor(as(role), hooked);
 
-		expect(await radius(as(role), hooked, { fields: 'id,status', limit: -1 })).toEqual(expected);
+		expect(await inOrderOfKey(as(role), hooked, { fields: 'id,status' })).toEqual(expected);
 		expect(expected.length).toBeGreaterThan(0);
 		expect(expected.every(({ status }) => status === 'open')).toBe(true);
 	});
@@ -143,7 +150,7 @@ describe.runIf(postgis)('um hook no evento de outra coleção', () => {
 	it('não muda o raio das ocorrências', async () => {
 		const expected = await expectedFor(as('admin'), 'occurrences');
 
-		expect(await radius(as('admin'), 'occurrences', { fields: 'id,status', limit: -1 })).toEqual(expected);
+		expect(await inOrderOfKey(as('admin'), 'occurrences', { fields: 'id,status' })).toEqual(expected);
 		expect(expected.some(({ status }) => status === 'closed')).toBe(true);
 	});
 });

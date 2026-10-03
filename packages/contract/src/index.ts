@@ -6,6 +6,10 @@ export type * from './generated/index.js';
 // The info.version of openapi.yaml, which a test keeps in step with the document.
 export const apiVersion = '0.1.0';
 
+// The most items a page brings, the maximum of the schema Limit of openapi.yaml, which a test keeps in step with the
+// document.
+export const limitMaximum = 1000;
+
 // The document of the contract, which the extension serves at /geospatial/openapi.json (D-016) and the tests check the
 // responses of its routes against.
 export const openapi: OpenApiDocument = document;

@@ -33,6 +33,7 @@ const radius = {
 	boxes: boxesOf(center, 10_000),
 	center,
 	distance: 10_000,
+	order: [],
 };
 
 const statementOf = (builder: { toSQL: () => { sql: string; bindings: readonly unknown[] } }) => {
@@ -48,8 +49,8 @@ describe('o raio no PostGIS', () => {
 		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis.sql');
 	});
 
-	it('com a página, pula os itens das anteriores, e sem limite, traz todos', async () => {
-		const { builder } = postgis.radius(database, { ...radius, permitted: permitted(), limit: null, offset: 200 });
+	it('com a página, pula os itens das anteriores', async () => {
+		const { builder } = postgis.radius(database, { ...radius, permitted: permitted(), limit: 100, offset: 200 });
 
 		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis-offset.sql');
 	});
@@ -124,6 +125,29 @@ describe('o raio no PostGIS', () => {
 		expect(converted).toBe('geospatial:4326');
 
 		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis-geography-srid.sql');
+	});
+});
+
+describe('a ordem do raio', () => {
+	it('sem o sort, a ordem natural é a distância, calculada do texto que a query permitida expõe, e depois a chave', () => {
+		const { distance } = postgis.radius(database, { ...radius, permitted: permitted(), limit: 100, offset: 0 });
+
+		expect(distance).toBe('geospatial:distance');
+	});
+
+	it('com o sort da página, a ordem é a dela, pelo valor que a query permitida expõe, e termina na chave', async () => {
+		const { builder } = postgis.radius(database, {
+			...radius,
+			order: [
+				{ field: 'region', direction: 'asc' },
+				{ field: 'id', direction: 'desc' },
+			],
+			permitted: permitted(),
+			limit: 100,
+			offset: 0,
+		});
+
+		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis-sorted.sql');
 	});
 });
 

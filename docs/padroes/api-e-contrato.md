@@ -44,7 +44,11 @@
   pelo prefixo `directus_`, responde `FORBIDDEN`, também ao admin; a inativa do 12, o `COLLECTION_INACTIVE`, que a
   própria cadeia lança; e os valores saem pelo `PayloadService` do Directus, como o `/items` os dá, com a geometria
   convertida por ele do texto da query permitida.
-- Valores calculados no campo reservado `$geo`; nas formas, nas propriedades do GeoJSON.
+- Valores calculados no campo reservado `$geo`; nas formas, nas propriedades do GeoJSON. No raio, a `distance`, em
+  metros, até o centro.
+- A lista de itens segue a ordem natural da operação, ou o `sort` da página, sempre terminando pela chave primária. A
+  ordem lê os valores que a query permitida expõe, e não a coluna crua, como o `/items` faz (D-051, V-179). O `sort` por
+  um campo de relação ou por uma função volta com o `INVALID_QUERY`, por enquanto.
 - Horários em ISO 8601 com deslocamento (D-031).
 - Coordenadas sempre em `[longitude, latitude]`, como no GeoJSON.
 - O canal ao vivo é SSE, em `/geospatial/live`, com a autenticação da API. O SDK manda o token no cabeçalho, e a
@@ -55,7 +59,9 @@
 - Por `limit` e `cursor`. O cursor é opaco para o cliente: a chave da ordem mais a chave primária, codificadas.
 - O estilo do `/items` também aceita `page` e `offset`, por compatibilidade, e a documentação diz que eles ficam
   lentos em páginas fundas.
-- Todo `limit` tem máximo, declarado no contrato.
+- Todo `limit` tem máximo, declarado no contrato. Nas listas de itens, de 1 a 1.000, o schema `Limit`, e o `-1` do
+  `/items`, que traz todos, volta com o `INVALID_QUERY`. Sem o `limit`, vale a página padrão do Directus, o
+  `QUERY_LIMIT_DEFAULT` (D-051).
 
 ## Compatibilidade
 

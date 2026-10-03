@@ -195,7 +195,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   volta ao mesmo lugar, e na `geography` o próprio `ST_DWithin` usa o índice. Com o SRID sem tipo, o `ST_Transform`
   lia o número como um texto do PROJ, e a caixa ficava de fora com o resultado certo: só o `EXPLAIN` reprovou (D-050,
   V-178).
-- Próximo passo: a decisão do mantenedor sobre a A-044, o raio sem `limit`, e depois `/implement-issue F02-10`.
+- F02-10 feita em 02/10/2026: cada item do raio traz no `$geo` a distância até o centro, em metros, do texto que a
+  query permitida expõe, e a lista vem pela distância, com o empate pela chave. Com o `sort`, vem a ordem da página,
+  pelo valor exposto, e não pela coluna crua, como o `/items` faz, então o item cujo campo de ordem uma política esconde
+  não revela o valor pela posição. O `limit` vai de 1 a 1.000, o `-1` volta com erro, e sem o `limit` vale a página
+  padrão do Directus, e não o círculo inteiro. A ordem custa uns 20 ms na primeira página da Maria com 1 milhão de
+  pontos (D-051, V-179, resolve a A-044).
+- Próximo passo: `/implement-issue F02-11`, o raio no SQLite, que é HITL.
 
 ## Documentação
 

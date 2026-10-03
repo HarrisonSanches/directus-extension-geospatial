@@ -36,6 +36,8 @@ export const readItems = (
 			// As runAst reads the rows for /items, with the PayloadService of the running Directus (V-173).
 			valuesOf: (name, rows) =>
 				new context.services.PayloadService(name, { knex: context.database, schema }).processValues('read', rows),
+			// As getDBQuery reads it for /items (V-176).
+			defaultLimit: Number(context.env.QUERY_LIMIT_DEFAULT),
 		},
 	);
 };

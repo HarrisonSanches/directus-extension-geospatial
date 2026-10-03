@@ -294,6 +294,12 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
   - a caixa convertida pelos quatro cantos não contém o círculo de 2.000 km em volta de São Paulo, e deixa de fora pontos a 1 m dentro da borda. Com cada lado cortado em 64 trechos, ela os contém, também em volta de Manaus, a 15° do meridiano central;
   - o `ST_DWithin` de uma coluna `geography` passa pelo GiST dela sozinho, com 20 mil pontos, sem caixa nenhuma. Uma caixa em graus convertida para `geography` teria arestas geodésicas, que não seguem os paralelos, e não conteria o círculo;
   - nos 20 mil pontos em UTM com o GiST, a caixa no SRID da coluna passa pelo índice, e a distância lê a coluna em 4326 só nos candidatos.
+- **V-179** **Directus, a ordem do `/items`** (código-fonte das tags `v11.17.4` e `v12.4.1`, `api/src/database/run-ast/lib/get-db-query.ts`, `api/src/database/run-ast/lib/apply-query/sort.ts` e `api/src/permissions/modules/process-ast/utils/extract-paths-from-query.ts`, e a suíte da F02-10, em 02/10/2026):
+  - o `getDBQuery` ordena pela coluna crua (`getColumn` sem o alias), e não pelo valor que o `CASE WHEN` da política expõe. Onde uma política esconde o campo de ordem, o `/items` ordena o item pelo valor escondido, e a posição dele na lista diz algo do valor;
+  - os campos do `sort` contam como campos lidos, como os do `filter`, e quem ordena por um campo que não pode ler recebe o `FORBIDDEN`. O Directus não acrescenta a chave primária ao `sort` da página, e o empate fica na ordem em que o banco o devolve;
+  - o raio ordena pelo valor que a query permitida expõe, terminando pela chave: igual ao `/items` onde nenhuma política esconde o campo de ordem, e o item com o campo escondido ordena como vazio, no fim da ordem crescente e no começo da decrescente, a ordem do Postgres para o nulo;
+  - a distância do `$geo` sai do texto que a query permitida expõe, em `geography`, e bate com a da GeographicLib a menos de 1 mm nos itens da Maria;
+  - medido pelo `pnpm measure` na máquina de referência, com 1 milhão de pontos e o GiST, no Directus 11.17.4: a primeira página da Maria, de 100 itens na ordem da distância, levou 84 ms de mediana e 88 ms no p95 no PostGIS 3.2, e 68 ms e 95 ms no 3.6, contra os 64 ms e 50 ms da ordem pela chave da F02-08 (V-177). A distância do círculo inteiro, 8.565 itens, sai do texto antes do corte da página, e o JIT leva 24 ms no 3.2. A página de 1.000 itens levou 97 ms e 77 ms. Sem o GiST, a primeira página levou 378 ms e 361 ms.
 
 ### Outras ferramentas
 

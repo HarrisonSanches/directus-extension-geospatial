@@ -26,8 +26,11 @@ interface RadiusEnvelope {
 	center: Position;
 	// In meters.
 	distance: number;
-	// How many items, or null for all of them, and how many to skip.
-	limit: number | null;
+	// The order of the page, by the fields the permitted query exposes, or none, for the natural order of the radius,
+	// the distance. Either way it ends with the primary key.
+	order: { field: string; direction: 'asc' | 'desc' }[];
+	// How many items, and how many to skip.
+	limit: number;
 	offset: number;
 }
 
@@ -38,8 +41,11 @@ export interface SpatialAdapter {
 	// index answers, or null where the radius goes without them (D-007).
 	boxesIn: (knex: Knex, column: SpatialColumn, center: Position, distance: number) => Promise<Box[] | null>;
 	// The items within a distance of a point, out of the permitted query, in one statement. The rows keep the columns of
-	// the permitted query, with the geometry as its text, which Directus turns into the values of /items (V-173). Where
-	// the column keeps another SRID, the rows also bring the geometry in 4326, in the column that converted names, to take
-	// its place.
-	radius: (knex: Knex, envelope: RadiusEnvelope) => { builder: Knex.QueryBuilder; converted?: string };
+	// the permitted query, with the geometry as its text, which Directus turns into the values of /items (V-173), and the
+	// distance from the center, in meters, in the column that distance names. Where the column keeps another SRID, the
+	// rows also bring the geometry in 4326, in the column that converted names, to take its place.
+	radius: (
+		knex: Knex,
+		envelope: RadiusEnvelope,
+	) => { builder: Knex.QueryBuilder; distance: string; converted?: string };
 }
