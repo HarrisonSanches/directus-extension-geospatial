@@ -116,6 +116,8 @@ export interface Environment {
 	backend: Backend;
 	// Starts another Directus on the same database, with the same configuration, as an installation that scales.
 	another: () => Promise<StartedTestContainer>;
+	// Restarts the first Directus, as an installation restarts it, and returns where the suite reaches it now.
+	restart: () => Promise<string>;
 	stop: () => Promise<void>;
 }
 
@@ -216,6 +218,15 @@ export const startEnvironment = async (
 			}
 
 			return start(`${name}, instance ${String(instances.length + 1)}`);
+		},
+		restart: async () => {
+			const restartedAt = performance.now();
+
+			// The same time stop gives Directus to shut down and Node to write the coverage. Docker maps another port.
+			await directus.restart({ timeout: 60_000 });
+			log(`${name}: Directus restarted in ${seconds(restartedAt)} s`);
+
+			return urlOf(directus);
 		},
 		stop: async () => {
 			// Time for Directus to shut down and for Node to write the coverage. Without it, Docker kills the container at once.

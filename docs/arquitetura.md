@@ -831,7 +831,7 @@ O mapa tem vários mapas de fundo, com um seletor, organizado em três grupos:
 - **Inventário e remoção** (D-039). Toda ação do admin que cria algo fica no inventário, com como desfazer, e o painel de saúde o mostra. A ação "Remover o que a extensão criou" desfaz o que estiver lá: por padrão, a função, os gatilhos e as políticas prontas; os índices ficam, com a opção de removê-los, porque ajudam o próprio Directus; as coleções da extensão e a pasta dos relatórios só saem com confirmação digitada. O guia do admin traz o roteiro de desinstalação.
 - **Chaves e segredos em variáveis de ambiente**, nunca no banco. As configurações que não são segredo ficam na coleção de configurações, editáveis pela interface.
 - **Estado temporário em memória ou Redis.**
-  - O id de uma consulta é o hash do conteúdo dela. Se o servidor esquecer um id, a interface registra de novo sem o usuário perceber.
+  - O id de uma consulta é o hash do conteúdo dela, com uma chave que só a instalação tem (D-053). Se o servidor esquecer um id, a interface registra de novo sem o usuário perceber, e recebe o mesmo id.
   - Com várias instâncias, esse estado vai para o Redis, que o Directus já exige para escalar horizontalmente.
   - Salvar ou compartilhar uma consulta copia o conteúdo dela para a coleção da extensão.
 
@@ -1043,14 +1043,15 @@ Placa, posição, trajeto e ocorrência são dado pessoal (LGPD, GDPR). Quem con
 
 **O que a extensão guarda**
 
-| O quê                                                                     | Onde                                          | Por quanto tempo                      |
-| ------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------- |
-| Consultas registradas, cache e estado dos alertas de cerca                | Memória ou Redis                              | Temporário: expira sozinho            |
-| Visões e consultas salvas                                                 | Coleções da extensão                          | Até o dono apagar                     |
-| Links compartilhados                                                      | Coleção da extensão                           | Sem vencimento, com a opção de vencer |
-| Capturas que não entraram num relatório gerado, com as cópias de arquivos | Coleção da extensão e a pasta dos relatórios  | 90 dias, ajustável                    |
-| Relatórios gerados, com as capturas, o PDF e as cópias de arquivos        | Coleções da extensão e a pasta dos relatórios | Até o admin remover                   |
-| Trabalhos concluídos                                                      | Coleção da extensão                           | 30 dias, ajustável                    |
+| O quê                                                                     | Onde                                          | Por quanto tempo                                                       |
+| ------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------- |
+| Consultas registradas                                                     | Memória ou Redis                              | 24 h sem uso, e acima de 32 MB sai antes a usada há mais tempo (D-053) |
+| Cache e estado dos alertas de cerca                                       | Memória ou Redis                              | Temporário: expira sozinho                                             |
+| Visões e consultas salvas                                                 | Coleções da extensão                          | Até o dono apagar                                                      |
+| Links compartilhados                                                      | Coleção da extensão                           | Sem vencimento, com a opção de vencer                                  |
+| Capturas que não entraram num relatório gerado, com as cópias de arquivos | Coleção da extensão e a pasta dos relatórios  | 90 dias, ajustável                                                     |
+| Relatórios gerados, com as capturas, o PDF e as cópias de arquivos        | Coleções da extensão e a pasta dos relatórios | Até o admin remover                                                    |
+| Trabalhos concluídos                                                      | Coleção da extensão                           | 30 dias, ajustável                                                     |
 
 - A limpeza periódica é um trabalho do executor (7.8).
 - Os logs não levam dado de item, geometria nem token.

@@ -867,3 +867,23 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - A resposta da lista de itens ganha o `meta`, que o SDK do Directus deixa de fora e o SDK da extensão vai expor (F02-18).
   - A ordem natural de um círculo grande lê até 50.001 linhas por pedido no servidor, que as mede em fatias de 1.000, cedendo a vez ao laço de eventos entre elas, porque o limitador de pressão do Directus responde 503 a todo pedido quando o laço atrasa mais de 500 ms (V-181, na F02-12).
   - Numa linha, num polígono ou num `geometry` genérico, o raio no SQLite fica indisponível, com o motivo.
+
+## D-053 — A consulta registrada: o id por um hash com chave, a página na URL de cada parte e 24 h sem uso
+
+- **Estado:** aceita em 03/10/2026. Detalha a D-004 e a D-038.
+- **Onde:** §4.1 · §7.8 · §7.10 · `docs/padroes/api-e-contrato.md` · V-55 · V-182.
+- **Contexto:** a D-004 diz que o id de uma consulta registrada é o hash do conteúdo dela. Com um hash que qualquer um calcula, quem adivinha uma pergunta exata, como uma placa no filtro, o centro que o geocoder dá a um endereço e 500 m, calcula o id fora do servidor e pede os itens por ele: se a resposta não for "consulta desconhecida", alguém fez aquela pergunta nas últimas horas. A D-038 pede um prazo para o que a extensão guarda, e o desenho não dizia qual era o do registro, nem onde ficam a ordem e o tamanho da página.
+- **Decisão:**
+  - O id é o HMAC-SHA-256 da pergunta na forma canônica do JSON (RFC 8785), cortado em 128 bits, em base64url, com 22 caracteres. A chave sai do `SECRET` do Directus pelo HKDF (RFC 5869), então todas as instâncias e o mesmo Directus depois de reiniciar dão o mesmo id à mesma pergunta, e só a instalação sabe o id de uma pergunta. Sem o `SECRET`, a chave é sorteada no processo, como o Directus faz com o dele (V-182).
+  - A pergunta é a coleção, o `geo` e o filtro, a busca e os campos do `/items`. O `limit` e o `sort` vão na URL de cada parte, para o mapa, a lista e o resumo usarem o mesmo id também quando a lista muda de ordem.
+  - O `$NOW` do filtro vira o minuto do registro, e as outras variáveis, como o `$CURRENT_USER`, ficam para quem pede cada parte (D-031).
+  - O registro confere o contrato e a query pelo `sanitizeQuery` e pelo `validateQuery` do Directus, e não lê o esquema nem as permissões: registrar não diz se uma coleção existe, e cada parte aplica as permissões de quem pede (D-004).
+  - Na memória, cada entrada fica 24 h desde o último uso, e acima de 32 MB de perguntas em JSON sai primeiro a usada há mais tempo (LRU). Os dois limites ficam em `limits.ts`, até a F06 os tornar configuráveis.
+- **Alternativas descartadas:**
+  - **O hash puro (SHA-256):** o cliente calcularia o id sem registrar, mas o id diria a quem adivinha a pergunta se alguém a fez.
+  - **O `sort` e o `limit` no registro:** a lista em outra ordem pediria outro id, e o mapa e o resumo a acompanhariam sem precisar.
+  - **Conferir a permissão no registro:** a permissão de quem registra não vale para quem pede depois, e a conferência diria se a coleção existe.
+  - **1 h sem uso:** um mapa parado registraria de novo a cada hora, e um `$NOW` relativo andaria junto. **24 h desde o registro, fixo:** até um mapa em uso registraria de novo uma vez por dia.
+- **Consequências:**
+  - O cliente sempre registra para saber o id, e um id esquecido só o faz registrar de novo, com o mesmo id.
+  - Trocar o `SECRET` troca todos os ids, e as interfaces registram de novo.

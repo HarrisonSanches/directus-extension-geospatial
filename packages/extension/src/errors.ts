@@ -40,3 +40,11 @@ export const LimitExceededError = createError<{ limit: number }>(
 	({ limit }) => `The request is larger than the extension takes, ${String(limit)} bytes.`,
 	413,
 );
+
+// An id of a registered query this Directus does not know, because its registration expired or Directus restarted since.
+// The client registers the question again, under the same id (§7.8, D-004).
+export const UnknownQueryError = createError(
+	code('GEOSPATIAL_UNKNOWN_QUERY'),
+	'The query is unknown here. Register it again.',
+	404,
+);

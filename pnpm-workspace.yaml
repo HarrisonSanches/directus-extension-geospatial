@@ -34,6 +34,9 @@ catalog:
   # The validation by the JSON Schema of the contract, in the dialect of OpenAPI 3.1 (D-016).
   ajv: 8.20.0
   ast-v8-to-istanbul: 1.0.7
+  # The version Directus 11.17 and 12 use, whose functions move a $NOW of the registered query as the adjustDate of
+  # Directus does (V-182).
+  date-fns: 4.1.0
   eslint: 10.11.0
   eslint-config-prettier: 10.1.8
   eslint-plugin-import-x: 4.17.1

@@ -214,7 +214,14 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   dá o mesmo raio que o `GET`. O contrato subiu para o OpenAPI 3.2, que descreve o `SEARCH` no `additionalOperations`.
   A geometria de entrada foi para a F05, e a ordem natural do SQLite passou a medir em fatias, porque travava o laço de
   eventos até o limitador de pressão do Directus responder 503 (A-051, V-181).
-- Próximo passo: `/implement-issue F02-13`, a consulta registrada: o registro e os itens.
+- F02-13 feita em 03/10/2026: o `POST /geospatial/queries` registra a pergunta, com a coleção, o `geo` e o filtro, a
+  busca e os campos do `/items`, e devolve um id curto, o HMAC da pergunta na forma canônica do JSON, com a chave
+  derivada do `SECRET` do Directus, então só a instalação sabe o id de uma pergunta (D-053). O
+  `GET /geospatial/queries/:id/items` dá o raio do estilo do `/items` com as permissões de quem pede, e o `limit` e o
+  `sort` vão na URL. O `$NOW` do filtro vira o minuto do registro, que o Directus compara como compara o `$NOW` (V-182).
+  O registro fica na memória por 24 h sem uso, com um teto de 32 MB, e o Directus reiniciado responde
+  `GEOSPATIAL_UNKNOWN_QUERY` até o cliente registrar de novo, com o mesmo id.
+- Próximo passo: `/implement-issue F02-14`, o cursor nas duas rotas de itens.
 
 ## Documentação
 

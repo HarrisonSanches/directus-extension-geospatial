@@ -159,6 +159,32 @@ export type ItemsSearch = {
 };
 
 /**
+ * The whole question of a registered query: the collection, the spatial operation, and the filter, the search and the fields of /items. The page of each part, its limit and its sort, goes in the request of the part, so the map, the list and the summary share one id.
+ */
+export type RegisteredQuery = {
+	/**
+	 * The collection, by its name in Directus.
+	 */
+	collection: string;
+	geo: Geo;
+	/**
+	 * The filter, the search and the fields of /items, as Directus reads them in a body. A $NOW of the filter becomes the minute of the registration, and the other variables, such as $CURRENT_USER, stand for whoever asks each part.
+	 */
+	query?: {
+		filter?: {
+			[key: string]: unknown;
+		};
+		search?: string;
+		fields?: Array<string>;
+	};
+};
+
+/**
+ * The id of a registered query, a keyed hash of its question, in base64url.
+ */
+export type QueryId = string;
+
+/**
  * What the response tells about the list, the way /items of Directus does in its meta. It only carries what applies to the response.
  */
 export type ItemsMeta = {
@@ -188,7 +214,8 @@ export type ErrorCode =
 	| 'GEOSPATIAL_INTERNALS_UNSUPPORTED'
 	| 'GEOSPATIAL_OPERATION_UNAVAILABLE'
 	| 'GEOSPATIAL_INVALID_INPUT'
-	| 'GEOSPATIAL_LIMIT_EXCEEDED';
+	| 'GEOSPATIAL_LIMIT_EXCEEDED'
+	| 'GEOSPATIAL_UNKNOWN_QUERY';
 
 /**
  * The error format of Directus.
@@ -312,6 +339,98 @@ export type ItemsResponses = {
 };
 
 export type ItemsResponse = ItemsResponses[keyof ItemsResponses];
+
+export type RegisterQueryData = {
+	body: RegisteredQuery;
+	path?: never;
+	query?: never;
+	url: '/geospatial/queries';
+};
+
+export type RegisterQueryErrors = {
+	/**
+	 * The body is off the contract (code GEOSPATIAL_INVALID_INPUT), or its query of /items is off, as Directus reads it (code INVALID_QUERY of Directus).
+	 */
+	400: Errors;
+	/**
+	 * The body is larger than the extension takes, 256 KB (code GEOSPATIAL_LIMIT_EXCEEDED), with the limit in the extensions of the error.
+	 */
+	413: Errors;
+	/**
+	 * The internals of the running Directus are not the ones the extension expects, so its operations are off (code GEOSPATIAL_INTERNALS_UNSUPPORTED).
+	 */
+	503: Errors;
+};
+
+export type RegisterQueryError = RegisterQueryErrors[keyof RegisterQueryErrors];
+
+export type RegisterQueryResponses = {
+	/**
+	 * The id of the query.
+	 */
+	200: {
+		data: {
+			id: QueryId;
+		};
+	};
+};
+
+export type RegisterQueryResponse = RegisterQueryResponses[keyof RegisterQueryResponses];
+
+export type QueryItemsData = {
+	body?: never;
+	path: {
+		/**
+		 * The id the registration returned.
+		 */
+		id: QueryId;
+	};
+	query?: {
+		/**
+		 * The sort of /items, by fields separated by commas, with a minus for descending, as in /geospatial/items. Without it, the items come in the natural order of the operation.
+		 */
+		sort?: string;
+		/**
+		 * How many items, as in /items. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT.
+		 */
+		limit?: Limit;
+	};
+	url: '/geospatial/queries/{id}/items';
+};
+
+export type QueryItemsErrors = {
+	/**
+	 * The id is off the contract, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The limit or the sort is off, the URL brings another parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).
+	 */
+	400: Errors;
+	/**
+	 * The user who asks cannot read the collection, a field the query asks for or the geometry, or the collection is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read it (code COLLECTION_INACTIVE).
+	 */
+	403: Errors;
+	/**
+	 * This Directus does not know the id, because the registration expired or Directus restarted since (code GEOSPATIAL_UNKNOWN_QUERY). The client registers the question again, under the same id.
+	 */
+	404: Errors;
+	/**
+	 * The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
+	 */
+	501: Errors;
+	/**
+	 * The internals of the running Directus are not the ones the extension expects (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).
+	 */
+	503: Errors;
+};
+
+export type QueryItemsError = QueryItemsErrors[keyof QueryItemsErrors];
+
+export type QueryItemsResponses = {
+	/**
+	 * The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key.
+	 */
+	200: Items;
+};
+
+export type QueryItemsResponse = QueryItemsResponses[keyof QueryItemsResponses];
 
 export type OpenapiData = {
 	body?: never;

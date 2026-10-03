@@ -40,10 +40,12 @@ Core, que recusa as regras próprias de permissão (V-114). Um teste que depende
 construída sobre a oficial por `test/spatialite/Dockerfile`, que carrega a SpatiaLite em cada conexão (V-121), e o 12
 com SQLite fica sempre no Core, porque a chave só vai ao banco do projeto dela (D-043, D-044).
 
-**Um teste que derruba um container sobe o próprio ambiente,** com o `startEnvironment` de `test/environment.ts`,
-para não quebrar os outros testes da combinação, que rodam em paralelo. A cobertura do Directus dele entra na soma
-pela pasta de cobertura da rodada, que o setup global entrega a todos os testes. Com o banco fora, o teste entra com
-um JWT, porque o Directus procura o token estático no banco antes de qualquer rota (V-124).
+**Um teste que derruba ou reinicia um container sobe o próprio ambiente,** com o `startEnvironment` de
+`test/environment.ts`, para não quebrar os outros testes da combinação, que rodam em paralelo. O `restart` do ambiente
+reinicia o Directus pelo Docker, com o tempo de parar que o `stop` dá, e devolve a URL nova, porque o Docker mapeia
+outra porta. A cobertura do Directus dele entra na soma pela pasta de cobertura da rodada, que o setup global entrega a
+todos os testes. Com o banco fora, o teste entra com um JWT, porque o Directus procura o token estático no banco antes
+de qualquer rota (V-124).
 
 **A suíte carrega uma segunda extensão,** a de `test/hook/`, ao lado da extensão, em toda rodada. Os hooks dela no
 `items.query` mudam a leitura de uma coleção própria, a `hooked_occurrences`, e registram o que recebem, para a
@@ -84,7 +86,10 @@ permitida rodando sozinha antes do envelope (V-142).
 
 **O laço de eventos conferido.** O observador da suíte mede, pelo `monitorEventLoopDelay` do Node, quanto o laço de
 eventos do Directus atrasa, e o teste da operação que o servidor completa reprova se o atraso passar dos 500 ms em que
-o limitador de pressão do Directus responde 503 a todo pedido (V-181).
+o limitador de pressão do Directus responde 503 a todo pedido (V-181). O atraso conta também o tempo em que a máquina
+ocupada tira a CPU do Directus, então o teste faz três pedidos seguidos e confere o menor: o bloqueio do código aparece
+nos três, e a máquina ocupada raramente pega os três. Com os Directus do teste do reinício subindo ao mesmo tempo, o
+pior atraso de um pedido só passou de 220 a 323 ms para 347 a 519 ms, sem mudar o código (F02-13).
 
 **Índice conferido, não suposto.** A operação que a matriz declara "no banco com índice" tem um teste que lê o
 `EXPLAIN` e falha se o plano varrer a tabela. O plano é o do SQL que chegou ao banco: o observador de
