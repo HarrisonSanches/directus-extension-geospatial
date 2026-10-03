@@ -15,8 +15,9 @@ export default {
 			// The extensions SDK reads extension.config.js when it builds.
 			entry: [...entriesOf(extension), 'extension.config.js'],
 			// The running Directus provides @directus/api, which internals/directus-api.d.ts declares and nothing installs
-			// (V-141).
-			ignoreDependencies: ['@directus/api'],
+			// (V-141). The Knex of the tests of SQLite names its client, whose driver it loads only to connect, and it never
+			// connects.
+			ignoreDependencies: ['@directus/api', 'sqlite3'],
 		},
 		'test/hook': { entry: entriesOf(testHook) },
 		'test/measure/observer': { entry: entriesOf(observer) },

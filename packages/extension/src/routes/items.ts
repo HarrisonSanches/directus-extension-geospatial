@@ -1,9 +1,10 @@
 import type { Accountability, ApiExtensionContext, Query, SchemaOverview } from '@directus/types';
-import type { Internals, Item } from 'directus-geospatial-contract';
+import type { Internals, ItemsResponse } from 'directus-geospatial-contract';
 import { databaseClientOf } from '../capabilities/detect.js';
 import { knexClassOf } from '../db/client.js';
 import type { PermittedQuery } from '../internals/permitted.js';
 import { radiusItems } from '../operations/radius/items.js';
+import { radiusLevels } from '../operations/radius/levels.js';
 import { accountabilityOf, geoOf } from '../operations/request.js';
 
 // What the route reads of a request: the collection of the path, the geo as it came, and what Directus attached to it.
@@ -21,7 +22,7 @@ export const readItems = (
 	context: ApiExtensionContext,
 	{ collection, geo, page, accountability, schema }: ItemsRequest,
 	{ internals, permittedQuery }: { internals: () => Promise<Internals>; permittedQuery: PermittedQuery },
-): Promise<Item[]> => {
+): Promise<ItemsResponse> => {
 	const radius = geoOf(geo);
 
 	return radiusItems(
@@ -38,6 +39,7 @@ export const readItems = (
 				new context.services.PayloadService(name, { knex: context.database, schema }).processValues('read', rows),
 			// As getDBQuery reads it for /items (V-176).
 			defaultLimit: Number(context.env.QUERY_LIMIT_DEFAULT),
+			levels: radiusLevels,
 		},
 	);
 };

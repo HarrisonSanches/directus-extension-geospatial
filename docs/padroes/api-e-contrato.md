@@ -24,7 +24,8 @@
 ## Convenções
 
 - Tudo sob `/geospatial` (D-019), com os nomes das operações em camelCase: o termo canônico do glossário (D-024).
-- Respostas no formato do Directus: `{ data, meta }`.
+- Respostas no formato do Directus: `{ data, meta }`. O `meta` só traz o que vale para a resposta, como o `capped`, o
+  aviso de que o Node completou a operação sobre um volume máximo e a lista ficou parcial (D-052).
 - Erros no formato do Directus, com códigos próprios em `UPPER_SNAKE_CASE` e o prefixo `GEOSPATIAL_` (D-045), todos
   listados no schema `ErrorCode` do contrato: banco fora (`GEOSPATIAL_DATABASE_UNAVAILABLE`, 503), internos do Directus
   recusados (`GEOSPATIAL_INTERNALS_UNSUPPORTED`, 503), operação indisponível no banco

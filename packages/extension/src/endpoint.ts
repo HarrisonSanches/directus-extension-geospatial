@@ -43,9 +43,7 @@ export default defineEndpoint({
 			// Any error, the one of a geo off the contract included, goes to the error handler of Directus.
 			Promise.resolve()
 				.then(() => readItems(context, request, { internals, permittedQuery }))
-				.then((data) => {
-					const body: ItemsResponse = { data };
-
+				.then((body: ItemsResponse) => {
 					res.json(body);
 				})
 				.catch(next);

@@ -29,7 +29,15 @@ describe('a matriz de capacidades', () => {
 		});
 	});
 
-	it.each(['sqlite', 'mysql', 'mssql', 'oracle', 'cockroachdb', 'redshift', 'unknown'] as const)(
+	it('o raio roda no SQLite com limite: o círculo no banco, e a distância e a ordem no servidor (D-052)', () => {
+		const spatialite = { name: 'spatialite', version: '5.1.0' } as const;
+
+		expect(matrixOf({ client: 'sqlite', spatial: spatialite, internals: accepted })).toEqual({
+			radius: { level: 'capped' },
+		});
+	});
+
+	it.each(['mysql', 'mssql', 'oracle', 'cockroachdb', 'redshift', 'unknown'] as const)(
 		'o raio fica indisponível no banco %s, com um motivo que não diz o banco',
 		(client) => {
 			const { radius } = matrixOf({ client, spatial: postgis, internals: accepted });

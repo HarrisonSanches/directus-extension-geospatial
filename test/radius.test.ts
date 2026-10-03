@@ -12,6 +12,7 @@ import {
 	as,
 	type Client,
 	databaseContainer,
+	fetchAs,
 	hasCustomPermissionRules,
 	type Occurrence,
 	type Role,
@@ -19,7 +20,14 @@ import {
 import { planOf, summaryOfPlan } from './measure/measure.ts';
 import { callsOn, queryOn } from './postgres.ts';
 import { circle, northZone, southZone, wgs84 } from './seed.ts';
-import { type Capabilities, type Item, limitMaximum, type Position } from 'directus-geospatial-contract';
+import { runOnSqlite } from './sqlite.ts';
+import {
+	type Capabilities,
+	type Item,
+	type ItemsResponse,
+	limitMaximum,
+	type Position,
+} from 'directus-geospatial-contract';
 
 const postgis = combinations[inject('combination')].database.client === 'postgres';
 
@@ -81,16 +89,8 @@ const expectedFor = async (client: Client, { fields = ['id', 'region', 'geometry
 		.map(({ geometry, ...item }): Read => (asked ? { ...item, geometry } : item));
 };
 
-// The container of the database, for the tests that count what reached it (test/postgres.ts).
-const containerOf = () => {
-	const container = databaseContainer();
-
-	if (container === undefined) {
-		throw new Error('The global setup did not hand over the container of the database.');
-	}
-
-	return container;
-};
+// The container of the database, for the tests that read or write it directly (test/postgres.ts, test/sqlite.ts).
+const containerOf = databaseContainer;
 
 // The error a request fails with, in the format of Directus.
 const errorOf = async (request: Promise<unknown>) => {
@@ -204,9 +204,8 @@ describe('o raio no estilo do /items', () => {
 			customEndpoint<Capabilities>({ path: '/geospatial/capabilities', method: 'GET' }),
 		);
 
-		expect(operations.radius).toEqual(
-			postgis ? { level: 'indexed' } : { level: 'unavailable', reason: 'It does not run on the database in use yet.' },
-		);
+		// In SQLite, the circle in the database, and the distance and the order in the server (D-052).
+		expect(operations.radius).toEqual({ level: postgis ? 'indexed' : 'capped' });
 	});
 
 	it.each([
@@ -219,35 +218,14 @@ describe('o raio no estilo do /items', () => {
 		});
 	});
 
-	it.runIf(postgis)(
-		'com a ordem por uma relação, que o raio ainda não trata, o pedido volta recusado, e não ignorado',
-		async () => {
-			expect(await errorOf(radius(as('admin'), { sort: 'author.name' }))).toMatchObject({
-				errors: [{ extensions: { code: 'INVALID_QUERY', reason: 'The radius does not take sort by a relation yet' } }],
-			});
-		},
-	);
-
-	it.skipIf(postgis)(
-		'onde o raio não roda, ele responde indisponível, com o motivo, antes de montar a query permitida',
-		async () => {
-			// The public cannot read the occurrences, and the chain would answer FORBIDDEN.
-			expect(await errorOf(radius(as('public')))).toMatchObject({
-				errors: [
-					{
-						extensions: {
-							code: 'GEOSPATIAL_OPERATION_UNAVAILABLE',
-							operation: 'radius',
-							reason: 'It does not run on the database in use yet.',
-						},
-					},
-				],
-			});
-		},
-	);
+	it('com a ordem por uma relação, que o raio ainda não trata, o pedido volta recusado, e não ignorado', async () => {
+		expect(await errorOf(radius(as('admin'), { sort: 'author.name' }))).toMatchObject({
+			errors: [{ extensions: { code: 'INVALID_QUERY', reason: 'The radius does not take sort by a relation yet' } }],
+		});
+	});
 });
 
-describe.runIf(postgis)('o raio no PostGIS', () => {
+describe('o raio no banco', () => {
 	it.runIf(hasCustomPermissionRules())(
 		'o raio da Maria devolve os itens do gabarito, com a geometria em GeoJSON, como o /items',
 		async () => {
@@ -344,16 +322,19 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 			const at = (meters: number) => {
 				const { lon2, lat2 } = wgs84.Direct(latitude, longitude, 0, meters);
 
-				return `ST_SetSRID(ST_MakePoint(${String(lon2)}, ${String(lat2)}), 4326)`;
+				return { type: 'Point', coordinates: [lon2, lat2] };
 			};
 
 			await createCollectionOf(collection);
 			// Two places, at 1 km and at 2 km, with their items interleaved by the key.
-			await queryOn(
-				containerOf(),
-				`insert into ${collection} (id, region, geometry) values ${[1, 2, 3, 4, 5, 6]
-					.map((id) => `(${String(id)}, 'south', ${at(id % 2 === 1 ? 1_000 : 2_000)})`)
-					.join(', ')}`,
+			await as('admin').request(
+				customEndpoint({
+					path: `/items/${collection}`,
+					method: 'POST',
+					body: JSON.stringify(
+						[1, 2, 3, 4, 5, 6].map((id) => ({ id, region: 'south', geometry: at(id % 2 === 1 ? 1_000 : 2_000) })),
+					),
+				}),
 			);
 
 			const items = await radius(as('admin'), { fields: 'id' }, collection);
@@ -393,10 +374,11 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 			async () => {
 				const client = as('statusInPart');
 				const page: Page = { fields: ['id', 'region', 'status'] };
-				// Postgres puts the empty ones last in an ascending order.
+				// Postgres puts the empty ones last in an ascending order, and SQLite first.
+				const emptyLast = postgis ? 1 : -1;
 				const expected = (await expectedFor(client, page)).sort(
 					(a, b) =>
-						Number(typeof a.status !== 'string') - Number(typeof b.status !== 'string') ||
+						emptyLast * (Number(typeof a.status !== 'string') - Number(typeof b.status !== 'string')) ||
 						String(a.status).localeCompare(String(b.status)) ||
 						Number(a.id) - Number(b.id),
 				);
@@ -549,24 +531,27 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 			expect(items).toMatchObject([{ extensions: { code: 'FORBIDDEN' } }]);
 		});
 
-		it('com um campo de geometria acrescentado, a coleção do sistema segue recusada, sem query nela', async () => {
-			const admin = as('admin');
+		it.runIf(postgis)(
+			'com um campo de geometria acrescentado, a coleção do sistema segue recusada, sem query nela',
+			async () => {
+				const admin = as('admin');
 
-			// The schema of the suite does not know the collection, so the field goes by the path of /fields.
-			await admin.request(
-				customEndpoint({
-					path: '/fields/directus_users',
-					method: 'POST',
-					body: JSON.stringify({ field: column, type: 'geometry.Point', schema: {}, meta: {} }),
-				}),
-			);
+				// The schema of the suite does not know the collection, so the field goes by the path of /fields.
+				await admin.request(
+					customEndpoint({
+						path: '/fields/directus_users',
+						method: 'POST',
+						body: JSON.stringify({ field: column, type: 'geometry.Point', schema: {}, meta: {} }),
+					}),
+				);
 
-			const container = containerOf();
-			const before = await callsOn(container, `"${column}"`);
+				const container = containerOf();
+				const before = await callsOn(container, `"${column}"`);
 
-			expect(await errorsOf(radius(admin, {}, 'directus_users'))).toEqual(await itemsOf(admin, 'directus_users'));
-			expect(await callsOn(container, `"${column}"`)).toBe(before);
-		});
+				expect(await errorsOf(radius(admin, {}, 'directus_users'))).toEqual(await itemsOf(admin, 'directus_users'));
+				expect(await callsOn(container, `"${column}"`)).toBe(before);
+			},
+		);
 
 		it.runIf(deactivates)(
 			'no 12, a coleção inativa é recusada como no /items: inativa a quem a lê, proibida a quem não lê',
@@ -679,7 +664,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 	// A column in another SRID, a geography and a geometry with no SRID declared, which Directus never creates: Directus
 	// creates the collection, and the test changes the type of the column by SQL, in the container of the suite (V-25).
 	// Each one copies the occurrences, with their ids, so the gabarito of /items over them holds.
-	describe.each([
+	describe.runIf(postgis).each([
 		{ collection: 'radius_utm', name: 'em SIRGAS 2000 / UTM 23S', column: columns.utm },
 		{ collection: 'radius_geography', name: 'geography', column: columns.geography },
 		{ collection: 'radius_undeclared', name: 'geometry sem SRID declarado', column: columns.undeclared },
@@ -765,7 +750,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 	// The box in the SRID of a column, as it went with the statement of the last radius of a collection.
 	const boxIn = (srid: number) => new RegExp(String.raw`&& ST_MakeEnvelope\((-?[\d.]+, ){4}${String(srid)}\)`);
 
-	describe('a caixa convertida para a UTM (D-007)', () => {
+	describe.runIf(postgis)('a caixa convertida para a UTM (D-007)', () => {
 		const collection = 'radius_utm_edges';
 
 		// São Paulo, 2° west of the central meridian of the zone, and Manaus, 15° west of it.
@@ -814,7 +799,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 	// A projection PROJ only approximates far from its center: the transverse Mercator of the zone by the series of
 	// Snyder, an SRID of its own, which only the database container of the suite has. The points were projected by the
 	// exact one, as another system would project them, and are read by the approximate one.
-	describe('a caixa numa projeção aproximada (D-007)', () => {
+	describe.runIf(postgis)('a caixa numa projeção aproximada (D-007)', () => {
 		const collection = 'radius_approx';
 		const srid = 990_001;
 		const far: Position[] = [
@@ -869,7 +854,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		);
 	});
 
-	describe.each([
+	describe.runIf(postgis).each([
 		{ collection: 'radius_indexed', name: 'geometry em 4326, como o Directus a cria', column: undefined },
 		{ collection: 'radius_indexed_utm', name: 'em SIRGAS 2000 / UTM 23S', column: columns.utm },
 		{ collection: 'radius_indexed_geography', name: 'geography', column: columns.geography },
@@ -936,7 +921,7 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 		);
 	});
 
-	describe('num único pedido ao banco', () => {
+	describe.runIf(postgis)('num único pedido ao banco', () => {
 		const collection = 'radius_once';
 		const user = () => (hasCustomPermissionRules() ? as('maria') : as('admin'));
 
@@ -1001,6 +986,99 @@ describe.runIf(postgis)('o raio no PostGIS', () => {
 
 			expect(items.length).toBeGreaterThan(0);
 			expect(await callsOn(container, `"${collection}"`)).toBe(before + 1);
+		});
+	});
+});
+
+// In SQLite, the circle in the database, and the distance and the natural order in the server, which takes at most
+// 50,000 items, and SpatiaLite only measures points there (D-052, V-180).
+describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
+	describe('acima do limite do servidor', () => {
+		const collection = 'radius_capped';
+		const [longitude, latitude] = circle.center;
+
+		// The radius of the collection as the admin asks it, with the whole body, the meta included.
+		const capped = async (params: Record<string, string>, distance = circle.meters) => {
+			const query = new URLSearchParams({ geo: JSON.stringify({ ...geo, distance }), fields: 'id', ...params });
+			const response = await fetchAs('admin', `/geospatial/items/${collection}?${query.toString()}`);
+
+			return (await response.json()) as ItemsResponse;
+		};
+
+		// 55,000 points in a grid from the center to the northeast, about 10 m apart and up to 6 km away, all inside the
+		// circle. By SQL, since through the API they would take minutes, in batches of 5,000, each short enough for the
+		// other tests of the combination, whose Directus waits a second for the file (V-180).
+		beforeAll(async () => {
+			await createCollectionOf(collection);
+			await runOnSqlite(
+				containerOf(),
+				Array.from(
+					{ length: 11 },
+					(_, batch) =>
+						`insert into ${collection} (region, geometry)
+						with recursive n(i) as (select 0 union all select i + 1 from n where i < 4999)
+						select 'south', MakePoint(${String(longitude)} + (i % 100) * 0.0001,
+							${String(latitude)} + (${String(batch * 50)} + i / 100) * 0.0001, 4326)
+						from n`,
+				),
+			);
+		}, 120_000);
+
+		it('na ordem natural, o servidor ordena só os 50.000 primeiros pela chave, e o resultado avisa no meta', async () => {
+			const { data, meta } = await capped({ limit: String(limitMaximum) });
+			const distances = data.map(({ $geo }) => $geo.distance ?? Number.NaN);
+
+			expect(meta).toEqual({ capped: { limit: 50_000 } });
+			expect(data).toHaveLength(limitMaximum);
+			expect(data.every(({ id }) => Number(id) <= 50_000)).toBe(true);
+			expect(distances).toEqual([...distances].sort((a, b) => a - b));
+			expect(data[0]).toMatchObject({ id: 1, $geo: { distance: 0 } });
+		});
+
+		it('com o sort da página, que o banco ordena, a lista vem inteira, sem o aviso', async () => {
+			const { data, meta } = await capped({ sort: '-id', limit: '3' });
+
+			expect(meta).toBeUndefined();
+			expect(data.map(({ id }) => id)).toEqual([55_000, 54_999, 54_998]);
+		});
+
+		it('num círculo menor que o limite, a ordem natural vem inteira, sem o aviso', async () => {
+			const { data, meta } = await capped({ limit: String(limitMaximum) }, 100);
+
+			expect(meta).toBeUndefined();
+			expect(data.length).toBeGreaterThan(0);
+			expect(data.every(({ $geo }) => ($geo.distance ?? Number.NaN) <= 100)).toBe(true);
+		});
+	});
+
+	it('um campo que não é ponto volta indisponível, com o motivo, depois da cadeia, que recusa antes quem não lê', async () => {
+		const collection = 'radius_roads';
+
+		await as('admin').request(
+			createCollection({
+				collection,
+				schema: {},
+				meta: {},
+				fields: [
+					{ field: 'id', type: 'integer', schema: { is_primary_key: true, has_auto_increment: true } },
+					{ field: 'path', type: 'geometry.LineString', schema: {}, meta: {} },
+				],
+			}),
+		);
+
+		expect(await errorOf(radius(as('admin'), {}, collection))).toMatchObject({
+			errors: [
+				{
+					extensions: {
+						code: 'GEOSPATIAL_OPERATION_UNAVAILABLE',
+						operation: 'radius',
+						reason: 'It only measures points on the database in use.',
+					},
+				},
+			],
+		});
+		expect(await errorOf(radius(as('public'), {}, collection))).toMatchObject({
+			errors: [{ extensions: { code: 'FORBIDDEN' } }],
 		});
 	});
 });

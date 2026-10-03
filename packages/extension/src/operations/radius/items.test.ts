@@ -1,9 +1,14 @@
 import type { Accountability, Query, SchemaOverview } from '@directus/types';
 import type { Internals, Radius } from 'directus-geospatial-contract';
+import geographiclib from 'geographiclib-geodesic';
+import type { Knex } from 'knex';
 import { describe, expect, it } from 'vitest';
+import type { MeasuringAdapter, RadiusEnvelope, SelectingAdapter } from '../../db/adapter.js';
 import type { Request } from '../../internals/chain.js';
 import { database } from '../../internals/fake-directus.js';
 import { type Engine, itemsOf, radiusItems, type RadiusRequest, unaskedOf } from './items.js';
+import { radiusLevels } from './levels.js';
+import { serverLimit } from './server.js';
 
 const maria: Accountability = {
 	role: 'operator',
@@ -56,6 +61,7 @@ const engineWith = (overrides: Partial<Engine> = {}) => {
 		logger: { error: (error: unknown) => logged.push(error) },
 		valuesOf: (_, rows) => Promise.resolve(rows),
 		defaultLimit: 100,
+		levels: radiusLevels,
 		...overrides,
 	};
 
@@ -75,7 +81,7 @@ describe('o raio, antes do banco', () => {
 		['um parâmetro que o raio ainda não trata', { page: { fields: ['*'], group: ['region'] } }, {}, 'INVALID_QUERY'],
 		['o limit acima do máximo do contrato', { page: { fields: ['*'], limit: 1001 } }, {}, 'INVALID_QUERY'],
 		['os internos recusados', {}, { internals: () => Promise.resolve(refused) }, 'GEOSPATIAL_INTERNALS_UNSUPPORTED'],
-		['um banco onde o raio não roda', {}, { client: 'sqlite' as const }, 'GEOSPATIAL_OPERATION_UNAVAILABLE'],
+		['um banco onde o raio não roda', {}, { client: 'mysql' as const }, 'GEOSPATIAL_OPERATION_UNAVAILABLE'],
 		['uma coleção que o esquema não tem', { collection: 'nowhere' }, {}, 'FORBIDDEN'],
 		['uma coleção do sistema, mesmo com uma geometria', { collection: 'directus_users' }, {}, 'FORBIDDEN'],
 	])('%s volta com o erro, sem montar a query permitida', async (_, request, overrides, code) => {
@@ -177,5 +183,128 @@ describe('os itens que o raio devolve', () => {
 			{ id: 1, $geo: { distance: 0 } },
 			{ id: 2, $geo: { distance: 5_558.6 } },
 		]);
+	});
+});
+
+// What a statement of a fake adapter returns when awaited, in place of the builder of Knex, which would run it.
+const returning = (result: unknown) => Promise.resolve(result) as unknown as Knex.QueryBuilder;
+
+const center = geo.center;
+
+// The point at a distance north of the center, in the WKT the permitted query exposes.
+const northOf = (meters: number) => {
+	const { lon2, lat2 } = geographiclib.Geodesic.WGS84.Direct(center[1], center[0], 0, meters);
+
+	return `POINT(${String(lon2)} ${String(lat2)})`;
+};
+
+// An adapter of a database that only tells which items are inside the circle, which hands back the rows given, and keeps
+// the envelopes it got.
+const selecting = (result: unknown, measures = true) => {
+	const envelopes: RadiusEnvelope[] = [];
+	const adapter: SelectingAdapter = {
+		columnOf: () => Promise.resolve({ type: 'geometry', srid: 4326 }),
+		boxesIn: () => Promise.resolve(null),
+		measures: () => Promise.resolve(measures),
+		radius: (_, envelope) => {
+			envelopes.push(envelope);
+
+			return { builder: returning(result) };
+		},
+	};
+
+	return { adapter, envelopes };
+};
+
+const onSqlite = (adapter: SelectingAdapter) =>
+	engineWith({ client: 'sqlite', levels: { ...radiusLevels, sqlite: { level: 'capped', adapter } } });
+
+describe('o raio onde o servidor mede (D-052)', () => {
+	it('na ordem natural, o banco entrega pela chave, e o servidor ordena pela distância, com a janela da página', async () => {
+		const { adapter, envelopes } = selecting([
+			{ id: 1, geometry: northOf(300) },
+			{ id: 2, geometry: northOf(100) },
+			{ id: 3, geometry: northOf(200) },
+		]);
+		const { engine } = onSqlite(adapter);
+		const response = await radiusWith({ page: { fields: ['id'], limit: 2, offset: 1 } }, engine);
+
+		expect(envelopes.map(({ order, limit, offset }) => ({ order, limit, offset }))).toEqual([
+			{ order: [], limit: serverLimit + 1, offset: 0 },
+		]);
+		expect(response.data.map(({ id }) => id)).toEqual([3, 1]);
+		expect(response.data[0]?.$geo.distance).toBeCloseTo(200, 6);
+		expect(response).not.toHaveProperty('meta');
+	});
+
+	it('a página pelo número abre a janela depois das anteriores', async () => {
+		const { adapter } = selecting(
+			[100, 200, 300, 400].map((meters, index) => ({ id: index + 1, geometry: northOf(meters) })),
+		);
+		const { engine } = onSqlite(adapter);
+
+		expect(
+			(await radiusWith({ page: { fields: ['id'], limit: 2, page: 2 } }, engine)).data.map(({ id }) => id),
+		).toEqual([3, 4]);
+	});
+
+	it('acima do limite do servidor, o resultado avisa no meta', async () => {
+		const rows = Array.from({ length: serverLimit + 1 }, (_, index) => ({ id: index + 1, geometry: northOf(10) }));
+		const { engine } = onSqlite(selecting(rows).adapter);
+
+		expect((await radiusWith({ page: { fields: ['id'], limit: 1 } }, engine)).meta).toEqual({
+			capped: { limit: serverLimit },
+		});
+	});
+
+	it('com o sort da página, o banco ordena e pagina, e o servidor só mede a página', async () => {
+		const { adapter, envelopes } = selecting([{ id: 7, status: 'open', geometry: northOf(150) }]);
+		const { engine } = onSqlite(adapter);
+		const response = await radiusWith({ page: { fields: ['id'], sort: ['-status'], limit: 10, offset: 20 } }, engine);
+
+		expect(envelopes.map(({ order, limit, offset }) => ({ order, limit, offset }))).toEqual([
+			{ order: [{ field: 'status', direction: 'desc' }], limit: 10, offset: 20 },
+		]);
+		expect(response.data).toHaveLength(1);
+		expect(response.data[0]).toMatchObject({ id: 7 });
+		expect(response.data[0]?.$geo.distance).toBeCloseTo(150, 6);
+	});
+
+	it('o que o banco devolve sem linhas vira uma lista vazia', async () => {
+		const { engine } = onSqlite(selecting({ rows: 'none' }).adapter);
+
+		expect(await radiusWith({}, engine)).toEqual({ data: [] });
+	});
+
+	it('um campo que o banco não mede volta indisponível, com o motivo, depois da cadeia', async () => {
+		const { engine, built } = onSqlite(selecting([], false).adapter);
+
+		await expect(radiusWith({}, engine)).rejects.toMatchObject({
+			status: 501,
+			extensions: { operation: 'radius', reason: 'It only measures points on the database in use.' },
+		});
+		expect(built).toHaveLength(1);
+	});
+});
+
+describe('o raio onde o banco mede', () => {
+	const measuring = (row: Record<string, unknown>, converted?: string): MeasuringAdapter => ({
+		columnOf: () => Promise.resolve({ type: 'geometry', srid: converted === undefined ? 4326 : 31_983 }),
+		boxesIn: () => Promise.resolve(null),
+		radius: () => ({ builder: returning([row]), distance: 'far', ...(converted !== undefined && { converted }) }),
+	});
+
+	it.each([
+		['em 4326, a geometria exposta sai como veio', measuring({ id: 1, geometry: 'POINT(-46.7 -23.65)', far: 12.5 })],
+		[
+			'em outro SRID, a geometria convertida toma o lugar da exposta',
+			measuring({ id: 1, geometry: 'POINT(333000 7383000)', far: 12.5, in4326: 'POINT(-46.7 -23.65)' }, 'in4326'),
+		],
+	])('%s, e a distância vem da coluna que o adaptador diz', async (_, adapter) => {
+		const { engine } = engineWith({ levels: { ...radiusLevels, postgres: { level: 'indexed', adapter } } });
+
+		expect(await radiusWith({ page: { fields: ['*'] } }, engine)).toEqual({
+			data: [{ id: 1, geometry: 'POINT(-46.7 -23.65)', $geo: { distance: 12.5 } }],
+		});
 	});
 });

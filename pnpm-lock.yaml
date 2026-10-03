@@ -251,6 +251,9 @@ importers:
       directus-geospatial-contract:
         specifier: workspace:*
         version: link:../contract
+      geographiclib-geodesic:
+        specifier: 'catalog:'
+        version: 2.2.0
       knex:
         specifier: 'catalog:'
         version: 3.1.0

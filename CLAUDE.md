@@ -201,7 +201,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   não revela o valor pela posição. O `limit` vai de 1 a 1.000, o `-1` volta com erro, e sem o `limit` vale a página
   padrão do Directus, e não o círculo inteiro. A ordem custa uns 20 ms na primeira página da Maria com 1 milhão de
   pontos (D-051, V-179, resolve a A-044).
-- Próximo passo: `/implement-issue F02-11`, o raio no SQLite, que é HITL.
+- F02-11 feita em 03/10/2026: o raio roda no SQLite, com limite (D-052). Sem os metadados espaciais, que o Directus não
+  cria, nenhuma função da SpatiaLite mede em metros, e o `PtDistWithin` só mede pontos: ele decide no banco quem está no
+  círculo, na coluna, dentro da query permitida, com a guarda do nulo em volta (D-049). A distância e a ordem natural
+  saem no Node, pela GeographicLib, sobre até 50.000 itens, e acima disso o `meta` da resposta avisa com o `capped`. Um
+  campo que não é ponto volta indisponível, e o tipo vem da coluna, porque o esquema que o Directus entrega à extensão
+  diz só `geometry` no SQLite. A paridade inteira com o `/items` e os hooks de outra extensão passam no SQLite (V-180).
+- Próximo passo: `/implement-issue F02-12`, a entrada validada antes do banco, e o `SEARCH`.
 
 ## Documentação
 

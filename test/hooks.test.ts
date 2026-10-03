@@ -1,11 +1,8 @@
 import { createItems, createPermission, customEndpoint, readItems, readPolicies } from '@directus/sdk';
-import { beforeAll, describe, expect, inject, it } from 'vitest';
-import { combinations } from './combinations.ts';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { as, type Client, hasCustomPermissionRules, type Occurrence, type Role } from './directus.ts';
 import { circle, createOccurrences, occurrences, southZone, wgs84 } from './seed.ts';
 import { type Item, limitMaximum } from 'directus-geospatial-contract';
-
-const postgis = combinations[inject('combination')].database.client === 'postgres';
 
 // The collection of the other extension of the suite (test/hook/), whose hook on the event of the collection leaves
 // only the open occurrences, and whose hook on every items.query records what it gets on this collection.
@@ -97,21 +94,9 @@ describe('o hook items.query de outra extensão', () => {
 		expect(items.length).toBeGreaterThan(0);
 		expect(items.every(({ status }) => status === 'open')).toBe(true);
 	});
-
-	it.skipIf(postgis)(
-		'onde o raio não roda, ele responde antes de emitir o items.query, e nenhum hook roda',
-		async () => {
-			await takeCalls();
-
-			await expect(radius(as('admin'), hooked)).rejects.toMatchObject({
-				errors: [{ extensions: { code: 'GEOSPATIAL_OPERATION_UNAVAILABLE' } }],
-			});
-			expect(await takeCalls()).toEqual([]);
-		},
-	);
 });
 
-describe.runIf(postgis).each([
+describe.each([
 	['da Maria', 'maria', hasCustomPermissionRules()],
 	['do admin', 'admin', true],
 ] as const)('o raio %s com o hook items.query de outra extensão (V-144)', (_, role: Role, runs) => {
@@ -146,7 +131,7 @@ describe.runIf(postgis).each([
 	);
 });
 
-describe.runIf(postgis)('um hook no evento de outra coleção', () => {
+describe('um hook no evento de outra coleção', () => {
 	it('não muda o raio das ocorrências', async () => {
 		const expected = await expectedFor(as('admin'), 'occurrences');
 
