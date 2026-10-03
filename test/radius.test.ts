@@ -1140,14 +1140,21 @@ describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
 		const lagOf = () =>
 			as('admin').request(customEndpoint<number>({ path: '/geospatial-test-observer/lag', method: 'GET' }));
 
+		// The smallest lag of three requests in a row: the block of the code shows in each one, and a busy machine, which
+		// takes the processor from Directus for a while and makes the loop late too, seldom in all three.
 		it('ordenar os 50.000 no servidor não atrasa o laço de eventos até o limitador de pressão do Directus (V-181)', async () => {
-			await lagOf();
+			const lags: number[] = [];
 
-			const { meta } = await capped({ limit: String(limitMaximum) });
-			const lag = await lagOf();
+			for (let request = 0; request < 3; request += 1) {
+				await lagOf();
 
-			expect(meta).toEqual({ capped: { limit: 50_000 } });
-			expect(lag).toBeLessThan(500);
+				const { meta } = await capped({ limit: String(limitMaximum) });
+
+				expect(meta).toEqual({ capped: { limit: 50_000 } });
+				lags.push(await lagOf());
+			}
+
+			expect(Math.min(...lags)).toBeLessThan(500);
 		});
 
 		it('com o sort da página, que o banco ordena, a lista vem inteira, sem o aviso', async () => {

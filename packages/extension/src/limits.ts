@@ -9,4 +9,7 @@ export const limits = {
 	page: limitMaximum,
 	// The items of a circle the server measures and orders, where the database does not (D-052).
 	server: 50_000,
+	// The registered queries in memory: each one kept for 24 hours since it was last used, and the least recently used
+	// ones out first past the bytes of their questions, in JSON (D-053).
+	registry: { retention: 24 * 60 * 60 * 1000, bytes: 32 * 1024 * 1024 },
 } as const;

@@ -1,7 +1,14 @@
 import { ForbiddenError, InvalidQueryError } from '@directus/errors';
 import type { Accountability, Query, SchemaOverview } from '@directus/types';
-import { type Geo, type ItemsSearch, type Limit, openapi } from 'directus-geospatial-contract';
-import { inputsOf } from 'directus-geospatial-contract/requests';
+import {
+	type Geo,
+	type ItemsSearch,
+	type Limit,
+	openapi,
+	type QueryId,
+	type RegisteredQuery,
+} from 'directus-geospatial-contract';
+import { type Checked, inputsOf } from 'directus-geospatial-contract/requests';
 import { InvalidInputError, LimitExceededError } from '../errors.js';
 import { limits } from '../limits.js';
 
@@ -9,6 +16,8 @@ const inputs = inputsOf(openapi);
 const checkGeo = inputs.schema<Geo>('Geo');
 const checkSearch = inputs.schema<ItemsSearch>('ItemsSearch');
 const checkLimit = inputs.schema<Limit>('Limit');
+const checkRegistered = inputs.schema<RegisteredQuery>('RegisteredQuery');
+const checkQueryId = inputs.schema<QueryId>('QueryId');
 
 // The geo of a request, as JSON, the way Directus takes the filter and its SDK sends a parameter it does not know
 // (V-171), checked against the contract before anything reaches the database (D-016).
@@ -38,20 +47,39 @@ export const geoOf = (raw: unknown): Geo => {
 	return checked.value;
 };
 
-// The body of a SEARCH, which Directus has already read as JSON, up to its own limit (V-10): the size first, by the
-// Content-Length the request declares, or by the body read, when the request comes in chunks, and then the contract.
-export const searchOf = (contentLength: string | string[] | undefined, body: unknown): ItemsSearch => {
-	const size =
-		typeof contentLength === 'string' ? Number(contentLength) : Buffer.byteLength(JSON.stringify(body ?? null));
+// A body, which Directus has already read as JSON, up to its own limit (V-10): the size first, by the Content-Length the
+// request declares, or by the body read, when the request comes in chunks, and then the contract.
+const bodyOf =
+	<T>(check: (value: unknown) => Checked<T>) =>
+	(contentLength: string | string[] | undefined, body: unknown): T => {
+		const size =
+			typeof contentLength === 'string' ? Number(contentLength) : Buffer.byteLength(JSON.stringify(body ?? null));
 
-	if (size > limits.body) {
-		throw new LimitExceededError({ limit: limits.body });
-	}
+		if (size > limits.body) {
+			throw new LimitExceededError({ limit: limits.body });
+		}
 
-	const checked = checkSearch(body);
+		const checked = check(body);
+
+		if (!checked.valid) {
+			throw new InvalidInputError({ reason: `The body is off the contract: ${checked.errors.join(', ')}` });
+		}
+
+		return checked.value;
+	};
+
+// The body of a SEARCH: the geo, and the query of /items.
+export const searchOf = bodyOf(checkSearch);
+
+// The body of the registration of a query: the whole question (D-004).
+export const registeredQueryOf = bodyOf(checkRegistered);
+
+// The id of a registered query in the URL, checked against the contract before the registry is looked up.
+export const queryIdOf = (raw: string): QueryId => {
+	const checked = checkQueryId(raw);
 
 	if (!checked.valid) {
-		throw new InvalidInputError({ reason: `The body is off the contract: ${checked.errors.join(', ')}` });
+		throw new InvalidInputError({ reason: `The id is off the contract: ${checked.errors.join(', ')}` });
 	}
 
 	return checked.value;

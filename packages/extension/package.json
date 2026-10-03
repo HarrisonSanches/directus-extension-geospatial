@@ -44,6 +44,7 @@
 		"@directus/extensions-sdk": "catalog:",
 		"@directus/types": "catalog:",
 		"@types/node": "catalog:node22",
+		"date-fns": "catalog:",
 		"directus-geospatial-contract": "workspace:*",
 		"geographiclib-geodesic": "catalog:",
 		"knex": "catalog:",

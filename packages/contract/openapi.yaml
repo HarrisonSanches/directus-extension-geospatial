@@ -240,6 +240,150 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/Errors'
+  /geospatial/queries:
+    post:
+      operationId: registerQuery
+      summary: Registers a query, and returns its id
+      description: >-
+        Registers the whole question once, and returns a short id, which the parts of the result are read by. The id is
+        a keyed hash of the question in a canonical form, so the same question gets the same id, with its keys in any
+        order, and only this installation of Directus tells the id of a question. Each part applies the permissions of
+        whoever asks it, so handing the id to someone else gives them only what they can read. A $NOW in the filter is
+        resolved here, to the minute of the registration. The registration is kept for 24 hours without use, and a
+        Directus that restarts forgets it: the parts then answer with the code GEOSPATIAL_UNKNOWN_QUERY, and the client
+        registers the question again, under the same id.
+      security:
+        - bearer: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisteredQuery'
+      responses:
+        '200':
+          description: The id of the query.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                      id:
+                        $ref: '#/components/schemas/QueryId'
+        '400':
+          description: >-
+            The body is off the contract (code GEOSPATIAL_INVALID_INPUT), or its query of /items is off, as Directus
+            reads it (code INVALID_QUERY of Directus).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+        '413':
+          description: >-
+            The body is larger than the extension takes, 256 KB (code GEOSPATIAL_LIMIT_EXCEEDED), with the limit in the
+            extensions of the error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+        '503':
+          description: >-
+            The internals of the running Directus are not the ones the extension expects, so its operations are off
+            (code GEOSPATIAL_INTERNALS_UNSUPPORTED).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+  /geospatial/queries/{id}/items:
+    get:
+      operationId: queryItems
+      summary: The items of a registered query
+      description: >-
+        The items of the registered query, as /geospatial/items gives them for the same question, out of the query
+        Directus builds of what the user who asks can read. The page goes in the URL, with the limit and the sort, and
+        the rest of the query of /items is the one of the registration.
+      security:
+        - bearer: []
+        - {}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id the registration returned.
+          schema:
+            $ref: '#/components/schemas/QueryId'
+        - name: sort
+          in: query
+          description: >-
+            The sort of /items, by fields separated by commas, with a minus for descending, as in /geospatial/items.
+            Without it, the items come in the natural order of the operation.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: How many items, as in /items. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT.
+          schema:
+            $ref: '#/components/schemas/Limit'
+      responses:
+        '200':
+          description: >-
+            The items, in the natural order of the operation, the distance for the radius, or in the sort of the request,
+            and then by the primary key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items'
+        '400':
+          description: >-
+            The id is off the contract, or the field the registered geo names is not a geometry (code
+            GEOSPATIAL_INVALID_INPUT). The limit or the sort is off, the URL brings another parameter of /items, which
+            goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of
+            Directus).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+        '403':
+          description: >-
+            The user who asks cannot read the collection, a field the query asks for or the geometry, or the collection
+            is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who
+            can read it (code COLLECTION_INACTIVE).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+        '404':
+          description: >-
+            This Directus does not know the id, because the registration expired or Directus restarted since (code
+            GEOSPATIAL_UNKNOWN_QUERY). The client registers the question again, under the same id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+        '501':
+          description: >-
+            The operation does not run on the database in use, or does not measure the type of the geometry field
+            there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the
+            error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+        '503':
+          description: >-
+            The internals of the running Directus are not the ones the extension expects (code
+            GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
   /geospatial/openapi.json:
     get:
       operationId: openapi
@@ -475,6 +619,42 @@ components:
             The query of /items, with the fields, the filter, the search, the sort, the limit, the offset and the page,
             as Directus reads them in a body, with the fields as a list.
           type: object
+    RegisteredQuery:
+      description: >-
+        The whole question of a registered query: the collection, the spatial operation, and the filter, the search and
+        the fields of /items. The page of each part, its limit and its sort, goes in the request of the part, so the
+        map, the list and the summary share one id.
+      type: object
+      required: [collection, geo]
+      additionalProperties: false
+      properties:
+        collection:
+          description: The collection, by its name in Directus.
+          type: string
+          minLength: 1
+        geo:
+          $ref: '#/components/schemas/Geo'
+        query:
+          description: >-
+            The filter, the search and the fields of /items, as Directus reads them in a body. A $NOW of the filter
+            becomes the minute of the registration, and the other variables, such as $CURRENT_USER, stand for whoever
+            asks each part.
+          type: object
+          additionalProperties: false
+          properties:
+            filter:
+              type: object
+            search:
+              type: string
+            fields:
+              type: array
+              items:
+                type: string
+                minLength: 1
+    QueryId:
+      description: The id of a registered query, a keyed hash of its question, in base64url.
+      type: string
+      pattern: '^[A-Za-z0-9_-]{22}$'
     ItemsMeta:
       description: >-
         What the response tells about the list, the way /items of Directus does in its meta. It only carries what
@@ -514,6 +694,7 @@ components:
         - GEOSPATIAL_OPERATION_UNAVAILABLE
         - GEOSPATIAL_INVALID_INPUT
         - GEOSPATIAL_LIMIT_EXCEEDED
+        - GEOSPATIAL_UNKNOWN_QUERY
     Errors:
       description: The error format of Directus.
       type: object

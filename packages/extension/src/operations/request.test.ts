@@ -6,6 +6,8 @@ import {
 	geometryFieldOf,
 	geoOf,
 	limitOf,
+	queryIdOf,
+	registeredQueryOf,
 	searchOf,
 	searchPageOf,
 	sortOf,
@@ -113,6 +115,70 @@ describe('o corpo do SEARCH', () => {
 
 		expect(await searchPageOf({ geo, query: { fields: 'region' } }, urlPage, read)).toEqual({ fields: ['region'] });
 		expect(await searchPageOf({ geo }, urlPage, read)).toBe(urlPage);
+	});
+});
+
+describe('o corpo do registro da consulta', () => {
+	const question = { collection: 'occurrences', geo: radius, query: { filter: { status: { _eq: 'open' } } } };
+	const sizeOf = (body: unknown) => String(Buffer.byteLength(JSON.stringify(body)));
+
+	it('traz a coleção, o geo e o filtro, a busca e os campos do /items', () => {
+		const body = { ...question, query: { ...question.query, search: 'car', fields: ['id', 'region'] } };
+
+		expect(registeredQueryOf(sizeOf(body), body)).toEqual(body);
+		expect(registeredQueryOf(undefined, { collection: 'occurrences', geo: radius })).toEqual({
+			collection: 'occurrences',
+			geo: radius,
+		});
+	});
+
+	it.each([
+		['sem a coleção', { geo: radius }, "must have required property 'collection'"],
+		['com a coleção vazia', { collection: '', geo: radius }, '/collection must NOT have fewer than 1 characters'],
+		[
+			'com o limit, que vai na URL de cada parte',
+			{ ...question, query: { limit: 10 } },
+			'/query must NOT have additional',
+		],
+		[
+			'com o sort, que vai na URL de cada parte',
+			{ ...question, query: { sort: ['id'] } },
+			'/query must NOT have additional',
+		],
+		['com os campos num texto', { ...question, query: { fields: 'id,region' } }, '/query/fields must be array'],
+	])('%s, o pedido volta com o erro de entrada da extensão', (_, body, reason) => {
+		expect(() => registeredQueryOf(sizeOf(body), body)).toThrow(
+			expect.objectContaining({
+				code: 'GEOSPATIAL_INVALID_INPUT',
+				extensions: { reason: expect.stringContaining(reason) as string },
+			}),
+		);
+	});
+
+	it('acima de 256 KB, volta com o limite, como o SEARCH', () => {
+		const body = { ...question, query: { search: 'x'.repeat(256 * 1024) } };
+
+		expect(() => registeredQueryOf(undefined, body)).toThrow(
+			expect.objectContaining({ code: 'GEOSPATIAL_LIMIT_EXCEEDED', extensions: { limit: 256 * 1024 } }),
+		);
+	});
+});
+
+describe('o id da consulta na URL', () => {
+	it('passa quando tem a forma do contrato', () => {
+		expect(queryIdOf('AbCdEfGhIjKlMnOpQr_-09')).toBe('AbCdEfGhIjKlMnOpQr_-09');
+	});
+
+	it.each([
+		['curto demais', 'AbCdEf'],
+		['com um caractere fora do base64url', 'AbCdEfGhIjKlMnOpQr+/09'],
+	])('%s, volta com o erro de entrada, sem procurar no registro', (_, id) => {
+		expect(() => queryIdOf(id)).toThrow(
+			expect.objectContaining({
+				code: 'GEOSPATIAL_INVALID_INPUT',
+				extensions: { reason: expect.stringContaining('The id is off the contract: must match pattern') as string },
+			}),
+		);
 	});
 });
 
