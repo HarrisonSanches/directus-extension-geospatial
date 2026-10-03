@@ -138,6 +138,23 @@ export type GeoValues = {
 };
 
 /**
+ * What the response tells about the list, the way /items of Directus does in its meta. It only carries what applies to the response.
+ */
+export type ItemsMeta = {
+	capped?: Capped;
+};
+
+/**
+ * The list is partial. Where the database in use does not measure the distance, the server of the extension measures it and orders the list by it, over at most limit items of the circle, read in the order of the primary key, and the circle held more. The items past them are missing from the list. A smaller circle, a filter, or a sort of the request, which the database orders, brings the whole list.
+ */
+export type Capped = {
+	/**
+	 * The most items the server of the extension orders.
+	 */
+	limit: number;
+};
+
+/**
  * How many items a page brings, up to the maximum of the contract.
  */
 export type Limit = number;
@@ -251,7 +268,7 @@ export type ItemsErrors = {
 	 */
 	403: Errors;
 	/**
-	 * The operation does not run on the database in use (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
+	 * The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
 	 */
 	501: Errors;
 	/**
@@ -268,6 +285,7 @@ export type ItemsResponses = {
 	 */
 	200: {
 		data: Array<Item>;
+		meta?: ItemsMeta;
 	};
 };
 

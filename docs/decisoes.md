@@ -841,3 +841,29 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - O `-1` cortado no máximo, como faz o `QUERY_LIMIT_MAX` do Directus: quem pede todos recebe 1.000 e acha que veio tudo.
   - A ordem pela coluna crua, como no `/items`: a posição do item na lista revela o valor que a política esconde, e as colunas cruas teriam de entrar no `select` da query permitida.
 - **Consequências:** o raio difere do `/items` em dois pontos, os dois a favor de quem usa e do banco: o `-1` e o `limit` acima de 1.000 voltam com erro, e o item com o campo de ordem escondido não revela o valor pela posição. A configuração dos limites pelo admin fica para a F02-12.
+
+## D-052 — O raio no SQLite: o círculo no banco, a distância e a ordem no servidor, com limite, e só pontos
+
+- **Estado:** aceita em 03/10/2026. Detalha a D-002 e a D-049.
+- **Onde:** §7.4 · §7.8 · `docs/padroes/api-e-contrato.md` · V-147 · V-180 · A-026.
+- **Contexto:** o Directus não cria os metadados espaciais no SQLite, e sem eles nenhuma função da SpatiaLite mede em metros. O `PtDistWithin`, que dispensa os metadados, diz no elipsoide se dois pontos estão a uma distância, ao milímetro. Mas, entre um ponto e uma linha ou um polígono, ele mede em graus, e todo raio em metros os pega (V-180).
+- **Decisão:**
+  - O raio no SQLite fica "com limite" (`capped`) na matriz. O `PtDistWithin` na coluna, dentro da query permitida, decide quem está no círculo, com a guarda do nulo em volta, como no PostGIS (D-049).
+  - Com o `sort` da página, o banco ordena e pagina, e o servidor só mede os itens da página.
+  - Na ordem natural, a distância:
+    - o banco entrega os itens do círculo pela chave primária, até 50.001;
+    - o servidor mede cada um com a GeographicLib (D-012), ordena pela distância e pela chave e corta a página;
+    - acima de 50.000, o volume de exemplo do §7.4, a resposta leva no `meta` o `capped: { limit: 50000 }`, e a lista vale só para os 50.000 primeiros pela chave. O contrato descreve o aviso.
+  - Os 50.000 ficam fixos até a F02-12 tornar os limites configuráveis.
+  - Só pontos. O campo cuja coluna não é declarada `Point` recebe o `GEOSPATIAL_OPERATION_UNAVAILABLE`, com o motivo, depois da cadeia, que recusa antes quem não lê. O tipo vem da coluna, porque o esquema que o Directus entrega à extensão diz só `geometry` no SQLite.
+  - A distância do `$geo` sai do texto que a query permitida expõe (D-051), com 6 casas no SQLite. Um item a menos de uns 7,5 cm da borda pode mostrar uma distância um pouco acima do raio.
+- **Alternativas descartadas:**
+  - **"No banco sem índice":** esconderia que a ordem natural sai do servidor, com limite, e a página 1 prometeria os mais próximos sem ter medido todos.
+  - **O servidor medir linhas e polígonos:** a distância geodésica até um trecho e o ponto dentro do polígono no elipsoide pedem um algoritmo próprio, só para um banco de desenvolvimento e de testes (§7.4).
+  - **A extensão inicializar os metadados espaciais:** mudaria o banco do Directus sem o admin pedir. A oferta ao admin, pelo painel de saúde, fica anotada no plano.
+  - **Recusar a ordem natural acima do limite, com um erro:** o resultado honesto avisa que é parcial e entrega o que mediu (§2).
+- **Consequências:**
+  - O SQLite passa a ter o raio, com a paridade inteira com o `/items`.
+  - A resposta da lista de itens ganha o `meta`, que o SDK do Directus deixa de fora e o SDK da extensão vai expor (F02-18).
+  - A ordem natural de um círculo grande lê até 50.001 linhas por pedido no servidor.
+  - Numa linha, num polígono ou num `geometry` genérico, o raio no SQLite fica indisponível, com o motivo.

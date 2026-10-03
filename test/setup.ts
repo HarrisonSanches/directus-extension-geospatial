@@ -77,7 +77,8 @@ const start = async (
 			tokens: { admin: credentials.token, ...tokens },
 			versions: { directus: images.directus.version, ...(await backend.versions(container)) },
 			customPermissionRules,
-			...(backend.database && { databaseContainer: backend.database.getId() }),
+			// SQLite keeps its database in a file of the container of Directus.
+			databaseContainer: (backend.database ?? container).getId(),
 		},
 		stop,
 	};

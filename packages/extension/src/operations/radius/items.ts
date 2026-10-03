@@ -1,13 +1,16 @@
 import { InvalidQueryError } from '@directus/errors';
 import type { Accountability, ApiExtensionContext, Query, SchemaOverview } from '@directus/types';
-import type { Database, Internals, Item, Radius } from 'directus-geospatial-contract';
+import type { Database, Internals, Item, ItemsResponse, Radius } from 'directus-geospatial-contract';
+import type { Knex } from 'knex';
 import type { Logger } from 'pino';
+import type { MeasuringAdapter, RadiusEnvelope, SelectingAdapter } from '../../db/adapter.js';
 import { failClosed } from '../../db/fail-closed.js';
 import { InternalsUnsupportedError, OperationUnavailableError } from '../../errors.js';
 import type { PermittedQuery } from '../../internals/permitted.js';
 import { collectionOf } from '../collection.js';
 import { geometryFieldOf, limitOf, sortOf, unsupportedIn } from '../request.js';
-import { radiusLevels } from './levels.js';
+import type { RadiusLevel } from './levels.js';
+import { distanceFrom, naturalOrderOf, pointOf, serverLimit } from './server.js';
 
 export interface RadiusRequest {
 	collection: string;
@@ -29,6 +32,8 @@ export interface Engine {
 	valuesOf: (collection: string, rows: Record<string, unknown>[]) => Promise<Record<string, unknown>[]>;
 	// The page of /items without a limit, the QUERY_LIMIT_DEFAULT of the running Directus (V-176).
 	defaultLimit: number;
+	// The level of the radius in each database, with its adapter (levels.ts).
+	levels: Record<Database['client'], RadiusLevel>;
 }
 
 const isRow = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -94,13 +99,64 @@ const windowOf = (query: Query, defaultLimit: number) => {
 	return { limit, offset: query.offset ?? skipped };
 };
 
+// The envelope of the radius, before the window of the page, which differs by who orders the list.
+type Envelope = Omit<RadiusEnvelope, 'limit' | 'offset'>;
+
+type Window = ReturnType<typeof windowOf>;
+
+// The rows of the circle, without the values the operation calculates, the distance of each one, and whether the list
+// is partial.
+interface Read {
+	rows: Record<string, unknown>[];
+	distances: unknown[];
+	capped: boolean;
+}
+
+const rowsIn = (result: unknown) => (Array.isArray(result) ? result.filter(isRow) : []);
+
+// Where the database measures the distance: it orders and pages the list, in one statement.
+const measuredByDatabase = async (knex: Knex, adapter: MeasuringAdapter, envelope: Envelope, page: Window) => {
+	const { builder, distance, converted } = adapter.radius(knex, { ...envelope, ...page });
+	const read = rowsIn(await builder);
+	const rows = converted === undefined ? read : read.map((row) => in4326(row, envelope.geometry, converted));
+
+	return {
+		rows: rows.map((row) => without(row, [distance])),
+		distances: rows.map((row) => row[distance]),
+		capped: false,
+	};
+};
+
+// Where the database only tells which items are inside the circle, the server measures them, from the point the
+// permitted query exposes (D-051). With an order of the page, the database orders and pages the list, and the server
+// measures the page. In the natural order, the database hands the rows by the primary key, one past the limit of the
+// server, which measures and orders them (D-002, D-052).
+const measuredByServer = async (
+	knex: Knex,
+	adapter: SelectingAdapter,
+	envelope: Envelope,
+	page: Window,
+): Promise<Read> => {
+	const { geometry, key, center, order } = envelope;
+
+	if (order.length > 0) {
+		const rows = rowsIn(await adapter.radius(knex, { ...envelope, ...page }).builder);
+
+		return { rows, distances: rows.map((row) => distanceFrom(center, pointOf(row[geometry]))), capped: false };
+	}
+
+	const rows = rowsIn(await adapter.radius(knex, { ...envelope, limit: serverLimit + 1, offset: 0 }).builder);
+
+	return naturalOrderOf(rows, { geometry, key, center, ...page, cap: serverLimit });
+};
+
 // The items of a collection within a distance of a point, out of the permitted query of whoever asks, in one SQL
 // (D-001, §6, op. 1). Each check that needs no database comes first, and the database the operation does not run on
 // answers so before the permitted query is built.
 export const radiusItems = async (
 	{ collection, geo, page, accountability }: RadiusRequest,
-	{ knex, schema, client, internals, permittedQuery, logger, valuesOf, defaultLimit }: Engine,
-): Promise<Item[]> => {
+	{ knex, schema, client, internals, permittedQuery, logger, valuesOf, defaultLimit, levels }: Engine,
+): Promise<ItemsResponse> => {
 	takenBy(page, defaultLimit);
 
 	const checked = await internals();
@@ -109,7 +165,7 @@ export const radiusItems = async (
 		throw new InternalsUnsupportedError();
 	}
 
-	const declared = radiusLevels[client];
+	const declared = levels[client];
 
 	if (declared.level === 'unavailable') {
 		throw new OperationUnavailableError({ operation: 'radius', reason: declared.reason });
@@ -136,12 +192,20 @@ export const radiusItems = async (
 		chainQueryOf(takenBy(hooked, defaultLimit), [found.field]),
 	);
 
-	const { adapter } = declared;
-
 	// The SRID comes from the column, never from the request, and the boxes go in it (D-007).
-	const { rows, distance } = await failClosed(async () => {
+	const { rows, distances, capped } = await failClosed(async (): Promise<Read> => {
+		// A geometry the database in use does not measure, past the chain, which refuses first whoever cannot read the
+		// collection or the field (D-052).
+		if (declared.level === 'capped' && !(await declared.adapter.measures(knex, collection, found.field))) {
+			throw new OperationUnavailableError({
+				operation: 'radius',
+				reason: 'It only measures points on the database in use.',
+			});
+		}
+
+		const { adapter } = declared;
 		const column = await adapter.columnOf(knex, collection, found.field);
-		const envelope = adapter.radius(knex, {
+		const envelope: Envelope = {
 			permitted,
 			collection,
 			geometry: found.field,
@@ -151,21 +215,16 @@ export const radiusItems = async (
 			center: geo.center,
 			distance: geo.distance,
 			order: sortOf(query),
-			...windowOf(query, defaultLimit),
-		});
-		const result: unknown = await envelope.builder;
-		const read = Array.isArray(result) ? result.filter(isRow) : [];
-		const { converted } = envelope;
-
-		return {
-			rows: converted === undefined ? read : read.map((row) => in4326(row, found.field, converted)),
-			distance: envelope.distance,
 		};
+		const page = windowOf(query, defaultLimit);
+
+		return declared.level === 'capped'
+			? measuredByServer(knex, declared.adapter, envelope, page)
+			: measuredByDatabase(knex, declared.adapter, envelope, page);
 	}, logger);
 
-	const distances = rows.map((row) => row[distance]);
-	const plain = rows.map((row) => without(row, [distance]));
-	const values = await valuesOf(collection, plain);
+	const values = await valuesOf(collection, rows);
+	const data = itemsOf(values, distances, unaskedOf(query, found.field));
 
-	return itemsOf(values, distances, unaskedOf(query, found.field));
+	return capped ? { data, meta: { capped: { limit: serverLimit } } } : { data };
 };

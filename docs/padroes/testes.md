@@ -52,7 +52,10 @@ da extensão, então o código dela fica de fora, e só uma rodada com pacotes a
 carrega também o observador de `test/measure/observer/`, para o teste do índice ler o SQL do raio.
 
 **Os dados de teste entram pela API do Directus,** com o `@directus/sdk`: o esquema, os papéis, as políticas e os
-itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. Os papéis de sempre, em
+itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. O volume que a API não grava a tempo entra por
+SQL, na coluna que o Directus criou: no Postgres, pelo `queryOn` de `test/postgres.ts`; no SQLite, pelo `runOnSqlite`
+de `test/sqlite.ts`, dentro do container do Directus, em lotes curtos, porque o Directus espera só 1 s por uma trava do
+arquivo, que as outras suítes da combinação usam ao mesmo tempo (V-180). Os papéis de sempre, em
 `test/seed.ts`:
 
 - **Maria, Operador Zona Sul:** só `regiao = sul`;

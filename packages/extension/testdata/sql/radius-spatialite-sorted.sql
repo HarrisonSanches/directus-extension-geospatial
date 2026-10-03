@@ -1,0 +1,2 @@
+select `p`.* from (select (CASE WHEN (`occurrences`.`region` = ?) THEN `occurrences`.`id` END) AS `id`, (CASE WHEN (`occurrences`.`region` = ?) THEN st_astext(`occurrences`.`geometry`) END) AS `geometry` from `occurrences` where `occurrences`.`region` = ? and PtDistWithin(`occurrences`.`geometry`, MakePoint(?, ?, 4326), ?, 1)) as `p` where `p`.`geometry` is not null order by `p`.`region` desc, `p`.`id` asc limit ? offset ?
+-- bindings: ["south","south","south",-46.7,-23.65,10000,100,200]

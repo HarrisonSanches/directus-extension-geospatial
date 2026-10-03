@@ -45,6 +45,7 @@
 		"@directus/types": "catalog:",
 		"@types/node": "catalog:node22",
 		"directus-geospatial-contract": "workspace:*",
+		"geographiclib-geodesic": "catalog:",
 		"knex": "catalog:",
 		"pino": "catalog:"
 	}

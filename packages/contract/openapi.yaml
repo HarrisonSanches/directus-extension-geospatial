@@ -139,6 +139,8 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Item'
+                  meta:
+                    $ref: '#/components/schemas/ItemsMeta'
         '400':
           description: >-
             The geo or the limit is off the contract, or the request carries a parameter the operation does not take yet
@@ -158,8 +160,9 @@ paths:
                 $ref: '#/components/schemas/Errors'
         '501':
           description: >-
-            The operation does not run on the database in use (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the
-            operation and the reason in the extensions of the error.
+            The operation does not run on the database in use, or does not measure the type of the geometry field
+            there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the
+            error.
           content:
             application/json:
               schema:
@@ -382,6 +385,29 @@ components:
             and zero when the item covers the center.
           type: number
           minimum: 0
+    ItemsMeta:
+      description: >-
+        What the response tells about the list, the way /items of Directus does in its meta. It only carries what
+        applies to the response.
+      type: object
+      additionalProperties: false
+      properties:
+        capped:
+          $ref: '#/components/schemas/Capped'
+    Capped:
+      description: >-
+        The list is partial. Where the database in use does not measure the distance, the server of the extension
+        measures it and orders the list by it, over at most limit items of the circle, read in the order of the primary
+        key, and the circle held more. The items past them are missing from the list. A smaller circle, a filter, or a
+        sort of the request, which the database orders, brings the whole list.
+      type: object
+      required: [limit]
+      additionalProperties: false
+      properties:
+        limit:
+          description: The most items the server of the extension orders.
+          type: integer
+          minimum: 1
     Limit:
       description: How many items a page brings, up to the maximum of the contract.
       type: integer

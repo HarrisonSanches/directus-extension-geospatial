@@ -113,7 +113,10 @@
 								"schema": {
 									"type": "object",
 									"required": ["data"],
-									"properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } } }
+									"properties": {
+										"data": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } },
+										"meta": { "$ref": "#/components/schemas/ItemsMeta" }
+									}
 								}
 							}
 						}
@@ -127,7 +130,7 @@
 						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
 					},
 					"501": {
-						"description": "The operation does not run on the database in use (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.",
+						"description": "The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.",
 						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
 					},
 					"503": {
@@ -317,6 +320,25 @@
 						"description": "The distance from the center of the radius to the item, in meters over the ellipsoid: to its nearest part, and zero when the item covers the center.",
 						"type": "number",
 						"minimum": 0
+					}
+				}
+			},
+			"ItemsMeta": {
+				"description": "What the response tells about the list, the way /items of Directus does in its meta. It only carries what applies to the response.",
+				"type": "object",
+				"additionalProperties": false,
+				"properties": { "capped": { "$ref": "#/components/schemas/Capped" } }
+			},
+			"Capped": {
+				"description": "The list is partial. Where the database in use does not measure the distance, the server of the extension measures it and orders the list by it, over at most limit items of the circle, read in the order of the primary key, and the circle held more. The items past them are missing from the list. A smaller circle, a filter, or a sort of the request, which the database orders, brings the whole list.",
+				"type": "object",
+				"required": ["limit"],
+				"additionalProperties": false,
+				"properties": {
+					"limit": {
+						"description": "The most items the server of the extension orders.",
+						"type": "integer",
+						"minimum": 1
 					}
 				}
 			},

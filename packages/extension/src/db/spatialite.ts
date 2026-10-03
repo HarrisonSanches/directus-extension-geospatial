@@ -1,0 +1,58 @@
+import type { SelectingAdapter } from './adapter.js';
+
+const isRow = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+// Whether the column, from its row of pragma_table_info, holds points: Directus declares it with the subtype of the
+// field, and a geometry of any type as geometry (V-180).
+export const holdsPoints = (result: unknown): boolean => {
+	const [row] = Array.isArray(result) ? result.filter(isRow) : [];
+
+	return typeof row?.type === 'string' && row.type.toLowerCase() === 'point';
+};
+
+// The adapter of SQLite with SpatiaLite, which Directus never loads by itself (V-121), and whose spatial metadata it
+// never creates (V-147). Without them, no function of SpatiaLite measures in meters, and the PtDistWithin, which
+// needs none, tells over the ellipsoid whether two points are within a distance, to the millimeter. Between a point
+// and a line or a polygon, it measures in degrees, so it only measures points (V-180).
+export const spatialite: SelectingAdapter = {
+	// Directus writes every geometry in 4326 (V-25), and the database keeps no metadata that could say otherwise.
+	columnOf: () => Promise.resolve({ type: 'geometry', srid: 4326 }),
+
+	// Without the metadata, there is no spatial index for a box to reach.
+	boxesIn: () => Promise.resolve(null),
+
+	measures: async (knex, collection, field) =>
+		holdsPoints(await knex.raw('select type from pragma_table_info(?) where name = ?', [collection, field])),
+
+	// The distance over the ellipsoid, on the column, as one more condition of the permitted query, as in PostGIS (D-049),
+	// so the edge keeps the precision of SpatiaLite, and not the 6 decimals of the text the permitted query exposes
+	// (A-026). What goes out is still decided by that value: the case when of a policy leaves it null where the item goes
+	// through without the field, and those items stay out (V-143). Without an order of the page, the rows come by the
+	// primary key, for the server to measure and order them.
+	radius: (
+		knex,
+		{ permitted, collection, geometry, key, center: [longitude, latitude], distance, order, limit, offset },
+	) => {
+		const near = permitted
+			.clone()
+			.andWhereRaw('PtDistWithin(??, MakePoint(?, ?, 4326), ?, 1)', [
+				`${collection}.${geometry}`,
+				longitude,
+				latitude,
+				distance,
+			]);
+		const builder = knex.select('p.*').from(near.as('p')).whereNotNull(`p.${geometry}`);
+
+		for (const { field, direction } of order) {
+			builder.orderBy(`p.${field}`, direction);
+		}
+
+		builder.orderBy(`p.${key}`).limit(limit);
+
+		if (offset > 0) {
+			builder.offset(offset);
+		}
+
+		return { builder };
+	},
+};

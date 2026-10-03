@@ -1,5 +1,5 @@
 import type { Position } from 'directus-geospatial-contract';
-import type { SpatialAdapter, SpatialColumn } from './adapter.js';
+import type { MeasuringAdapter, SpatialColumn } from './adapter.js';
 import { type Box, boxesOf, ringOf } from './box.js';
 
 // The SRID of what comes in, the center of a request, and of what goes out, the geometry of the items (D-007).
@@ -67,7 +67,7 @@ export const unlessProjFails = async <T>(read: () => Promise<T>): Promise<T | nu
 const wktOf = (ring: Position[]) => `LINESTRING(${ring.map(([x, y]) => `${String(x)} ${String(y)}`).join(', ')})`;
 
 // The adapter of PostGIS, the reference of the catalog (D-002).
-export const postgis: SpatialAdapter = {
+export const postgis: MeasuringAdapter = {
 	// From the catalog, by the table the permitted query reads, resolved by the same search path.
 	columnOf: async (knex, collection, field) => {
 		const [row] = rowsIn(

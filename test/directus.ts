@@ -31,9 +31,9 @@ export interface Directus {
 	// Whether Directus accepts permissions with rules of their own, such as the row filter of Maria. Directus 12 only
 	// does with a license key, and runs on the Core tier without one (V-114, D-043).
 	customPermissionRules: boolean;
-	// The id of the container of the database, when it runs apart from Directus, for the tests that read what reached it
-	// (test/postgres.ts).
-	databaseContainer?: string;
+	// The id of the container that holds the database, for the tests that read or write it directly: the one of the
+	// database, or the one of Directus, whose file SQLite keeps (test/postgres.ts, test/sqlite.ts).
+	databaseContainer: string;
 }
 
 declare module 'vitest' {
@@ -96,8 +96,16 @@ export const as = (role: Role): Client => {
 	return connect(url, role === 'public' ? null : tokens[role]);
 };
 
+// A request as one of the users of the suite, with the whole body of the response: the client of the SDK hands over only
+// its data, and leaves the meta out. The response goes through the contract too.
+export const fetchAs = (role: Exclude<Role, 'public'>, path: string): Promise<Response> => {
+	const { url, tokens } = current();
+
+	return checkedFetch(`${url}${path}`, { headers: { Authorization: `Bearer ${tokens[role]}` } });
+};
+
 export const versions = (): Directus['versions'] => current().versions;
 
 export const hasCustomPermissionRules = (): boolean => current().customPermissionRules;
 
-export const databaseContainer = (): string | undefined => current().databaseContainer;
+export const databaseContainer = (): string => current().databaseContainer;
