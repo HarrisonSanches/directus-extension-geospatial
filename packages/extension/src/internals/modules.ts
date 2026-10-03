@@ -9,6 +9,8 @@ interface Modules {
 	'database/run-ast/lib/get-db-query': typeof import('@directus/api/database/run-ast/lib/get-db-query');
 	'permissions/modules/assert-collection-active/assert-collection-active': typeof import('@directus/api/permissions/modules/assert-collection-active/assert-collection-active');
 	emitter: typeof import('@directus/api/emitter');
+	'utils/sanitize-query': typeof import('@directus/api/utils/sanitize-query');
+	'utils/validate-query': typeof import('@directus/api/utils/validate-query');
 }
 
 export type ModulePath = keyof Modules;
@@ -29,6 +31,8 @@ export const functions = {
 		arity: 2,
 	},
 	emitFilter: { module: 'emitter', arity: 3, owner: 'default' },
+	sanitizeQuery: { module: 'utils/sanitize-query', arity: 3 },
+	validateQuery: { module: 'utils/validate-query', arity: 1 },
 } as const satisfies Record<string, { module: ModulePath; arity: number; owner?: 'default' }>;
 
 export type FunctionName = keyof typeof functions;
@@ -100,6 +104,8 @@ const imports: Record<ModulePath, () => Promise<unknown>> = {
 	'permissions/modules/assert-collection-active/assert-collection-active': () =>
 		import('@directus/api/permissions/modules/assert-collection-active/assert-collection-active'),
 	emitter: () => import('@directus/api/emitter'),
+	'utils/sanitize-query': () => import('@directus/api/utils/sanitize-query'),
+	'utils/validate-query': () => import('@directus/api/utils/validate-query'),
 };
 
 export const load: Load = (path) => imports[path]();

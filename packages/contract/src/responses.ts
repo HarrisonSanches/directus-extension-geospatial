@@ -23,6 +23,20 @@ const templateOf = (paths: string[], path: string) =>
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
+// Where the operation of a method sits in a path item: in the field of the method, such as get, or, for a method
+// OpenAPI does not name, such as SEARCH, in the additionalOperations of OpenAPI 3.2, by the method as it is written.
+const operationOf = (item: unknown, method: string): { operation: unknown; at: string[] } => {
+	const fixed = method.toLowerCase();
+
+	if (!isRecord(item) || fixed in item) {
+		return { operation: isRecord(item) ? item[fixed] : undefined, at: [fixed] };
+	}
+
+	const additional = isRecord(item.additionalOperations) ? item.additionalOperations : {};
+
+	return { operation: additional[method.toUpperCase()], at: ['additionalOperations', method.toUpperCase()] };
+};
+
 // The responses a test receives from the extension, checked against the document of the contract (D-016): the route,
 // the method and the status must be in it, and the body must match the JSON Schema it declares for them.
 export const contractOf = (document: OpenApiDocument) => {
@@ -38,10 +52,9 @@ export const contractOf = (document: OpenApiDocument) => {
 				return [`The contract has no route for ${route}.`];
 			}
 
-			const operation = document.paths[template];
-			const responses = isRecord(operation) ? operation[method.toLowerCase()] : undefined;
+			const { operation, at } = operationOf(document.paths[template], method);
 			const response =
-				isRecord(responses) && isRecord(responses.responses) ? responses.responses[String(status)] : undefined;
+				isRecord(operation) && isRecord(operation.responses) ? operation.responses[String(status)] : undefined;
 			const answer = `The response ${String(status)} of ${route}`;
 
 			if (!isRecord(response)) {
@@ -64,7 +77,7 @@ export const contractOf = (document: OpenApiDocument) => {
 				return [];
 			}
 
-			const pointer = [template, method.toLowerCase(), 'responses', String(status), 'content', media, 'schema'];
+			const pointer = [template, ...at, 'responses', String(status), 'content', media, 'schema'];
 			const key = pointer.join(' ');
 			const validate = compiled.get(key) ?? ajv.compile({ $ref: `${id}#/paths/${pointer.map(tokenOf).join('/')}` });
 

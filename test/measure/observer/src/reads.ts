@@ -1,4 +1,4 @@
-import { performance } from 'node:perf_hooks';
+import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
 import type { Knex } from 'knex';
 
 // The collection the measurements read, whose reads the observer hands over when a request names no other.
@@ -64,4 +64,19 @@ export const takeLast = (collection: string): { build: number; database: number;
 	const { sentAt, answeredAt, ...statement } = read.statement;
 
 	return { build: sentAt - read.hookedAt, database: answeredAt - sentAt, statement };
+};
+
+// How late the event loop of Directus ran, sampled every 10 ms, which its pressure limiter reads to answer 503 past
+// 500 ms (V-181).
+const lag = monitorEventLoopDelay({ resolution: 10 });
+
+lag.enable();
+
+// The longest the event loop ran late since the last read, in milliseconds, forgotten once handed over.
+export const takeLag = (): number => {
+	const longest = lag.max / 1e6;
+
+	lag.reset();
+
+	return longest;
 };

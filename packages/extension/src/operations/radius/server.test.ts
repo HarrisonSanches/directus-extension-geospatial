@@ -41,9 +41,9 @@ describe('a ordem natural no servidor', () => {
 	const rowsOf = (meters: number[]) => meters.map((distance, index) => ({ id: index + 1, geometry: at(distance) }));
 	const window = { geometry: 'geometry', key: 'id', center, cap: 5 };
 
-	it('vem pela distância, e depois pela chave, com a janela da página', () => {
+	it('vem pela distância, e depois pela chave, com a janela da página', async () => {
 		const rows = rowsOf([300, 100, 200, 100, 50]);
-		const { rows: page, distances, capped } = naturalOrderOf(rows, { ...window, limit: 3, offset: 1 });
+		const { rows: page, distances, capped } = await naturalOrderOf(rows, { ...window, limit: 3, offset: 1 });
 
 		expect(page.map(({ id }) => id)).toEqual([2, 4, 3]);
 		expect(distances[0]).toBeCloseTo(100, 6);
@@ -52,10 +52,10 @@ describe('a ordem natural no servidor', () => {
 		expect(capped).toBe(false);
 	});
 
-	it('a chave de texto desempata como o banco a ordena', () => {
+	it('a chave de texto desempata como o banco a ordena', async () => {
 		const rows = ['b', 'c', 'a', 'b'].map((id) => ({ id, geometry: at(100) }));
 
-		expect(naturalOrderOf(rows, { ...window, limit: 4, offset: 0 }).rows.map(({ id }) => id)).toEqual([
+		expect((await naturalOrderOf(rows, { ...window, limit: 4, offset: 0 })).rows.map(({ id }) => id)).toEqual([
 			'a',
 			'b',
 			'b',
@@ -63,16 +63,36 @@ describe('a ordem natural no servidor', () => {
 		]);
 	});
 
-	it('acima do limite, ordena só os primeiros pela chave, e avisa', () => {
+	it('acima do limite, ordena só os primeiros pela chave, e avisa', async () => {
 		// Six rows, in the order of the key, as the database reads them: the sixth, the nearest, is past the limit.
 		const rows = rowsOf([600, 500, 400, 300, 200, 1]);
-		const { rows: page, capped } = naturalOrderOf(rows, { ...window, limit: 10, offset: 0 });
+		const { rows: page, capped } = await naturalOrderOf(rows, { ...window, limit: 10, offset: 0 });
 
 		expect(page.map(({ id }) => id)).toEqual([5, 4, 3, 2, 1]);
 		expect(capped).toBe(true);
 	});
 
-	it('no limite exato, a lista está inteira', () => {
-		expect(naturalOrderOf(rowsOf([5, 4, 3, 2, 1]), { ...window, limit: 10, offset: 0 }).capped).toBe(false);
+	it('no limite exato, a lista está inteira', async () => {
+		expect((await naturalOrderOf(rowsOf([5, 4, 3, 2, 1]), { ...window, limit: 10, offset: 0 })).capped).toBe(false);
+	});
+
+	it('mede em fatias e cede a vez ao laço de eventos entre elas, para não segurar os outros pedidos', async () => {
+		const rows = Array.from({ length: 3_500 }, (_, index) => ({ id: index + 1, geometry: at(index) }));
+		let turns = 0;
+		let measuring = true;
+		const turn = () => {
+			turns += 1;
+
+			if (measuring) {
+				setImmediate(turn);
+			}
+		};
+
+		setImmediate(turn);
+		await naturalOrderOf(rows, { ...window, cap: 5_000, limit: 1, offset: 0 });
+		measuring = false;
+
+		// Four slices of 1,000 rows, and a turn of the event loop between each two, where the other requests go on.
+		expect(turns).toBeGreaterThanOrEqual(3);
 	});
 });

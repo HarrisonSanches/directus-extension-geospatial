@@ -82,6 +82,10 @@ permitida e a parte espacial num SQL só conta, pelo `callsOn` de `test/postgres
 lê uma coleção que só ele usa, porque os outros testes da combinação rodam ao mesmo tempo. É o que pega a query
 permitida rodando sozinha antes do envelope (V-142).
 
+**O laço de eventos conferido.** O observador da suíte mede, pelo `monitorEventLoopDelay` do Node, quanto o laço de
+eventos do Directus atrasa, e o teste da operação que o servidor completa reprova se o atraso passar dos 500 ms em que
+o limitador de pressão do Directus responde 503 a todo pedido (V-181).
+
 **Índice conferido, não suposto.** A operação que a matriz declara "no banco com índice" tem um teste que lê o
 `EXPLAIN` e falha se o plano varrer a tabela. O plano é o do SQL que chegou ao banco: o observador de
 `test/measure/observer/` o entrega com os valores, e o teste roda o `EXPLAIN` pelo psql do container. A coleção é só
@@ -100,7 +104,8 @@ convertidos pelo próprio PostGIS.
 
 **Toda resposta da extensão passa pelo contrato.** O `fetch` da suíte (`test/contract.ts`), que o cliente do SDK usa,
 confere cada resposta de `/geospatial/*` contra o `openapi.yaml`: a rota, o método e o status precisam estar nele, e o
-corpo, no schema que ele declara, pelo Ajv no JSON Schema 2020-12 do OpenAPI 3.1, no modo estrito (V-169). Uma resposta
+corpo, no schema que ele declara, pelo Ajv no JSON Schema 2020-12 do OpenAPI 3.2, no modo estrito (V-169). O `SEARCH`
+se confere pelo `additionalOperations` da rota. Uma resposta
 fora do documento reprova o pedido, com o lugar e o motivo. O teste que chama o `fetch` sozinho, como o do banco fora,
 usa o `checkedFetch`. O núcleo do ajudante fica no pacote do contrato (`responses.ts`), com teste unitário.
 

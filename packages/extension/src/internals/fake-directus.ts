@@ -113,6 +113,15 @@ export const directus11 = (received: Received = nothingReceived(), emitter = new
 			return database.select('collection').from(options.table);
 		}),
 	},
+	// A query of the body comes back as it went, with the fields of a text split as Directus splits them.
+	'utils/sanitize-query': {
+		sanitizeQuery: withArity(3, (raw: Record<string, unknown>) =>
+			Promise.resolve(typeof raw.fields === 'string' ? { ...raw, fields: raw.fields.split(',') } : raw),
+		),
+	},
+	'utils/validate-query': {
+		validateQuery: withArity(1, (query: Query) => query),
+	},
 });
 
 // Directus 12 adds the module that refuses an inactive collection (V-146).

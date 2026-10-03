@@ -1,5 +1,5 @@
 {
-	"openapi": "3.1.0",
+	"openapi": "3.2.0",
 	"info": {
 		"title": "Geospatial",
 		"version": "0.1.0",
@@ -108,21 +108,10 @@
 				"responses": {
 					"200": {
 						"description": "The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key.",
-						"content": {
-							"application/json": {
-								"schema": {
-									"type": "object",
-									"required": ["data"],
-									"properties": {
-										"data": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } },
-										"meta": { "$ref": "#/components/schemas/ItemsMeta" }
-									}
-								}
-							}
-						}
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Items" } } }
 					},
 					"400": {
-						"description": "The geo or the limit is off the contract, or the request carries a parameter the operation does not take yet (code INVALID_QUERY of Directus).",
+						"description": "The geo is off the contract, or the field it names is not a geometry (code GEOSPATIAL_INVALID_INPUT). A parameter of /items is off, such as the limit, or the operation does not take it yet (code INVALID_QUERY of Directus).",
 						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
 					},
 					"403": {
@@ -136,6 +125,53 @@
 					"503": {
 						"description": "The internals of the running Directus are not the ones the extension expects, so its operations are off (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).",
 						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			},
+			"additionalOperations": {
+				"SEARCH": {
+					"operationId": "searchItems",
+					"summary": "The same, with the query in the body",
+					"description": "The same as the GET, with the spatial operation and the query of /items in the body, as Directus takes its own SEARCH, for a query too long for a URL. The query in the body takes the place of the one in the URL.",
+					"security": [{ "bearer": [] }, {}],
+					"parameters": [
+						{
+							"name": "collection",
+							"in": "path",
+							"required": true,
+							"description": "The collection, by its name in Directus.",
+							"schema": { "type": "string" }
+						}
+					],
+					"requestBody": {
+						"required": true,
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/ItemsSearch" } } }
+					},
+					"responses": {
+						"200": {
+							"description": "The items, as the GET gives them.",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Items" } } }
+						},
+						"400": {
+							"description": "The body is off the contract, or the field the geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The query is off, such as the limit, or the operation does not take a parameter of it yet (code INVALID_QUERY of Directus).",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+						},
+						"403": {
+							"description": "The user cannot read the collection, a field the query asks for or the geometry, as in /items (code FORBIDDEN).",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+						},
+						"413": {
+							"description": "The body is larger than the extension takes, 256 KB (code GEOSPATIAL_LIMIT_EXCEEDED), with the limit in the extensions of the error.",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+						},
+						"501": {
+							"description": "The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE).",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+						},
+						"503": {
+							"description": "The internals of the running Directus are not the ones the extension expects (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+						}
 					}
 				}
 			}
@@ -220,11 +256,11 @@
 				}
 			},
 			"OpenApiDocument": {
-				"description": "An OpenAPI 3.1 document, as the OpenAPI Specification describes it.",
+				"description": "An OpenAPI 3.2 document, as the OpenAPI Specification describes it.",
 				"type": "object",
 				"required": ["openapi", "info", "paths"],
 				"properties": {
-					"openapi": { "type": "string", "pattern": "^3\\.1\\.\\d+$" },
+					"openapi": { "type": "string", "pattern": "^3\\.2\\.\\d+$" },
 					"info": {
 						"type": "object",
 						"required": ["title", "version"],
@@ -323,6 +359,28 @@
 					}
 				}
 			},
+			"Items": {
+				"description": "The items an operation selects, and what the response tells about the list.",
+				"type": "object",
+				"required": ["data"],
+				"properties": {
+					"data": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } },
+					"meta": { "$ref": "#/components/schemas/ItemsMeta" }
+				}
+			},
+			"ItemsSearch": {
+				"description": "The body of the SEARCH: the spatial operation, and the query of /items, as Directus takes it in the body of its own SEARCH.",
+				"type": "object",
+				"required": ["geo"],
+				"additionalProperties": false,
+				"properties": {
+					"geo": { "$ref": "#/components/schemas/Geo" },
+					"query": {
+						"description": "The query of /items, with the fields, the filter, the search, the sort, the limit, the offset and the page, as Directus reads them in a body, with the fields as a list.",
+						"type": "object"
+					}
+				}
+			},
 			"ItemsMeta": {
 				"description": "What the response tells about the list, the way /items of Directus does in its meta. It only carries what applies to the response.",
 				"type": "object",
@@ -354,7 +412,9 @@
 				"enum": [
 					"GEOSPATIAL_DATABASE_UNAVAILABLE",
 					"GEOSPATIAL_INTERNALS_UNSUPPORTED",
-					"GEOSPATIAL_OPERATION_UNAVAILABLE"
+					"GEOSPATIAL_OPERATION_UNAVAILABLE",
+					"GEOSPATIAL_INVALID_INPUT",
+					"GEOSPATIAL_LIMIT_EXCEEDED"
 				]
 			},
 			"Errors": {

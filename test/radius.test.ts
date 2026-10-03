@@ -43,6 +43,15 @@ const radius = (client: Client, params: Record<string, unknown> = {}, collection
 		customEndpoint<Item[]>({ path: `/geospatial/items/${collection}`, method: 'GET', params: { geo, ...params } }),
 	);
 
+// The same radius by SEARCH, with the geo and the query of /items in the body (V-11).
+const searched = (client: Client, body: Record<string, unknown>, collection = 'occurrences') =>
+	client.request(
+		customEndpoint<Item[]>({ path: `/geospatial/items/${collection}`, method: 'SEARCH', body: JSON.stringify(body) }),
+	);
+
+// A body past the 256 KB the extension takes, and under the 1 MB of Directus (V-10).
+const largeBody = { geo, query: { search: 'x'.repeat(270_000) } };
+
 const withoutGeo = (item: Item) => Object.fromEntries(Object.entries(item).filter(([name]) => name !== '$geo'));
 
 // The items of the radius in the order of the primary key, as /items gives them, without the values the radius
@@ -212,9 +221,35 @@ describe('o raio no estilo do /items', () => {
 		['sem o geo', { geo: undefined }, 'The geo parameter is required'],
 		['com a distância negativa', { geo: { ...geo, distance: -1 } }, 'The geo parameter is off the contract'],
 		['com o ponto fora da faixa', { geo: { ...geo, center: [-46.7, 91] } }, 'The geo parameter is off the contract'],
-	])('%s, o pedido volta com o erro de query do Directus, antes do banco', async (_, params, reason) => {
+	])('%s, o pedido volta com o erro de entrada da extensão, antes do banco', async (_, params, reason) => {
 		expect(await errorOf(radius(as('admin'), params))).toMatchObject({
-			errors: [{ extensions: { code: 'INVALID_QUERY', reason: expect.stringContaining(reason) as string } }],
+			errors: [{ extensions: { code: 'GEOSPATIAL_INVALID_INPUT', reason: expect.stringContaining(reason) as string } }],
+		});
+	});
+
+	it('com o centro fora da faixa, o erro diz onde, e não repete os valores enviados', async () => {
+		const error = await errorOf(radius(as('admin'), { geo: { ...geo, center: [-46.123456789, 91.987654321] } }));
+
+		expect(error).toMatchObject({
+			errors: [
+				{
+					extensions: {
+						code: 'GEOSPATIAL_INVALID_INPUT',
+						reason: expect.stringContaining('/center/1 must be <= 90') as string,
+					},
+				},
+			],
+		});
+		expect(JSON.stringify(error)).not.toMatch(/46\.123456789|91\.987654321/);
+	});
+
+	it.each([
+		['acima de 256 KB', largeBody, 'GEOSPATIAL_LIMIT_EXCEEDED', { limit: 262_144 }],
+		['sem o geo', { query: {} }, 'GEOSPATIAL_INVALID_INPUT', {}],
+		['com o geo em JSON, como na URL', { geo: JSON.stringify(geo) }, 'GEOSPATIAL_INVALID_INPUT', {}],
+	])('o corpo do SEARCH %s volta com o erro da extensão, antes do banco', async (_, body, code, extensions) => {
+		expect(await errorOf(searched(as('admin'), body))).toMatchObject({
+			errors: [{ extensions: { code, ...extensions } }],
 		});
 	});
 
@@ -251,6 +286,52 @@ describe('o raio no banco', () => {
 		expect(nearTheEdge).toHaveLength(12);
 	});
 
+	describe('o SEARCH, com a consulta no corpo (V-11)', () => {
+		const user = () => (hasCustomPermissionRules() ? as('maria') : as('admin'));
+		const filter = { category: { _eq: 'theft' } };
+
+		it('dá o mesmo raio que o GET com a consulta na URL', async () => {
+			const fromGet = await radius(user(), { fields: 'id,region,geometry', filter, sort: '-id', limit: 5 });
+			const fromSearch = await searched(user(), {
+				geo,
+				query: { fields: ['id', 'region', 'geometry'], filter, sort: ['-id'], limit: 5 },
+			});
+
+			expect(fromSearch).toEqual(fromGet);
+			expect(fromGet.length).toBeGreaterThan(1);
+		});
+
+		it('sem a query no corpo, vale a da URL, como no SEARCH do /items', async () => {
+			const fromGet = await radius(user(), { fields: 'id', limit: 3 });
+			const fromSearch = await user().request(
+				customEndpoint<Item[]>({
+					path: '/geospatial/items/occurrences',
+					method: 'SEARCH',
+					params: { fields: 'id', limit: 3 },
+					body: JSON.stringify({ geo }),
+				}),
+			);
+
+			expect(fromSearch).toEqual(fromGet);
+		});
+
+		it.runIf(hasCustomPermissionRules())(
+			'a query do corpo passa pelo Directus: o campo sem permissão dá o mesmo erro do SEARCH do /items',
+			async () => {
+				const client = as('withoutCategory');
+				const query = { fields: ['id', 'category'] };
+				const items = await errorsOf(
+					client.request(
+						customEndpoint({ path: '/items/occurrences', method: 'SEARCH', body: JSON.stringify({ query }) }),
+					),
+				);
+
+				expect(await errorsOf(searched(client, { geo, query }))).toEqual(items);
+				expect(items).toMatchObject([{ extensions: { code: 'FORBIDDEN' } }]);
+			},
+		);
+	});
+
 	it('uma coleção que não existe é recusada como no /items, como uma que o usuário não pode ler', async () => {
 		const items = errorOf(as('admin').request(customEndpoint({ path: '/items/nowhere', method: 'GET' })));
 
@@ -264,7 +345,14 @@ describe('o raio no banco', () => {
 		const notGeometry = { geo: { ...geo, field: 'region' } };
 
 		expect(await errorOf(radius(as('admin'), notGeometry))).toMatchObject({
-			errors: [{ extensions: { code: 'INVALID_QUERY', reason: 'The field region of occurrences is not a geometry' } }],
+			errors: [
+				{
+					extensions: {
+						code: 'GEOSPATIAL_INVALID_INPUT',
+						reason: 'The field region of occurrences is not a geometry',
+					},
+				},
+			],
 		});
 		expect(await errorOf(radius(as('public'), notGeometry))).toMatchObject({
 			errors: [{ extensions: { code: 'FORBIDDEN' } }],
@@ -969,20 +1057,33 @@ describe('o raio no banco', () => {
 			}
 		});
 
-		it('um geo fora do contrato volta antes de qualquer query na coleção', async () => {
+		// Each input off the contract, by the GET and by the SEARCH, with the code it comes back with. The field that is not
+		// a geometry is refused after the chain, which reads the permissions in the database of Directus, and never the
+		// collection (A-040).
+		it.each([
+			['o centro fora da faixa', () => radius(user(), { geo: { ...geo, center: [-46.7, 91] } }, collection), 400],
+			['o geo fora do contrato', () => radius(user(), { geo: { ...geo, distance: -1 } }, collection), 400],
+			['o campo que não é de geometria', () => radius(user(), { geo: { ...geo, field: 'region' } }, collection), 400],
+			['o corpo acima de 256 KB', () => searched(user(), largeBody, collection), 413],
+			['o corpo fora do contrato', () => searched(user(), { query: {} }, collection), 400],
+		])('%s volta com o código da extensão, sem nenhuma query na coleção', async (_, request, status) => {
 			const container = containerOf();
 			const before = await callsOn(container, `"${collection}"`);
+			const error = await errorOf(request());
 
-			await expect(radius(user(), { geo: { ...geo, distance: -1 } }, collection)).rejects.toMatchObject({
-				errors: [{ extensions: { code: 'INVALID_QUERY' } }],
+			expect(error).toMatchObject({
+				errors: [{ extensions: { code: status === 413 ? 'GEOSPATIAL_LIMIT_EXCEEDED' : 'GEOSPATIAL_INVALID_INPUT' } }],
 			});
 			expect(await callsOn(container, `"${collection}"`)).toBe(before);
 		});
 
-		it('a query permitida e a parte espacial chegam juntas, num SQL só', async () => {
+		it.each([
+			['o GET', () => radius(user(), {}, collection)],
+			['o SEARCH', () => searched(user(), { geo, query: { fields: ['*'] } }, collection)],
+		])('pelo %s, a query permitida e a parte espacial chegam juntas, num SQL só', async (_, request) => {
 			const container = containerOf();
 			const before = await callsOn(container, `"${collection}"`);
-			const items = await radius(user(), {}, collection);
+			const items = await request();
 
 			expect(items.length).toBeGreaterThan(0);
 			expect(await callsOn(container, `"${collection}"`)).toBe(before + 1);
@@ -1033,6 +1134,20 @@ describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
 			expect(data.every(({ id }) => Number(id) <= 50_000)).toBe(true);
 			expect(distances).toEqual([...distances].sort((a, b) => a - b));
 			expect(data[0]).toMatchObject({ id: 1, $geo: { distance: 0 } });
+		});
+
+		// The longest the event loop of Directus ran late since the last read, in milliseconds (test/measure/observer/).
+		const lagOf = () =>
+			as('admin').request(customEndpoint<number>({ path: '/geospatial-test-observer/lag', method: 'GET' }));
+
+		it('ordenar os 50.000 no servidor não atrasa o laço de eventos até o limitador de pressão do Directus (V-181)', async () => {
+			await lagOf();
+
+			const { meta } = await capped({ limit: String(limitMaximum) });
+			const lag = await lagOf();
+
+			expect(meta).toEqual({ capped: { limit: 50_000 } });
+			expect(lag).toBeLessThan(500);
 		});
 
 		it('com o sort da página, que o banco ordena, a lista vem inteira, sem o aviso', async () => {

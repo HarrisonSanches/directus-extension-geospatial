@@ -207,7 +207,14 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   saem no Node, pela GeographicLib, sobre até 50.000 itens, e acima disso o `meta` da resposta avisa com o `capped`. Um
   campo que não é ponto volta indisponível, e o tipo vem da coluna, porque o esquema que o Directus entrega à extensão
   diz só `geometry` no SQLite. A paridade inteira com o `/items` e os hooks de outra extensão passam no SQLite (V-180).
-- Próximo passo: `/implement-issue F02-12`, a entrada validada antes do banco, e o `SEARCH`.
+- F02-12 feita em 03/10/2026: a entrada passa pelo contrato antes do banco. O `geo`, o corpo do `SEARCH` e o campo que
+  não é de geometria voltam com o `GEOSPATIAL_INVALID_INPUT`, e o corpo acima de 256 KB, com o
+  `GEOSPATIAL_LIMIT_EXCEEDED`, sem query na coleção. O `SEARCH /geospatial/items/:coleção` leva o `geo` e a query do
+  `/items` no corpo, que a extensão lê pelo `sanitizeQuery` e pelo `validateQuery` do Directus, conferidos ao subir, e
+  dá o mesmo raio que o `GET`. O contrato subiu para o OpenAPI 3.2, que descreve o `SEARCH` no `additionalOperations`.
+  A geometria de entrada foi para a F05, e a ordem natural do SQLite passou a medir em fatias, porque travava o laço de
+  eventos até o limitador de pressão do Directus responder 503 (A-051, V-181).
+- Próximo passo: `/implement-issue F02-13`, a consulta registrada: o registro e os itens.
 
 ## Documentação
 

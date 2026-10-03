@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest';
 import type { MeasuringAdapter, RadiusEnvelope, SelectingAdapter } from '../../db/adapter.js';
 import type { Request } from '../../internals/chain.js';
 import { database } from '../../internals/fake-directus.js';
+import { limits } from '../../limits.js';
 import { type Engine, itemsOf, radiusItems, type RadiusRequest, unaskedOf } from './items.js';
 import { radiusLevels } from './levels.js';
-import { serverLimit } from './server.js';
 
 const maria: Accountability = {
 	role: 'operator',
@@ -104,7 +104,7 @@ describe('o raio, antes do banco', () => {
 		const { engine, built } = engineWith();
 
 		await expect(radiusWith({ geo: { ...geo, field: 'region' } }, engine)).rejects.toMatchObject({
-			code: 'INVALID_QUERY',
+			code: 'GEOSPATIAL_INVALID_INPUT',
 			extensions: { reason: 'The field region of occurrences is not a geometry' },
 		});
 		expect(built.map(({ query }) => query.fields)).toEqual([['*']]);
@@ -230,7 +230,7 @@ describe('o raio onde o servidor mede (D-052)', () => {
 		const response = await radiusWith({ page: { fields: ['id'], limit: 2, offset: 1 } }, engine);
 
 		expect(envelopes.map(({ order, limit, offset }) => ({ order, limit, offset }))).toEqual([
-			{ order: [], limit: serverLimit + 1, offset: 0 },
+			{ order: [], limit: limits.server + 1, offset: 0 },
 		]);
 		expect(response.data.map(({ id }) => id)).toEqual([3, 1]);
 		expect(response.data[0]?.$geo.distance).toBeCloseTo(200, 6);
@@ -249,11 +249,11 @@ describe('o raio onde o servidor mede (D-052)', () => {
 	});
 
 	it('acima do limite do servidor, o resultado avisa no meta', async () => {
-		const rows = Array.from({ length: serverLimit + 1 }, (_, index) => ({ id: index + 1, geometry: northOf(10) }));
+		const rows = Array.from({ length: limits.server + 1 }, (_, index) => ({ id: index + 1, geometry: northOf(10) }));
 		const { engine } = onSqlite(selecting(rows).adapter);
 
 		expect((await radiusWith({ page: { fields: ['id'], limit: 1 } }, engine)).meta).toEqual({
-			capped: { limit: serverLimit },
+			capped: { limit: limits.server },
 		});
 	});
 
