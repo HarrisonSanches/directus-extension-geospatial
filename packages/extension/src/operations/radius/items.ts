@@ -3,7 +3,7 @@ import type { Accountability, ApiExtensionContext, Query, SchemaOverview } from 
 import type { Database, Internals, Item, ItemsResponse, Radius } from 'directus-geospatial-contract';
 import type { Knex } from 'knex';
 import type { Logger } from 'pino';
-import type { Key, MeasuringAdapter, RadiusEnvelope, SelectingAdapter } from '../../db/adapter.js';
+import type { CircleEnvelope, Key, MeasuringAdapter, RadiusEnvelope, SelectingAdapter } from '../../db/adapter.js';
 import { failClosed } from '../../db/fail-closed.js';
 import { InternalsUnsupportedError, InvalidInputError, OperationUnavailableError } from '../../errors.js';
 import type { PermittedQuery } from '../../internals/permitted.js';
@@ -261,6 +261,40 @@ export const permittedRadius = async (
 	return { ...permitted, declared, primary, geometry: found.field };
 };
 
+// The circle of the radius around the permitted query, as the adapter of the database reads it: the column of the
+// geometry, and the boxes of the first stage in its SRID, read from the database (D-007). A geometry the database in
+// use does not measure fails here, past the chain, which refuses first whoever cannot read the collection or the field
+// (D-052).
+export const circleAround = async (
+	knex: Knex,
+	declared: Exclude<RadiusLevel, { level: 'unavailable' }>,
+	{
+		permitted,
+		collection,
+		geometry,
+		geo,
+	}: { permitted: Knex.QueryBuilder; collection: string; geometry: string; geo: Radius },
+): Promise<CircleEnvelope> => {
+	if (declared.level === 'capped' && !(await declared.adapter.measures(knex, collection, geometry))) {
+		throw new OperationUnavailableError({
+			operation: 'radius',
+			reason: 'It only measures points on the database in use.',
+		});
+	}
+
+	const column = await declared.adapter.columnOf(knex, collection, geometry);
+
+	return {
+		permitted,
+		collection,
+		geometry,
+		column,
+		boxes: await declared.adapter.boxesIn(knex, column, geo.center, geo.distance),
+		center: geo.center,
+		distance: geo.distance,
+	};
+};
+
 // The items of a collection within a distance of a point, out of the permitted query of whoever asks, in one SQL
 // (D-001, §6, op. 1). Each check that needs no database comes first.
 export const radiusItems = async ({ cursor, ...request }: RadiusRequest, engine: Engine): Promise<ItemsResponse> => {
@@ -284,26 +318,9 @@ export const radiusItems = async ({ cursor, ...request }: RadiusRequest, engine:
 
 	// The SRID comes from the column, never from the request, and the boxes go in it (D-007).
 	const { rows, distances, keys, capped } = await failClosed(async (): Promise<Read> => {
-		// A geometry the database in use does not measure, past the chain, which refuses first whoever cannot read the
-		// collection or the field (D-052).
-		if (declared.level === 'capped' && !(await declared.adapter.measures(knex, collection, geometry))) {
-			throw new OperationUnavailableError({
-				operation: 'radius',
-				reason: 'It only measures points on the database in use.',
-			});
-		}
-
-		const { adapter } = declared;
-		const column = await adapter.columnOf(knex, collection, geometry);
 		const envelope: Envelope = {
-			permitted,
-			collection,
-			geometry,
-			column,
-			boxes: await adapter.boxesIn(knex, column, geo.center, geo.distance),
+			...(await circleAround(knex, declared, { permitted, collection, geometry, geo })),
 			key: primary,
-			center: geo.center,
-			distance: geo.distance,
 			order,
 		};
 		const page = windowOf(query, defaultLimit, after);
