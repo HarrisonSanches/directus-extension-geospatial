@@ -56,21 +56,25 @@ export const questionOf = async (registry: Registry, id: string): Promise<Regist
 	return question;
 };
 
-// The parameters of /items the URL of a part takes: the page of the part. Directus adds the fields * to the query of every
-// URL, so they count only when the URL brings them.
-const ofThePart = new Set(['limit', 'sort', 'fields']);
+// The parameters of /items the URL of a part takes, the page of the part: the limit and the sort for the items, and the
+// limit for the shapes.
+type OfThePart = 'limit' | 'sort';
 
 // The page of a part: the query of the question, as Directus reads it for whoever asks, which resolves the variables of
 // the filter for them, with the limit and the sort of the URL. Another parameter of /items in the URL belongs to the
-// registration, and is refused, instead of having it quietly left out.
+// registration, and is refused, instead of having it quietly left out. Directus adds the fields * to the query of every
+// URL, so they count only when the URL brings them.
 export const pageOfPart = async (
 	{ query }: RegisteredQuery,
 	url: { page: Query; raw: Record<string, unknown> },
 	read: (raw: Record<string, unknown>) => Promise<Query>,
+	takes: OfThePart[] = ['limit', 'sort'],
 ): Promise<Query> => {
-	if (url.raw.fields !== undefined || Object.keys(url.page).some((name) => !ofThePart.has(name))) {
+	const taken = new Set<string>([...takes, 'fields']);
+
+	if (url.raw.fields !== undefined || Object.keys(url.page).some((name) => !taken.has(name))) {
 		throw new InvalidQueryError({
-			reason: 'The URL of a part takes only the limit and the sort, and the rest of the query goes in its registration',
+			reason: `The URL of a part takes only the ${takes.join(' and the ')}, and the rest of the query goes in its registration`,
 		});
 	}
 

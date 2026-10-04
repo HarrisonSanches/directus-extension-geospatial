@@ -215,7 +215,80 @@ export type Capped = {
 };
 
 /**
- * How many items a page brings, up to the maximum of the contract.
+ * The shapes of a result, and what the response tells about the list.
+ */
+export type Shapes = {
+	data: ShapeCollection;
+	meta?: ShapesMeta;
+};
+
+/**
+ * The shapes of the page, as a GeoJSON FeatureCollection (RFC 7946).
+ */
+export type ShapeCollection = {
+	type: 'FeatureCollection';
+	features: Array<Shape>;
+};
+
+/**
+ * A shape, as a GeoJSON Feature in WGS 84, with the values of the operation that belong to it in its properties.
+ */
+export type Shape = {
+	type: 'Feature';
+	geometry:
+		| ({
+				type: 'Polygon';
+		  } & Polygon)
+		| ({
+				type: 'MultiPolygon';
+		  } & MultiPolygon);
+	properties: ShapeValues;
+};
+
+/**
+ * The values of the operation that belong to a shape. For the radius, the center and the distance of the circle, as the question gives them.
+ */
+export type ShapeValues = {
+	center?: Position;
+	/**
+	 * The distance, in meters.
+	 */
+	distance?: number;
+};
+
+/**
+ * A GeoJSON Polygon: the exterior ring counterclockwise, then each hole clockwise, every ring closed. A shape that crosses the antimeridian comes cut there, as a MultiPolygon (RFC 7946).
+ */
+export type Polygon = {
+	type: 'Polygon';
+	coordinates: Array<LinearRing>;
+};
+
+/**
+ * A GeoJSON MultiPolygon, each polygon with its rings as in Polygon.
+ */
+export type MultiPolygon = {
+	type: 'MultiPolygon';
+	coordinates: Array<Array<LinearRing>>;
+};
+
+/**
+ * A closed ring of positions, whose last one is the first.
+ */
+export type LinearRing = Array<Position>;
+
+/**
+ * What the response tells about the list of shapes. It only carries what applies to the response.
+ */
+export type ShapesMeta = {
+	/**
+	 * The cursor of the next page, which is missing on the last one.
+	 */
+	next?: Cursor;
+};
+
+/**
+ * How many items or shapes a page brings, up to the maximum of the contract.
  */
 export type Limit = number;
 
@@ -452,6 +525,61 @@ export type QueryItemsResponses = {
 };
 
 export type QueryItemsResponse = QueryItemsResponses[keyof QueryItemsResponses];
+
+export type QueryShapesData = {
+	body?: never;
+	path: {
+		/**
+		 * The id the registration returned.
+		 */
+		id: QueryId;
+	};
+	query?: {
+		/**
+		 * How many shapes. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT.
+		 */
+		limit?: Limit;
+		/**
+		 * Where the page starts: right after the last shape of the page before, by the cursor its meta.next brings. The radius gives a single shape, so its list never brings one.
+		 */
+		cursor?: Cursor;
+	};
+	url: '/geospatial/queries/{id}/shapes';
+};
+
+export type QueryShapesErrors = {
+	/**
+	 * The id or the cursor is off the contract, the cursor is not one of this list, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The limit is off, the URL brings another parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).
+	 */
+	400: Errors;
+	/**
+	 * The user who asks cannot read the collection, a field the query asks for or the geometry, or the collection is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read it (code COLLECTION_INACTIVE).
+	 */
+	403: Errors;
+	/**
+	 * This Directus does not know the id, because the registration expired or Directus restarted since (code GEOSPATIAL_UNKNOWN_QUERY). The client registers the question again, under the same id.
+	 */
+	404: Errors;
+	/**
+	 * The operation does not run on the database in use (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
+	 */
+	501: Errors;
+	/**
+	 * The internals of the running Directus are not the ones the extension expects (code GEOSPATIAL_INTERNALS_UNSUPPORTED).
+	 */
+	503: Errors;
+};
+
+export type QueryShapesError = QueryShapesErrors[keyof QueryShapesErrors];
+
+export type QueryShapesResponses = {
+	/**
+	 * The shapes.
+	 */
+	200: Shapes;
+};
+
+export type QueryShapesResponse = QueryShapesResponses[keyof QueryShapesResponses];
 
 export type OpenapiData = {
 	body?: never;

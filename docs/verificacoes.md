@@ -131,6 +131,21 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
   - o Directus não troca os parsers do driver `pg`, então valem os do `node-postgres`: o `timestamp` e o `timestamptz` viram uma data do JavaScript, em milissegundos; o `int8` e o `numeric`, texto; e o `float8`, número. O Postgres guarda os microssegundos;
   - um parâmetro de texto comparado com uma coluna toma o tipo dela, então o texto que o Postgres escreveu, `::text`, volta ao mesmo valor;
   - no ensaio, a ordem por um `timestamp` com itens a 1 µs um do outro percorreu cada item uma vez com o texto do Postgres. Com o valor do driver no cursor, a lista parou no primeiro item.
+- **V-186** **PostGIS, o `ST_Buffer` e o `ST_Project` em `geography`; a GeographicLib e a RFC 7946 no antimeridiano** (documentação do `ST_Buffer`, RFC 7946, código-fonte do pacote `geographiclib-geodesic` 2.2.0, e ensaio da F02-15 no PostGIS 3.2 e no 3.6, com o Directus 11.17.4, em 04/10/2026):
+  - **O `ST_Buffer` de um ponto em `geography`:**
+    - dá 33 posições, 32 lados e a que fecha o anel, no sentido horário;
+    - para um ponto em São Paulo, o `_ST_BestSRID` escolheu o 999123, a UTM 23S interna do PostGIS;
+    - contra a GeographicLib, o pior vértice errou 0,5 m num raio de 10 km (0,005%), 6,2 km num de 1.000 km (0,62%) e 490 km num de 5.000 km (9,8%);
+    - num raio de 100 km em Fiji, que cruza o antimeridiano, o anel foi de −179,93° a 179,91°, sem o corte, e desenhado dá a volta no mundo;
+    - a 0,5° do polo norte, o anel passou por todas as longitudes e deixou o polo de fora.
+  - **O `ST_Project` em `geography`** bateu com o `Direct` da GeographicLib com diferença de até 5·10⁻¹⁰ grau.
+  - **O `Direct` da GeographicLib** devolve a longitude em [−180, 180], com o sinal do ângulo em ±180, a menos que se peça o `LONG_UNROLL`.
+  - **A RFC 7946:**
+    - o anel de fora de um polígono vai no anti-horário, e o furo, no horário (3.1.6);
+    - a geometria que cruza o antimeridiano sai cortada nele, em partes (3.1.9).
+  - **O círculo da extensão, conferido pelo PostGIS:**
+    - em 313 casos, com o antimeridiano, os polos e 300 sorteados até 19.000 km, passou no `ST_IsValid`;
+    - nos 312 que não cobrem o mundo, o ponto a 99,9% da distância ficou dentro e o a 100,1% ficou fora, em 16 azimutes.
 - **V-148** **CockroachDB, o envelope sobre a query permitida e as lacunas do catálogo** (código-fonte das tags `v11.17.4` e `v12.4.1` do Directus e dos ramos `release-25.4`, `release-26.1`, `release-26.2` e `master` do CockroachDB, e ensaio da F01-08 no Directus 11.17.4 com o CockroachDB 25.4.17, em 28/09/2026). Resolve em parte a P-06:
   - o Directus trata o CockroachDB como Postgres: o Knex usa o `Client_CockroachDB`, filho do `Client_PG`, o `getDatabaseClient` o chama de `cockroachdb`, e a geometria usa o `GeometryHelperPostgres` (V-27), com a coluna em `geometry(Point, 4326)`. O pool roda em cada conexão o `SET serial_normalization = "sql_sequence"` e o `SET default_int_size = 4`, então a chave primária sai de uma sequência, em inteiros de 32 bits, e não do `unique_rowid()`, que passaria do inteiro seguro do JavaScript (`api/src/database/index.ts`);
   - a prova sobe o banco como o sandbox de testes do Directus: o `start-single-node --insecure`, com os dados em memória, o usuário `root` sem senha e o banco `defaultdb` (`tests/sandbox/src/config.ts` e `tests/sandbox/src/docker/cockroachdb.yml`). O Directus 11.17 levou de 46 s a 62 s para responder sobre ele, e uns 12 s sobre o PostGIS, na mesma máquina;

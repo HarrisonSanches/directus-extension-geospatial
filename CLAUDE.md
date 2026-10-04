@@ -227,7 +227,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   microssegundos, cifrada por AES-256-GCM com a chave derivada do `SECRET` e presa à lista (D-054, V-185). A issue
   achou e corrigiu uma falha da regra de ouro: o raio entregava a chave primária a quem a política não a libera, e
   agora cada item leva só os campos da árvore do Directus, como o `/items` (V-183).
-- Próximo passo: `/implement-issue F02-15`, as formas: o círculo do raio.
+- F02-15 feita em 04/10/2026: o `GET /geospatial/queries/:id/shapes` devolve as formas do resultado em GeoJSON, por
+  cursor, e no raio, o círculo, com o centro e a distância nas propriedades. O servidor o monta pela GeographicLib, com
+  128 lados, igual em todo banco, e o corta no antimeridiano, como pede a RFC 7946 (D-055). O `ST_Buffer` em `geography`,
+  que a issue pedia, erra 9,8% num raio de 5.000 km, dá a volta no mundo no antimeridiano e deixa o polo de fora (V-186).
+  As formas não leem item, mas a query permitida é montada, sem rodar, e quem não lê a coleção recebe o erro do `/items`.
+- Próximo passo: `/implement-issue F02-16`, o resumo: o total em dois tempos.
 
 ## Documentação
 

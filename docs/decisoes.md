@@ -907,3 +907,26 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Toda lista com mais itens traz o `meta.next`, que o SDK da extensão percorre como iterador (F02-19). O SDK do Directus deixa o `meta` de fora.
   - Trocar o `SECRET` invalida os cursores em uso, e a interface recomeça da primeira página.
   - Na ordem natural do PostGIS, o filtro do cursor compara a distância e a chave como uma linha, `(distância, id) > (?, ?)`, e mede a distância uma vez a mais.
+
+## D-055 — O círculo do raio: geodésico, no servidor, com 128 lados e cortado no antimeridiano
+
+- **Estado:** aceita em 04/10/2026. Detalha a D-022 e a D-023, e troca a referência do §6 (op. 1) para o desenho.
+- **Onde:** §6 (op. 1) · `docs/padroes/api-e-contrato.md` · V-46 · V-186.
+- **Contexto:** a F02-15 pedia o círculo montado no banco, pelo `ST_Buffer` em `geography`, a referência do §6 para o desenho. O `ST_Buffer` em `geography` desenha num plano que escolhe pela caixa do ponto (V-46). Na prova, ele errou os vértices em 0,005% num raio de 10 km, em 0,62% num de 1.000 km e em 9,8% num de 5.000 km. No antimeridiano, o anel foi de −179,9° a 179,9°, e perto do polo, deixou o polo de fora (V-186). O contrato aceita qualquer distância, e o SQLite não tem `geography` (D-052).
+- **Decisão:**
+  - O servidor monta o círculo pela GeographicLib, por escolha do mantenedor: um vértice a cada 2,8125° de azimute, à distância pedida sobre o elipsoide, igual em todo banco. O banco só monta a query permitida, sem rodá-la, para que quem não lê o que os itens leem receba o erro do `/items`.
+  - O círculo tem 128 lados, por escolha do mantenedor: cada lado fica a até 0,03% da distância, para dentro do círculo. É o mesmo polígono que a D-023 usa no "inteiramente dentro".
+  - O GeoJSON segue a RFC 7946:
+    - o anel de fora vai no anti-horário, e o furo, no horário;
+    - o círculo que cruza o antimeridiano sai cortado nele, num `MultiPolygon`;
+    - com um polo dentro, o anel vai pelo antimeridiano até o polo;
+    - com os dois polos dentro, sai o mundo com o furo do outro lado;
+    - a partir da distância até o antípoda, sai o mundo inteiro.
+- **Alternativas descartadas:**
+  - **O `ST_Buffer` em `geography`, como a issue pedia:** erra nos círculos grandes, no antimeridiano e nos polos, e não existe no SQLite.
+  - **Os vértices no banco, pelo `ST_Project`:** eles batem com a GeographicLib, mas o corte e os polos ficariam no servidor de qualquer jeito, e o SQLite também. Seriam duas implementações do mesmo círculo.
+  - **32 lados, como o `ST_Buffer`:** a borda fica a até 0,48% da distância, 48 m num raio de 10 km. Com zoom perto da borda, um item de dentro do raio apareceria fora do círculo.
+- **Consequências:**
+  - O círculo não depende do banco nem chega a ele, então sai igual nos bancos da F15.
+  - A forma salva (F07) e a comparação do "inteiramente dentro" (F05) podem usar o mesmo polígono.
+  - O entorno da F07 tem o mesmo problema do `ST_Buffer` em formas grandes e no antimeridiano (A-059, no plano).

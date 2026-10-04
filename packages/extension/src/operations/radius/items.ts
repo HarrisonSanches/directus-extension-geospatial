@@ -61,7 +61,7 @@ const chainQueryOf = (page: Query, fields: string[]): Query => {
 
 // A query of the page that asks what the radius does not take yet is refused, instead of having it quietly left out:
 // the one of the request, and the one the hooks of items.query returned. A limit off the contract is too.
-const takenBy = (query: Query, defaultLimit: number): Query => {
+export const takenBy = (query: Query, defaultLimit: number): Query => {
 	const unsupported = unsupportedIn(query);
 
 	if (unsupported !== undefined) {
@@ -211,18 +211,20 @@ const measuredByServer = async (
 	};
 };
 
-// The items of a collection within a distance of a point, out of the permitted query of whoever asks, in one SQL
-// (D-001, §6, op. 1). Each check that needs no database comes first, and the database the operation does not run on
-// answers so before the permitted query is built.
-export const radiusItems = async (
-	{ collection, geo, page, accountability, cursor }: RadiusRequest,
-	{ knex, schema, client, internals, permittedQuery, logger, valuesOf, defaultLimit, levels, cursorKey }: Engine,
-): Promise<ItemsResponse> => {
-	takenBy(page, defaultLimit);
+// What each part of the radius needs of the engine before the database.
+export type Checking = Pick<
+	Engine,
+	'knex' | 'schema' | 'client' | 'internals' | 'permittedQuery' | 'defaultLimit' | 'levels'
+>;
 
-	const list = listOf(collection, geo, page);
-	const after = afterIn(cursor, page, cursorKey, list);
-
+// What each part of the radius checks before it reads anything: that the operation runs on the database in use, that
+// the collection is one /items reads, and the permitted query of whoever asks, built and not run, which refuses the
+// collection, a field or the geometry the user cannot read, as /items does (D-001). The database the operation does
+// not run on answers so before the permitted query is built.
+export const permittedRadius = async (
+	{ collection, geo, page, accountability }: Omit<RadiusRequest, 'cursor'>,
+	{ knex, schema, client, internals, permittedQuery, defaultLimit, levels }: Checking,
+) => {
 	const checked = await internals();
 
 	if (checked.status === 'refused') {
@@ -252,11 +254,25 @@ export const radiusItems = async (
 
 	// The geometry goes by its name, so a user who cannot read it gets the error of /items, instead of the field
 	// quietly missing from the * (V-143).
-	const {
-		builder: permitted,
-		query,
-		fields,
-	} = await permittedQuery(request, context, (hooked) => chainQueryOf(takenBy(hooked, defaultLimit), [found.field]));
+	const permitted = await permittedQuery(request, context, (hooked) =>
+		chainQueryOf(takenBy(hooked, defaultLimit), [found.field]),
+	);
+
+	return { ...permitted, declared, primary, geometry: found.field };
+};
+
+// The items of a collection within a distance of a point, out of the permitted query of whoever asks, in one SQL
+// (D-001, §6, op. 1). Each check that needs no database comes first.
+export const radiusItems = async ({ cursor, ...request }: RadiusRequest, engine: Engine): Promise<ItemsResponse> => {
+	const { collection, geo, page } = request;
+	const { knex, logger, valuesOf, defaultLimit, cursorKey } = engine;
+
+	takenBy(page, defaultLimit);
+
+	const list = listOf(collection, geo, page);
+	const after = afterIn(cursor, page, cursorKey, list);
+
+	const { builder: permitted, query, fields, declared, primary, geometry } = await permittedRadius(request, engine);
 
 	const order = sortOf(query);
 
@@ -270,7 +286,7 @@ export const radiusItems = async (
 	const { rows, distances, keys, capped } = await failClosed(async (): Promise<Read> => {
 		// A geometry the database in use does not measure, past the chain, which refuses first whoever cannot read the
 		// collection or the field (D-052).
-		if (declared.level === 'capped' && !(await declared.adapter.measures(knex, collection, found.field))) {
+		if (declared.level === 'capped' && !(await declared.adapter.measures(knex, collection, geometry))) {
 			throw new OperationUnavailableError({
 				operation: 'radius',
 				reason: 'It only measures points on the database in use.',
@@ -278,11 +294,11 @@ export const radiusItems = async (
 		}
 
 		const { adapter } = declared;
-		const column = await adapter.columnOf(knex, collection, found.field);
+		const column = await adapter.columnOf(knex, collection, geometry);
 		const envelope: Envelope = {
 			permitted,
 			collection,
-			geometry: found.field,
+			geometry,
 			column,
 			boxes: await adapter.boxesIn(knex, column, geo.center, geo.distance),
 			key: primary,
@@ -302,7 +318,7 @@ export const radiusItems = async (
 	// What /items would give of each item: the fields of the tree, as Directus keeps them, without the primary key it
 	// reads for itself, which a policy may not let the user read (V-183), and without what the radius asked only for its
 	// own use.
-	const unasked = unaskedOf(query, found.field);
+	const unasked = unaskedOf(query, geometry);
 	const data = itemsOf(
 		values,
 		distances.slice(0, shown),
