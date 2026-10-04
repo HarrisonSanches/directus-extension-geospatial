@@ -1,5 +1,6 @@
 import type { Position } from 'directus-geospatial-contract';
-import type { MeasuringAdapter, SpatialColumn } from './adapter.js';
+import type { Knex } from 'knex';
+import type { MeasuringAdapter, RadiusEnvelope, SpatialColumn } from './adapter.js';
 import { type Box, boxesOf, ringOf } from './box.js';
 import { type OrderKey, pastKeys } from './keyset.js';
 
@@ -64,6 +65,42 @@ export const unlessProjFails = async <T>(read: () => Promise<T>): Promise<T | nu
 		throw error;
 	}
 };
+
+// The keys of the order of the radius, as the cursor of the next page carries them (D-054): the distance and the
+// primary key in the natural order, or the fields of the sort and the primary key. Postgres takes an empty value as the
+// largest.
+const orderKeysOf = (knex: Knex, order: RadiusEnvelope['order'], key: string, measure: Knex.Raw): OrderKey[] => {
+	const byKey: OrderKey = { column: knex.raw('??', [`p.${key}`]), direction: 'asc', nullable: false };
+
+	if (order.length === 0) {
+		return [{ column: measure, direction: 'asc', nullable: false }, byKey];
+	}
+
+	return [
+		...order.map(({ field, direction }): OrderKey => ({
+			column: knex.raw('??', [`p.${field}`]),
+			direction,
+			nullable: true,
+		})),
+		byKey,
+	];
+};
+
+// The columns the rows bring the keys in. The distance comes in its own, and each other key in a column of its text, as
+// Postgres writes it, which goes back to its type with nothing lost, as the microseconds of a timestamp, which a date of
+// JavaScript would drop (V-185).
+const keyColumnsOf = (knex: Knex, builder: Knex.QueryBuilder, keys: OrderKey[], natural: boolean): string[] =>
+	keys.map(({ column }, index) => {
+		if (natural && index === 0) {
+			return measured;
+		}
+
+		const name = `geospatial:key:${String(index)}`;
+
+		builder.select(knex.raw('?::text as ??', [column, name]));
+
+		return name;
+	});
 
 const wktOf = (ring: Position[]) => `LINESTRING(${ring.map(([x, y]) => `${String(x)} ${String(y)}`).join(', ')})`;
 
@@ -208,27 +245,8 @@ export const postgis: MeasuringAdapter = {
 			builder.offset(offset);
 		}
 
-		// The keys of the order, as the cursor of the next page carries them (D-054). The distance comes in its column, and
-		// each other key in a column of its text, as Postgres writes it, which goes back to its type with nothing lost, as
-		// the microseconds of a timestamp, which a date of JavaScript would drop. Postgres takes an empty value as the
-		// largest.
-		const byKey: OrderKey = { column: knex.raw('??', [`p.${key}`]), direction: 'asc', nullable: false };
-		const fieldKeys = order.map(({ field, direction }): OrderKey => ({
-			column: knex.raw('??', [`p.${field}`]),
-			direction,
-			nullable: true,
-		}));
-		const keys: OrderKey[] =
-			order.length === 0 ? [{ column: measure, direction: 'asc', nullable: false }, byKey] : [...fieldKeys, byKey];
-		// A key in a column of its text, which the statement brings beside the columns of the permitted query.
-		const textOf = ({ column: read }: OrderKey, index: number) => {
-			const name = `geospatial:key:${String(index)}`;
-
-			builder.select(knex.raw('?::text as ??', [read, name]));
-
-			return name;
-		};
-		const keyColumns = order.length === 0 ? [measured, textOf(byKey, 1)] : keys.map(textOf);
+		const keys = orderKeysOf(knex, order, key, measure);
+		const keyColumns = keyColumnsOf(knex, builder, keys, order.length === 0);
 
 		if (after !== undefined) {
 			pastKeys(builder, keys, after, 'largest');
