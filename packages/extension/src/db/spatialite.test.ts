@@ -108,3 +108,21 @@ describe('a coluna na SpatiaLite', () => {
 		expect(holdsPoints(undefined)).toBe(false);
 	});
 });
+
+describe('a contagem do resumo no SQLite (§7.1)', () => {
+	it('conta os itens do círculo que a query permitida expõe, sem a ordem dela, até o limite da contagem rápida', async () => {
+		const builder = spatialite.count(database, { ...radius, permitted: permitted().orderBy('occurrences.id') }, 10_001);
+
+		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/count-spatialite-limit.sql');
+	});
+
+	it('sem o limite, conta todos', async () => {
+		const builder = spatialite.count(database, { ...radius, permitted: permitted() });
+
+		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/count-spatialite.sql');
+	});
+
+	it('não roda a contagem sem limite em segundo plano, porque o SQLite não limita um comando no tempo', () => {
+		expect(spatialite.bounded).toBeUndefined();
+	});
+});
