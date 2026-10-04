@@ -83,23 +83,27 @@ export const memoryCounts = ({
 			}
 		}
 
+		const fail = (error: unknown) => {
+			logger.warn(error, 'The exact count of a summary gave up');
+			giveUp();
+		};
+		const release = () => {
+			running -= 1;
+		};
+
 		after(timeout, giveUp);
-		// The count starts now, and an error it throws before its promise ends the count as a rejection would.
-		void new Promise<number>((resolve) => {
-			resolve(count());
-		})
-			.then(
-				(total) => {
+
+		// The count starts now. One that throws before it hands back its promise ends as one that rejects.
+		try {
+			void count()
+				.then((total) => {
 					settle(key, job, { state: 'counted', total, expires: now() + retention });
-				},
-				(error: unknown) => {
-					logger.warn(error, 'The exact count of a summary gave up');
-					giveUp();
-				},
-			)
-			.finally(() => {
-				running -= 1;
-			});
+				}, fail)
+				.finally(release);
+		} catch (error) {
+			fail(error);
+			release();
+		}
 	};
 
 	return {

@@ -14,7 +14,7 @@ const isRow = (value: unknown): value is Record<string, unknown> => typeof value
 // The number a count brought, in the one row it returns: a text in Postgres, whose count is a bigint, and a number in
 // SQLite.
 const totalIn = (rows: unknown): number => {
-	const [row] = [rows].flat().filter(isRow);
+	const row = [rows].flat().find(isRow);
 
 	return Number(row?.count);
 };

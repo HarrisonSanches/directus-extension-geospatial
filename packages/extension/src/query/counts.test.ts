@@ -103,6 +103,23 @@ describe('a contagem exata em segundo plano (§7.1)', () => {
 		expect(logged).toEqual([failure]);
 	});
 
+	it('uma contagem que lança antes de devolver a promessa também desiste, e libera a vaga', () => {
+		const { counts, logged } = countsWith({ concurrency: 1 });
+		const failure = new Error('Undefined binding');
+		const { calls, count } = deferredCount();
+
+		counts.exactOf('a', () => {
+			throw failure;
+		});
+
+		expect(counts.exactOf('a', count)).toEqual({ state: 'given up' });
+		expect(logged).toEqual([failure]);
+
+		counts.exactOf('b', count);
+
+		expect(calls).toHaveLength(1);
+	});
+
 	it('o total e a desistência valem pela retenção, e depois a contagem roda de novo', async () => {
 		const { counts, clock } = countsWith();
 		const { calls, count } = deferredCount();
