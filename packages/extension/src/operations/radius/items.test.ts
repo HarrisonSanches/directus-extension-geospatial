@@ -59,11 +59,20 @@ const engineWith = (overrides: Partial<Engine> = {}) => {
 		schema,
 		client: 'postgres',
 		internals: () => Promise.resolve({ status: 'accepted', adapter: '12' }),
-		// With no hook of items.query, the chain gets what the radius asks of the page as it came.
+		// With no hook of items.query, the chain gets what the radius asks of the page as it came, and the * of the tree
+		// holds every field of the collection, as the admin reads it.
 		permittedQuery: (request, _, queryOf = (hooked) => hooked) => {
-			built.push({ ...request, query: queryOf(request.query) });
+			const query = queryOf(request.query);
 
-			return Promise.resolve({ builder: database.select('id', 'geometry').from('occurrences'), query: request.query });
+			built.push({ ...request, query });
+
+			return Promise.resolve({
+				builder: database.select('id', 'geometry').from('occurrences'),
+				query: request.query,
+				fields: (query.fields ?? []).flatMap((field) =>
+					field === '*' ? ['id', 'geometry', 'region', 'status'] : [field],
+				),
+			});
 		},
 		logger: { error: (error: unknown) => logged.push(error) },
 		valuesOf: (_, rows) => Promise.resolve(rows),
@@ -125,7 +134,11 @@ describe('a página que os hooks de items.query devolvem (V-144)', () => {
 			permittedQuery: (request, _, queryOf = (hooked) => hooked) => {
 				const hooked = { ...request.query, sort: ['author.name'] };
 
-				return Promise.resolve({ builder: database.select('id').from('occurrences'), query: queryOf(hooked) });
+				return Promise.resolve({
+					builder: database.select('id').from('occurrences'),
+					query: queryOf(hooked),
+					fields: [],
+				});
 			},
 		});
 
@@ -181,13 +194,13 @@ describe('os itens que o raio devolve', () => {
 		expect(unaskedOf(query, 'geometry')).toEqual(unasked);
 	});
 
-	it('cada item leva a distância no $geo, sem os campos que a página não pediu', () => {
+	it('cada item leva a distância no $geo, só com os campos que ficam', () => {
 		const values = [
 			{ id: 1, status: 'open', geometry: { type: 'Point', coordinates: [-46.7, -23.65] } },
 			{ id: 2, status: 'closed', geometry: { type: 'Point', coordinates: [-46.7, -23.6] } },
 		];
 
-		expect(itemsOf(values, [0, 5_558.6], ['status', 'geometry'])).toEqual([
+		expect(itemsOf(values, [0, 5_558.6], ['id'])).toEqual([
 			{ id: 1, $geo: { distance: 0 } },
 			{ id: 2, $geo: { distance: 5_558.6 } },
 		]);
@@ -364,7 +377,11 @@ describe('o cursor do raio (D-054)', () => {
 			permittedQuery: (request, _, queryOf = (hooked) => hooked) => {
 				const hooked = { ...request.query, sort: ['region', '-id'] };
 
-				return Promise.resolve({ builder: database.select('id').from('occurrences'), query: queryOf(hooked) });
+				return Promise.resolve({
+					builder: database.select('id').from('occurrences'),
+					query: queryOf(hooked),
+					fields: [],
+				});
 			},
 		});
 
@@ -448,5 +465,40 @@ describe('o cursor do raio (D-054)', () => {
 		const { meta } = await radiusWith({ page: { fields: ['id'], limit: 1 } }, engine);
 
 		expect(meta).toEqual({ capped: { limit: limits.server }, next: expect.any(String) as unknown });
+	});
+});
+
+describe('os campos de cada item, como o /items os dá (V-183)', () => {
+	it('a chave primária que a árvore do Directus não traz fica fora do item, como o /items a tira', async () => {
+		const { engine } = engineWith({
+			// A policy that lets the user read the region and the geometry, and not the key, which the * of the tree leaves out.
+			permittedQuery: (request) =>
+				Promise.resolve({
+					builder: database.select('id', 'geometry').from('occurrences'),
+					query: request.query,
+					fields: ['region', 'geometry'],
+				}),
+			levels: {
+				...radiusLevels,
+				postgres: {
+					level: 'indexed',
+					adapter: {
+						columnOf: () => Promise.resolve({ type: 'geometry', srid: 4326 }),
+						boxesIn: () => Promise.resolve(null),
+						radius: () => ({
+							builder: returning([
+								{ id: 1, region: 'south', geometry: 'POINT(-46.7 -23.65)', far: 0, 'geospatial:key:1': '1' },
+							]),
+							distance: 'far',
+							keys: ['far', 'geospatial:key:1'],
+						}),
+					},
+				},
+			},
+		});
+
+		expect(await radiusWith({ page: { fields: ['*'] } }, engine)).toEqual({
+			data: [{ region: 'south', geometry: 'POINT(-46.7 -23.65)', $geo: { distance: 0 } }],
+		});
 	});
 });

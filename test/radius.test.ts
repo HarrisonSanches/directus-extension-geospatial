@@ -564,6 +564,21 @@ describe('o raio no banco', () => {
 				expect(expected.every((item) => !('category' in item))).toBe(true);
 			});
 
+			it.each([['*'], ['region']] as const)(
+				'com fields=%s, a chave primária que a política não libera fica fora do raio, como do /items (V-183)',
+				async (fields) => {
+					const client = as('withoutKey');
+					const items: Record<string, unknown>[] = await client.request(readItems('occurrences', { fields: [fields] }));
+					const radiusItems = await radius(client, { fields });
+
+					expect(radiusItems.map((item) => Object.keys(withoutGeo(item)).sort())).toEqual(
+						items.slice(0, radiusItems.length).map((item) => Object.keys(item).sort()),
+					);
+					expect(radiusItems.length).toBeGreaterThan(0);
+					expect(radiusItems.every((item) => !('id' in item))).toBe(true);
+				},
+			);
+
 			it('pedido pelo nome, o campo sem permissão dá ao raio o mesmo erro do /items', async () => {
 				const client = as('withoutCategory');
 				const items = await errorsOf(client.request(readItems('occurrences', { fields: ['id', 'category'] })));

@@ -92,10 +92,13 @@ export const unaskedOf = (query: Query, geometry: string): string[] => {
 	return asked.includes('*') ? [] : [geometry, ...sortedFieldsOf(query)].filter((field) => !asked.includes(field));
 };
 
-// The items as the radius gives them: the values of /items, without the fields the page did not ask for, and the
-// distance from the center in $geo, the way Directus keeps its own values in $meta (V-13).
-export const itemsOf = (values: Record<string, unknown>[], distances: unknown[], unasked: string[]): Item[] =>
-	values.map((item, index) => ({ ...without(item, unasked), $geo: { distance: Number(distances[index]) } }));
+// The items as the radius gives them: the values of /items, with only the fields kept, and the distance from the
+// center in $geo, the way Directus keeps its own values in $meta (V-13).
+export const itemsOf = (values: Record<string, unknown>[], distances: unknown[], kept: string[]): Item[] =>
+	values.map((item, index) => ({
+		...Object.fromEntries(Object.entries(item).filter(([name]) => kept.includes(name))),
+		$geo: { distance: Number(distances[index]) },
+	}));
 
 // The window of the page over the items inside the circle, as /items reads limit, offset and page, or right after the
 // item of the cursor. It reads one item past the page, which tells whether a next page exists.
@@ -249,9 +252,11 @@ export const radiusItems = async (
 
 	// The geometry goes by its name, so a user who cannot read it gets the error of /items, instead of the field
 	// quietly missing from the * (V-143).
-	const { builder: permitted, query } = await permittedQuery(request, context, (hooked) =>
-		chainQueryOf(takenBy(hooked, defaultLimit), [found.field]),
-	);
+	const {
+		builder: permitted,
+		query,
+		fields,
+	} = await permittedQuery(request, context, (hooked) => chainQueryOf(takenBy(hooked, defaultLimit), [found.field]));
 
 	const order = sortOf(query);
 
@@ -294,7 +299,15 @@ export const radiusItems = async (
 
 	const shown = limitOf(query, defaultLimit);
 	const values = await valuesOf(collection, rows.slice(0, shown));
-	const data = itemsOf(values, distances.slice(0, shown), unaskedOf(query, found.field));
+	// What /items would give of each item: the fields of the tree, as Directus keeps them, without the primary key it
+	// reads for itself, which a policy may not let the user read (V-183), and without what the radius asked only for its
+	// own use.
+	const unasked = unaskedOf(query, found.field);
+	const data = itemsOf(
+		values,
+		distances.slice(0, shown),
+		fields.filter((field) => !unasked.includes(field)),
+	);
 	const next = nextOf(keys, shown, (last) => cursorOf(cursorKey, list, last));
 	const meta = { ...(capped && { capped: { limit: limits.server } }), ...(next !== undefined && { next }) };
 

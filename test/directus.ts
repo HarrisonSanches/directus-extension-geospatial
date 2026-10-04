@@ -14,6 +14,7 @@ export type Role =
 	| 'withoutGeometry'
 	| 'geometryInPart'
 	| 'statusInPart'
+	| 'withoutKey'
 	| 'public';
 
 // The database and the spatial extension a combination runs, with the versions as they report them.
