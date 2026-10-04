@@ -125,6 +125,21 @@ describe('a página de uma parte', () => {
 		},
 	);
 
+	it('do resumo não leva parâmetro do /items, e o limit volta com o INVALID_QUERY', async () => {
+		expect(await pageOfPart(question, { page: { fields: ['*'] }, raw: {} }, read, [])).toEqual({
+			...question.query,
+			fields: ['*'],
+		});
+		await expect(
+			pageOfPart(question, { page: { fields: ['*'], limit: 1 }, raw: { limit: '1' } }, read, []),
+		).rejects.toMatchObject({
+			code: 'INVALID_QUERY',
+			extensions: {
+				reason: 'The URL of a part takes no parameter of /items, and the rest of the query goes in its registration',
+			},
+		});
+	});
+
 	it('das formas leva só o limit, e o sort volta com o INVALID_QUERY', async () => {
 		expect(await pageOfPart(question, { page: { fields: ['*'], limit: 1 }, raw: {} }, read, ['limit'])).toEqual({
 			...question.query,

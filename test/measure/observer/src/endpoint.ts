@@ -1,6 +1,6 @@
 import { ForbiddenError } from '@directus/errors';
 import { defineEndpoint } from '@directus/extensions-sdk';
-import { measured, takeLag, takeLast } from './reads.js';
+import { measured, takeCount, takeLag, takeLast } from './reads.js';
 
 export default defineEndpoint({
 	id: 'geospatial-test-observer',
@@ -30,6 +30,26 @@ export default defineEndpoint({
 			const sql = database.raw(statement.sql.replaceAll(/\$\d+/g, '?'), statement.bindings).toQuery();
 
 			res.json({ data: { build, database: answer, statement: sql } });
+		});
+
+		// The statements of the last transaction that counted the items of a collection, up to the count, with the values in
+		// place, as the database got them. Only the admin reads them.
+		router.get('/count', (req, res, next) => {
+			const { collection } = req.query;
+
+			if (req.accountability?.admin !== true || typeof collection !== 'string') {
+				next(new ForbiddenError());
+
+				return;
+			}
+
+			const statements = takeCount(collection);
+
+			res.json({
+				data:
+					statements?.map(({ sql, bindings }) => database.raw(sql.replaceAll(/\$\d+/g, '?'), bindings).toQuery()) ??
+					null,
+			});
 		});
 
 		// The longest the event loop of Directus ran late since the last read. Only the admin reads it.
