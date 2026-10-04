@@ -146,6 +146,21 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
   - **O círculo da extensão, conferido pelo PostGIS:**
     - em 313 casos, com o antimeridiano, os polos e 300 sorteados até 19.000 km, passou no `ST_IsValid`;
     - nos 312 que não cobrem o mundo, o ponto a 99,9% da distância ficou dentro e o a 100,1% ficou fora, em 16 azimutes.
+- **V-187** **Postgres e Knex: o tempo máximo de uma consulta, o cancelamento e o pool** (documentação do Postgres: `set_config`, `SET`, `PREPARE`, `statement_timeout` e o apêndice dos códigos de erro; código-fonte do Knex 3.1.0 e das tags `v11.17.4` e `v12.4.1` do Directus, `api/src/database/index.ts`; e ensaio da F02-16 no 11.17.4 e no 12.4.1 com o PostGIS, em 04/10/2026):
+  - **O `set_config(nome, valor, true)`** equivale ao `SET LOCAL`: o valor vale só até o fim da transação.
+  - **O `SET` não aceita parâmetro,** porque só o `SELECT`, o `INSERT`, o `UPDATE`, o `DELETE`, o `MERGE` e o `VALUES` são preparados.
+  - **O `statement_timeout`:**
+    - cancela todo comando que passa do tempo, contado da chegada do comando ao servidor até o fim;
+    - lê o valor em milissegundos, quando vai sem unidade;
+    - cancela com o erro `57014`, `query_canceled`.
+  - **O pool:**
+    - o Directus monta o Knex com as variáveis `DB_POOL__*`, sem padrão próprio, então valem os do Knex: `{ min: 2, max: 10 }` no Postgres e `{ min: 1, max: 1 }` no SQLite;
+    - o Knex só cancela uma consulta no Postgres e no MySQL (`canCancelQuery`).
+  - **O id de cada transação no Knex:**
+    - vai no evento `query` dos comandos dela, e o cliente da transação o repassa ao do Directus;
+    - o id fica gravado na conexão, que o pool depois empresta a outros comandos com ele;
+    - o `BEGIN;` e o `COMMIT;` saem sem o id de comando.
+  - **No ensaio,** o `set_config` e a contagem saíram na mesma transação, nessa ordem.
 - **V-148** **CockroachDB, o envelope sobre a query permitida e as lacunas do catálogo** (código-fonte das tags `v11.17.4` e `v12.4.1` do Directus e dos ramos `release-25.4`, `release-26.1`, `release-26.2` e `master` do CockroachDB, e ensaio da F01-08 no Directus 11.17.4 com o CockroachDB 25.4.17, em 28/09/2026). Resolve em parte a P-06:
   - o Directus trata o CockroachDB como Postgres: o Knex usa o `Client_CockroachDB`, filho do `Client_PG`, o `getDatabaseClient` o chama de `cockroachdb`, e a geometria usa o `GeometryHelperPostgres` (V-27), com a coluna em `geometry(Point, 4326)`. O pool roda em cada conexão o `SET serial_normalization = "sql_sequence"` e o `SET default_int_size = 4`, então a chave primária sai de uma sequência, em inteiros de 32 bits, e não do `unique_rowid()`, que passaria do inteiro seguro do JavaScript (`api/src/database/index.ts`);
   - a prova sobe o banco como o sandbox de testes do Directus: o `start-single-node --insecure`, com os dados em memória, o usuário `root` sem senha e o banco `defaultdb` (`tests/sandbox/src/config.ts` e `tests/sandbox/src/docker/cockroachdb.yml`). O Directus 11.17 levou de 46 s a 62 s para responder sobre ele, e uns 12 s sobre o PostGIS, na mesma máquina;

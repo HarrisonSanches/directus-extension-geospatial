@@ -930,3 +930,33 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - O círculo não depende do banco nem chega a ele, então sai igual nos bancos da F15.
   - A forma salva (F07) e a comparação do "inteiramente dentro" (F05) podem usar o mesmo polígono.
   - O entorno da F07 tem o mesmo problema do `ST_Buffer` em formas grandes e no antimeridiano (A-059, no plano).
+
+## D-056 — O resumo do raio: a contagem em dois tempos, o total guardado por quem pede e o SQLite sem a exata
+
+- **Estado:** aceita em 04/10/2026. Detalha a D-022, a D-006 e o §7.1.
+- **Onde:** §7.1 · §7.8 · `docs/padroes/api-e-contrato.md` · `docs/padroes/banco-e-sql.md` · V-187.
+- **Contexto:** o §7.1 pede a contagem em dois tempos, sem dizer o formato da resposta, quanto a contagem exata pode durar, quantas rodam juntas nem quanto tempo o total vale. Até a F03, ela usa o pool do Directus. São 10 conexões no Postgres e uma só no SQLite, onde o Knex não cancela uma consulta (V-187).
+- **Decisão:**
+  - **A resposta é `{ total, exact, counting }`,** por escolha do mantenedor:
+    - o `total` é um número, como o `{{ $last.summary.total }}` dos Flows;
+    - com o `exact` falso, o `total` é o piso, 10.000;
+    - o `counting` diz se a contagem exata ainda roda ou espera a vez, para a interface pedir de novo.
+  - **A contagem rápida** lê até 10.001 itens, no próprio pedido.
+  - **A contagem exata** roda em segundo plano, acima de 10.000. Por escolha do mantenedor:
+    - ela dura até 30 s;
+    - rodam no máximo 2 ao mesmo tempo;
+    - o total vale por 5 min. A contagem que estoura o tempo também fica guardada por 5 min, e o resumo segue com o 10.000+.
+  - **No Postgres,** a exata roda numa transação com o `set_config('statement_timeout', …, true)`, o `SET LOCAL` que aceita parâmetro, e o banco a cancela além do tempo (V-187). O servidor marca a desistência no mesmo prazo, pelo próprio relógio.
+  - **A chave do total guardado** é o SQL da contagem com os valores, onde vão as regras das políticas de quem pede (D-006). Quem tem as mesmas permissões divide o total, e quem tem outras nunca o recebe.
+  - **No SQLite, só a contagem rápida,** por escolha do mantenedor. Acima de 10.000, fica o 10.000+, com o `counting` falso.
+  - **A contagem tira a ordem da query permitida,** que não muda as linhas.
+- **Alternativas descartadas:**
+  - **O formato do Elasticsearch,** `total: { value, relation }`: os Flows leriam `total.value`.
+  - **No SQLite, a contagem até 50.000 no pedido:** o piso mudaria com o banco.
+  - **No SQLite, a contagem em segundo plano:** a única conexão do Directus ficaria presa até o tempo máximo.
+  - **O total valendo 1 min:** uma contagem pesada rodaria de novo a cada minuto, para cada conjunto de permissões.
+  - **Uma variável de ambiente para o tempo máximo,** para o teste ver o cancelamento: criaria uma configuração pública antes da F06 e um Directus a mais na suíte. Em vez disso, o teste confere o SQL que chegou ao banco.
+- **Consequências:**
+  - Um total exato pode ficar até 5 min atrás das gravações, enquanto a contagem rápida segue ao vivo. A versão da coleção, que muda a cada gravação (D-006), entra com o cache da F03.
+  - Até o pool próprio da F03, as contagens exatas ocupam até 2 das 10 conexões do Directus.
+  - O total guardado fica na memória de cada instância, como o registro (§7.8).
