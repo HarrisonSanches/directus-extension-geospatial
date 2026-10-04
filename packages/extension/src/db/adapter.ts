@@ -9,6 +9,9 @@ export interface SpatialColumn {
 	srid: number;
 }
 
+// A value of the order of an item, as the database hands it to a cursor: a text, a number or an empty value.
+export type Key = string | number | null;
+
 // The spatial part a database adds around the permitted query, without changing it (D-001, D-002).
 export interface RadiusEnvelope {
 	// The query of what the user can read, as Directus built it, which the envelope reads as a subquery.
@@ -33,6 +36,9 @@ export interface RadiusEnvelope {
 	// How many items, and how many to skip.
 	limit: number;
 	offset: number;
+	// The values of the order of the last item the page before saw, for the page to start right after it (keyset), as the
+	// columns that keys names brought them. Only where the database orders the list.
+	after?: Key[];
 }
 
 // What every adapter does, and the statement of the radius, which differs by what the database measures.
@@ -50,13 +56,19 @@ interface Adapter<Statement> {
 // The adapter of a database that measures the distance in meters, which orders the list by it where the page asks no
 // order of its own. The rows bring the distance from the center, in meters, in the column that distance names. Where
 // the column keeps another SRID, they also bring the geometry in 4326, in the column that converted names, to take its
-// place.
-export type MeasuringAdapter = Adapter<{ builder: Knex.QueryBuilder; distance: string; converted?: string }>;
+// place. And every row brings the values of its order, for the cursor of the next page, in the columns keys names.
+export type MeasuringAdapter = Adapter<{
+	builder: Knex.QueryBuilder;
+	distance: string;
+	converted?: string;
+	keys: string[];
+}>;
 
 // The adapter of a database that tells which items are inside the circle, and not how far they are. Where the page asks
 // no order of its own, the rows come by the primary key, and the server of the extension measures them and orders the
-// list (D-002).
-export type SelectingAdapter = Adapter<{ builder: Knex.QueryBuilder }> & {
+// list (D-002). With an order of the page, the rows bring the values of their order in the columns keys names, and
+// without one, keys names none.
+export type SelectingAdapter = Adapter<{ builder: Knex.QueryBuilder; keys: string[] }> & {
 	// Whether the database measures the geometry of a field, by the type of its column, which the schema Directus hands
 	// to an extension does not tell in every database (V-180).
 	measures: (knex: Knex, collection: string, field: string) => Promise<boolean>;

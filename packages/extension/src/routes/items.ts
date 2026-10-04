@@ -6,7 +6,15 @@ import type { PageQuery } from '../internals/page.js';
 import type { PermittedQuery } from '../internals/permitted.js';
 import { radiusItems } from '../operations/radius/items.js';
 import { radiusLevels } from '../operations/radius/levels.js';
-import { accountabilityOf, geoOf, queryIdOf, searchOf, searchPageOf } from '../operations/request.js';
+import {
+	accountabilityOf,
+	cursorIn,
+	geoOf,
+	queryIdOf,
+	searchCursorOf,
+	searchOf,
+	searchPageOf,
+} from '../operations/request.js';
 import { pageOfPart, questionOf } from '../query/register.js';
 import type { Registry } from '../query/registry.js';
 
@@ -21,16 +29,20 @@ export interface Incoming {
 	schema: SchemaOverview;
 }
 
-// What a route asks of the items: the collection, the geo checked against the contract, and the page of /items.
+// What a route asks of the items: the collection, the geo checked against the contract, the page of /items, and the
+// cursor where it starts.
 interface Asked {
 	collection: string;
 	geo: Geo;
 	page: Query;
+	cursor: string | undefined;
 }
 
 interface Engines {
 	internals: () => Promise<Internals>;
 	permittedQuery: PermittedQuery;
+	// The key of the cursors (query/key.ts).
+	cursorKey: Buffer;
 }
 
 // The format of /items with the spatial operation of the geo (D-016, V-11), for the accountability and the schema
@@ -39,11 +51,11 @@ interface Engines {
 const readItems = (
 	context: ApiExtensionContext,
 	{ accountability, schema }: Incoming,
-	{ collection, geo, page }: Asked,
-	{ internals, permittedQuery }: Engines,
+	{ collection, geo, page, cursor }: Asked,
+	{ internals, permittedQuery, cursorKey }: Engines,
 ): Promise<ItemsResponse> =>
 	radiusItems(
-		{ collection, geo, page, accountability: accountabilityOf(accountability) },
+		{ collection, geo, page, accountability: accountabilityOf(accountability), cursor },
 		{
 			knex: context.database,
 			schema,
@@ -57,6 +69,7 @@ const readItems = (
 			// As getDBQuery reads it for /items (V-176).
 			defaultLimit: Number(context.env.QUERY_LIMIT_DEFAULT),
 			levels: radiusLevels,
+			cursorKey,
 		},
 	);
 
@@ -72,7 +85,12 @@ export const getItems = async (
 	return readItems(
 		context,
 		incoming,
-		{ collection: String(incoming.params.collection), geo, page: incoming.sanitizedQuery },
+		{
+			collection: String(incoming.params.collection),
+			geo,
+			page: incoming.sanitizedQuery,
+			cursor: cursorIn(incoming.query.cursor),
+		},
 		engines,
 	);
 };
@@ -93,7 +111,12 @@ export const searchItems = async (
 	return readItems(
 		context,
 		incoming,
-		{ collection: String(incoming.params.collection), geo: search.geo, page },
+		{
+			collection: String(incoming.params.collection),
+			geo: search.geo,
+			page,
+			cursor: searchCursorOf(search, incoming.query.cursor),
+		},
 		engines,
 	);
 };
@@ -110,5 +133,10 @@ export const queryItems = async (
 		pageQuery(raw, incoming.schema, incoming.accountability),
 	);
 
-	return readItems(context, incoming, { collection: question.collection, geo: question.geo, page }, engines);
+	return readItems(
+		context,
+		incoming,
+		{ collection: question.collection, geo: question.geo, page, cursor: cursorIn(incoming.query.cursor) },
+		engines,
+	);
 };

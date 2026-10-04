@@ -103,6 +103,12 @@
 						"in": "query",
 						"description": "The page, as in /items, starting at 1.",
 						"schema": { "type": "integer", "minimum": 1 }
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"description": "Where the page starts: right after the last item of the page before, by the cursor its meta.next brings. It belongs to the list it came from, with the same collection, geo and sort, and does not go with offset or page.",
+						"schema": { "$ref": "#/components/schemas/Cursor" }
 					}
 				],
 				"responses": {
@@ -111,7 +117,7 @@
 						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Items" } } }
 					},
 					"400": {
-						"description": "The geo is off the contract, or the field it names is not a geometry (code GEOSPATIAL_INVALID_INPUT). A parameter of /items is off, such as the limit, or the operation does not take it yet (code INVALID_QUERY of Directus).",
+						"description": "The geo or the cursor is off the contract, the cursor is not one of this list, or the field the geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). A parameter of /items is off, such as the limit, the cursor goes with the offset or the page, or the operation does not take a parameter yet (code INVALID_QUERY of Directus).",
 						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
 					},
 					"403": {
@@ -153,7 +159,7 @@
 							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Items" } } }
 						},
 						"400": {
-							"description": "The body is off the contract, or the field the geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The query is off, such as the limit, or the operation does not take a parameter of it yet (code INVALID_QUERY of Directus).",
+							"description": "The body is off the contract, its cursor is not one of this list, or the field the geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The query is off, such as the limit, the cursor goes with the offset or the page, or the operation does not take a parameter of it yet (code INVALID_QUERY of Directus).",
 							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
 						},
 						"403": {
@@ -246,6 +252,12 @@
 						"in": "query",
 						"description": "How many items, as in /items. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT.",
 						"schema": { "$ref": "#/components/schemas/Limit" }
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"description": "Where the page starts: right after the last item of the page before, by the cursor its meta.next brings. It belongs to the list it came from, with the same collection, geo and sort.",
+						"schema": { "$ref": "#/components/schemas/Cursor" }
 					}
 				],
 				"responses": {
@@ -254,7 +266,7 @@
 						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Items" } } }
 					},
 					"400": {
-						"description": "The id is off the contract, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The limit or the sort is off, the URL brings another parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).",
+						"description": "The id or the cursor is off the contract, the cursor is not one of this list, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The limit or the sort is off, the URL brings another parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).",
 						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
 					},
 					"403": {
@@ -478,6 +490,10 @@
 					"query": {
 						"description": "The query of /items, with the fields, the filter, the search, the sort, the limit, the offset and the page, as Directus reads them in a body, with the fields as a list.",
 						"type": "object"
+					},
+					"cursor": {
+						"description": "Where the page starts, as the cursor of the GET, which the meta.next of the page before brings. In its place, the one of the URL.",
+						"$ref": "#/components/schemas/Cursor"
 					}
 				}
 			},
@@ -506,11 +522,22 @@
 				"type": "string",
 				"pattern": "^[A-Za-z0-9_-]{22}$"
 			},
+			"Cursor": {
+				"description": "Where a page of a list starts, opaque to the client: the order of the last item of the page before, sealed by the installation, in base64url. Nobody reads or changes what it holds, and it belongs to the list it came from.",
+				"type": "string",
+				"pattern": "^[A-Za-z0-9_-]+$"
+			},
 			"ItemsMeta": {
 				"description": "What the response tells about the list, the way /items of Directus does in its meta. It only carries what applies to the response.",
 				"type": "object",
 				"additionalProperties": false,
-				"properties": { "capped": { "$ref": "#/components/schemas/Capped" } }
+				"properties": {
+					"capped": { "$ref": "#/components/schemas/Capped" },
+					"next": {
+						"description": "The cursor of the next page, which is missing on the last one.",
+						"$ref": "#/components/schemas/Cursor"
+					}
+				}
 			},
 			"Capped": {
 				"description": "The list is partial. Where the database in use does not measure the distance, the server of the extension measures it and orders the list by it, over at most limit items of the circle, read in the order of the primary key, and the circle held more. The items past them are missing from the list. A smaller circle, a filter, or a sort of the request, which the database orders, brings the whole list.",

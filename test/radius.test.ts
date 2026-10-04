@@ -1129,7 +1129,7 @@ describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
 			const { data, meta } = await capped({ limit: String(limitMaximum) });
 			const distances = data.map(({ $geo }) => $geo.distance ?? Number.NaN);
 
-			expect(meta).toEqual({ capped: { limit: 50_000 } });
+			expect(meta).toEqual({ capped: { limit: 50_000 }, next: expect.any(String) as unknown });
 			expect(data).toHaveLength(limitMaximum);
 			expect(data.every(({ id }) => Number(id) <= 50_000)).toBe(true);
 			expect(distances).toEqual([...distances].sort((a, b) => a - b));
@@ -1150,7 +1150,7 @@ describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
 
 				const { meta } = await capped({ limit: String(limitMaximum) });
 
-				expect(meta).toEqual({ capped: { limit: 50_000 } });
+				expect(meta).toEqual({ capped: { limit: 50_000 }, next: expect.any(String) as unknown });
 				lags.push(await lagOf());
 			}
 
@@ -1160,7 +1160,7 @@ describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
 		it('com o sort da página, que o banco ordena, a lista vem inteira, sem o aviso', async () => {
 			const { data, meta } = await capped({ sort: '-id', limit: '3' });
 
-			expect(meta).toBeUndefined();
+			expect(meta).toEqual({ next: expect.any(String) as unknown });
 			expect(data.map(({ id }) => id)).toEqual([55_000, 54_999, 54_998]);
 		});
 

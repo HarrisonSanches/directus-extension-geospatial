@@ -1,6 +1,7 @@
 import type { Position } from 'directus-geospatial-contract';
 import type { MeasuringAdapter, SpatialColumn } from './adapter.js';
 import { type Box, boxesOf, ringOf } from './box.js';
+import { type OrderKey, pastKeys } from './keyset.js';
 
 // The SRID of what comes in, the center of a request, and of what goes out, the geometry of the items (D-007).
 const wgs84 = 4326;
@@ -134,7 +135,10 @@ export const postgis: MeasuringAdapter = {
 	// does the distance, which orders the list unless the page asks its own order. The order of the page reads the values
 	// the permitted query exposes, where Directus orders /items by the column itself, so an item whose field a policy
 	// holds back sorts as an empty one, and its place in the list tells nothing of the value (V-179).
-	radius: (knex, { permitted, collection, geometry, key, column, boxes, center, distance, order, limit, offset }) => {
+	radius: (
+		knex,
+		{ permitted, collection, geometry, key, column, boxes, center, distance, order, limit, offset, after },
+	) => {
 		const raw = `${collection}.${geometry}`;
 		const [longitude, latitude] = center;
 		const near = permitted.clone();
@@ -175,16 +179,14 @@ export const postgis: MeasuringAdapter = {
 				? knex.raw('ST_GeomFromText(??, 4326)', [`p.${geometry}`])
 				: knex.raw('ST_Transform(ST_GeomFromText(??, ?), 4326)', [`p.${geometry}`, column.srid]);
 
+		const measure = knex.raw('ST_Distance(?::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography)', [
+			exposed,
+			longitude,
+			latitude,
+		]);
+
 		const builder = knex
-			.select(
-				'p.*',
-				knex.raw('ST_Distance(?::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography) as ??', [
-					exposed,
-					longitude,
-					latitude,
-					measured,
-				]),
-			)
+			.select('p.*', knex.raw('? as ??', [measure, measured]))
 			.from(near.as('p'))
 			.whereNotNull(`p.${geometry}`);
 
@@ -206,6 +208,34 @@ export const postgis: MeasuringAdapter = {
 			builder.offset(offset);
 		}
 
-		return column.srid === wgs84 ? { builder, distance: measured } : { builder, distance: measured, converted };
+		// The keys of the order, as the cursor of the next page carries them (D-054). The distance comes in its column, and
+		// each other key in a column of its text, as Postgres writes it, which goes back to its type with nothing lost, as
+		// the microseconds of a timestamp, which a date of JavaScript would drop. Postgres takes an empty value as the
+		// largest.
+		const byKey: OrderKey = { column: knex.raw('??', [`p.${key}`]), direction: 'asc', nullable: false };
+		const fieldKeys = order.map(({ field, direction }): OrderKey => ({
+			column: knex.raw('??', [`p.${field}`]),
+			direction,
+			nullable: true,
+		}));
+		const keys: OrderKey[] =
+			order.length === 0 ? [{ column: measure, direction: 'asc', nullable: false }, byKey] : [...fieldKeys, byKey];
+		// A key in a column of its text, which the statement brings beside the columns of the permitted query.
+		const textOf = ({ column: read }: OrderKey, index: number) => {
+			const name = `geospatial:key:${String(index)}`;
+
+			builder.select(knex.raw('?::text as ??', [read, name]));
+
+			return name;
+		};
+		const keyColumns = order.length === 0 ? [measured, textOf(byKey, 1)] : keys.map(textOf);
+
+		if (after !== undefined) {
+			pastKeys(builder, keys, after, 'largest');
+		}
+
+		return column.srid === wgs84
+			? { builder, distance: measured, keys: keyColumns }
+			: { builder, distance: measured, converted, keys: keyColumns };
 	},
 };

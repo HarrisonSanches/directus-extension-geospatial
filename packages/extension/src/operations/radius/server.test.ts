@@ -1,3 +1,4 @@
+import { fc, test } from '@fast-check/vitest';
 import geographiclib from 'geographiclib-geodesic';
 import { describe, expect, it } from 'vitest';
 import { distanceFrom, naturalOrderOf, pointOf } from './server.js';
@@ -71,6 +72,51 @@ describe('a ordem natural no servidor', () => {
 		expect(page.map(({ id }) => id)).toEqual([5, 4, 3, 2, 1]);
 		expect(capped).toBe(true);
 	});
+
+	it('com o cursor, a página começa logo depois do último item da anterior, pela distância e pela chave', async () => {
+		const rows = rowsOf([300, 100, 200, 100, 50]);
+		const [, second] = (await naturalOrderOf(rows, { ...window, limit: 2, offset: 0 })).distances;
+
+		expect(
+			(await naturalOrderOf(rows, { ...window, limit: 2, offset: 0, after: [second ?? 0, 2] })).rows.map(
+				({ id }) => id,
+			),
+		).toEqual([4, 3]);
+		expect((await naturalOrderOf(rows, { ...window, limit: 2, offset: 0, after: [1_000, 9] })).rows).toEqual([]);
+	});
+
+	// Items at a few places, so many tie on the distance, with their keys in any order.
+	const places = [0, 100, 100.5, 250];
+	const items = fc.uniqueArray(fc.record({ id: fc.nat(), place: fc.constantFrom(...places) }), {
+		selector: ({ id }) => id,
+		maxLength: 40,
+	});
+
+	test.prop([items, fc.integer({ min: 1, max: 7 })])(
+		'percorrer por cursor, com páginas de qualquer tamanho, dá cada item uma vez, na ordem natural',
+		async (placed, size) => {
+			const rows = placed.map(({ id, place }) => ({ id, geometry: at(place) }));
+			const whole = { ...window, cap: rows.length, offset: 0 };
+			const expected = (await naturalOrderOf(rows, { ...whole, limit: rows.length })).rows.map(({ id }) => id);
+			const seen: number[] = [];
+			let after: [number, number] | undefined;
+
+			// One turn per item at most, so a cursor that went back fails the test instead of turning forever.
+			for (let turn = 0; turn <= rows.length; turn += 1) {
+				const page = await naturalOrderOf(rows, { ...whole, limit: size, ...(after && { after }) });
+				const last = page.rows.at(-1);
+
+				if (last === undefined) {
+					break;
+				}
+
+				seen.push(...page.rows.map(({ id }) => id));
+				after = [page.distances.at(-1) ?? 0, last.id];
+			}
+
+			expect(seen).toEqual(expected);
+		},
+	);
 
 	it('no limite exato, a lista está inteira', async () => {
 		expect((await naturalOrderOf(rowsOf([5, 4, 3, 2, 1]), { ...window, limit: 10, offset: 0 })).capped).toBe(false);

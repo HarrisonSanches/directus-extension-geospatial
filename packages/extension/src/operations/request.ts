@@ -1,6 +1,7 @@
 import { ForbiddenError, InvalidQueryError } from '@directus/errors';
 import type { Accountability, Query, SchemaOverview } from '@directus/types';
 import {
+	type Cursor,
 	type Geo,
 	type ItemsSearch,
 	type Limit,
@@ -18,6 +19,7 @@ const checkSearch = inputs.schema<ItemsSearch>('ItemsSearch');
 const checkLimit = inputs.schema<Limit>('Limit');
 const checkRegistered = inputs.schema<RegisteredQuery>('RegisteredQuery');
 const checkQueryId = inputs.schema<QueryId>('QueryId');
+const checkCursor = inputs.schema<Cursor>('Cursor');
 
 // The geo of a request, as JSON, the way Directus takes the filter and its SDK sends a parameter it does not know
 // (V-171), checked against the contract before anything reaches the database (D-016).
@@ -73,6 +75,26 @@ export const searchOf = bodyOf(checkSearch);
 
 // The body of the registration of a query: the whole question (D-004).
 export const registeredQueryOf = bodyOf(checkRegistered);
+
+// The cursor of the URL, where a page starts, checked against the contract, or undefined, for the first page. What it
+// holds is checked by the operation, still before the database (D-054).
+export const cursorIn = (raw: unknown): Cursor | undefined => {
+	if (raw === undefined) {
+		return undefined;
+	}
+
+	const checked = checkCursor(raw);
+
+	if (!checked.valid) {
+		throw new InvalidInputError({ reason: `The cursor is off the contract: ${checked.errors.join(', ')}` });
+	}
+
+	return checked.value;
+};
+
+// The cursor of a SEARCH: the one of the body, or in its place the one of the URL, as the query of the body takes the
+// place of the one of the URL.
+export const searchCursorOf = ({ cursor }: ItemsSearch, raw: unknown): Cursor | undefined => cursor ?? cursorIn(raw);
 
 // The id of a registered query in the URL, checked against the contract before the registry is looked up.
 export const queryIdOf = (raw: string): QueryId => {

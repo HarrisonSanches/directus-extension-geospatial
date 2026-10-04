@@ -97,11 +97,20 @@ export const as = (role: Role): Client => {
 };
 
 // A request as one of the users of the suite, with the whole body of the response: the client of the SDK hands over only
-// its data, and leaves the meta out. The response goes through the contract too.
-export const fetchAs = (role: Exclude<Role, 'public'>, path: string): Promise<Response> => {
+// its data, and leaves the meta out. A body goes as JSON. The response goes through the contract too.
+export const fetchAs = (
+	role: Exclude<Role, 'public'>,
+	path: string,
+	{ method = 'GET', body }: { method?: string; body?: string } = {},
+): Promise<Response> => {
 	const { url, tokens } = current();
+	const headers: Record<string, string> = { Authorization: `Bearer ${tokens[role]}` };
 
-	return checkedFetch(`${url}${path}`, { headers: { Authorization: `Bearer ${tokens[role]}` } });
+	if (body !== undefined) {
+		headers['Content-Type'] = 'application/json';
+	}
+
+	return checkedFetch(`${url}${path}`, { method, body, headers });
 };
 
 export const versions = (): Directus['versions'] => current().versions;
