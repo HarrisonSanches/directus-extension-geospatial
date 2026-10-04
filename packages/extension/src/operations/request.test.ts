@@ -3,11 +3,13 @@ import type { Radius } from 'directus-geospatial-contract';
 import { describe, expect, it } from 'vitest';
 import {
 	accountabilityOf,
+	cursorIn,
 	geometryFieldOf,
 	geoOf,
 	limitOf,
 	queryIdOf,
 	registeredQueryOf,
+	searchCursorOf,
 	searchOf,
 	searchPageOf,
 	sortOf,
@@ -161,6 +163,38 @@ describe('o corpo do registro da consulta', () => {
 		expect(() => registeredQueryOf(undefined, body)).toThrow(
 			expect.objectContaining({ code: 'GEOSPATIAL_LIMIT_EXCEEDED', extensions: { limit: 256 * 1024 } }),
 		);
+	});
+});
+
+describe('o cursor na URL', () => {
+	it('sem ele, a página é a primeira, e com ele, segue como veio', () => {
+		expect(cursorIn(undefined)).toBeUndefined();
+		expect(cursorIn('AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHw_-')).toBe(
+			'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHw_-',
+		);
+	});
+
+	it.each([
+		['vazio', ''],
+		['com um caractere fora do base64url', 'abc+/def'],
+		['repetido na URL', ['abc', 'def']],
+	])('%s, volta com o erro de entrada, antes do banco', (_, raw) => {
+		expect(() => cursorIn(raw)).toThrow(
+			expect.objectContaining({
+				code: 'GEOSPATIAL_INVALID_INPUT',
+				extensions: { reason: expect.stringContaining('The cursor is off the contract') as string },
+			}),
+		);
+	});
+});
+
+describe('o cursor do SEARCH', () => {
+	it('é o do corpo, ou, no lugar dele, o da URL', () => {
+		const geo: Radius = { operation: 'radius', center: [-46.7, -23.65], distance: 1000 };
+
+		expect(searchCursorOf({ geo, cursor: 'fromTheBody' }, 'fromTheUrl')).toBe('fromTheBody');
+		expect(searchCursorOf({ geo }, 'fromTheUrl')).toBe('fromTheUrl');
+		expect(searchCursorOf({ geo }, undefined)).toBeUndefined();
 	});
 });
 

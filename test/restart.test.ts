@@ -23,6 +23,17 @@ const registered = async (client: Client) =>
 const itemsOf = (client: Client, id: string) =>
 	client.request(customEndpoint<Item[]>({ path: `/geospatial/queries/${id}/items`, method: 'GET' }));
 
+// The code of the error a request fails with, in the format of Directus, which the request has to fail with.
+const errorCodeOf = async (request: Promise<unknown>): Promise<unknown> => {
+	try {
+		await request;
+	} catch (error) {
+		return (error as { errors?: { extensions?: { code?: unknown } }[] }).errors?.[0]?.extensions?.code;
+	}
+
+	throw new Error('The request did not fail.');
+};
+
 // The registry of the queries lives in the memory of Directus (§7.8), and the test restarts it. It starts its own, so
 // the other tests of the combination keep theirs.
 describe('a consulta registrada depois de reiniciar o Directus (§7.8)', () => {
@@ -57,9 +68,11 @@ describe('a consulta registrada depois de reiniciar o Directus (§7.8)', () => {
 
 			url = (await environment?.restart()) ?? '';
 
-			await expect(itemsOf(admin(), id)).rejects.toMatchObject({
-				errors: [{ extensions: { code: 'GEOSPATIAL_UNKNOWN_QUERY' } }],
-			});
+			// Right after the restart, with the other Directus of the run starting on the same machine, the event loop can lag
+			// past the pressure limiter, which answers SERVICE_UNAVAILABLE to every request for a moment (V-181).
+			await expect
+				.poll(() => errorCodeOf(itemsOf(admin(), id)), { timeout: 60_000, interval: 500 })
+				.toBe('GEOSPATIAL_UNKNOWN_QUERY');
 			// The key of the ids comes from the SECRET of Directus, which the restart keeps (D-053).
 			expect(await registered(admin())).toBe(id);
 			expect(await itemsOf(admin(), id)).toEqual(before);

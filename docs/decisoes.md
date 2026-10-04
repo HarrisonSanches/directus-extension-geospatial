@@ -887,3 +887,23 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Consequências:**
   - O cliente sempre registra para saber o id, e um id esquecido só o faz registrar de novo, com o mesmo id.
   - Trocar o `SECRET` troca todos os ids, e as interfaces registram de novo.
+
+## D-054 — O cursor das listas de itens: a chave da ordem, cifrado e preso à lista
+
+- **Estado:** aceita em 03/10/2026. Detalha a D-022 e o §7.1.
+- **Onde:** §7.1 · §7.8 · `docs/padroes/api-e-contrato.md` · V-185.
+- **Contexto:** o §7.1 e a D-022 pedem a paginação por cursor, sem dizer o que ele guarda nem como protegê-lo. O cursor leva o valor da ordem do último item, e com `sort=placa` isso é a placa, numa URL que fica no log de acesso do Directus e de um proxy. E o driver `pg` entrega um `timestamp` como uma data do JavaScript, que perde os microssegundos que o Postgres guarda (V-185).
+- **Decisão:**
+  - A página começa logo depois do último item da anterior, pela chave da ordem, a distância ou os campos do `sort`, e pela chave primária (_keyset_). O banco lê um item a mais, e o `meta.next` traz o cursor da página seguinte, que falta na última.
+  - O cursor guarda os valores da ordem como o banco os escreve: no Postgres, o texto, `::text`, que volta ao tipo da coluna sem perda; no SQLite, o valor cru do driver. Um valor vazio fica onde cada banco o põe, no fim no Postgres e no começo no SQLite.
+  - O cursor é cifrado, por escolha do mantenedor: AES-256-GCM, com a chave derivada do `SECRET` pelo HKDF e a lista (a coleção, o `geo` e o `sort`) como dado associado. Um cursor mudado, de outra lista ou de outra instalação volta com o `GEOSPATIAL_INVALID_INPUT`, antes do banco.
+  - Vale no estilo do `/items`, na URL do `GET` e no corpo do `SEARCH`, e nas partes da consulta registrada, na URL. Com o `offset` ou o `page`, volta com o `INVALID_QUERY`.
+  - Na ordem natural do SQLite, o servidor aplica o cursor à lista que ele mesmo ordenou, dentro do limite de 50.000 itens (D-052).
+- **Alternativas descartadas:**
+  - **Assinado (HMAC), e legível:** ninguém o mudaria, mas quem decodifica o base64 lê o valor do campo, que fica no log.
+  - **Os valores como o JavaScript os lê:** o `timestamp` perderia os microssegundos, e o último item de uma página voltaria na seguinte.
+  - **Só a chave primária, com o banco relendo o último item:** um item apagado ou mudado entre as páginas mudaria o ponto de partida da leitura.
+- **Consequências:**
+  - Toda lista com mais itens traz o `meta.next`, que o SDK da extensão percorre como iterador (F02-19). O SDK do Directus deixa o `meta` de fora.
+  - Trocar o `SECRET` invalida os cursores em uso, e a interface recomeça da primeira página.
+  - Na ordem natural do PostGIS, o filtro do cursor compara a distância e a chave como uma linha, `(distância, id) > (?, ?)`, e mede a distância uma vez a mais.

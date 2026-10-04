@@ -9,6 +9,7 @@ export type {
 	CapabilitiesResponses,
 	Capped,
 	ClientOptions,
+	Cursor,
 	Database,
 	ErrorCode,
 	Errors,

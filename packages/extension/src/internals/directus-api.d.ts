@@ -4,13 +4,15 @@
 // dist/<path>.js (V-23), so the specifiers have no extension. What a declaration says beyond the module, the function
 // and its arity, the check cannot confirm (V-146), and the parity with /items does.
 
-// The tree of fields Directus reads a collection by (api/src/types/ast.ts). The extension only looks at the root and at
-// the type of each node, and hands the rest back to Directus as it came.
+// The tree of fields Directus reads a collection by (api/src/types/ast.ts). The extension only looks at the root, at the
+// type of each node and at the key of its field, and hands the rest back to Directus as it came.
 declare module '@directus/api/types/ast' {
 	import type { Filter, Query } from '@directus/types';
 
 	export interface Node {
 		type: string;
+		// The key of the field in the items, which Directus keeps of each item once it read the tree.
+		fieldKey: string;
 	}
 
 	export interface AST {

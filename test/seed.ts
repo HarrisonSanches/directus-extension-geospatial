@@ -187,5 +187,9 @@ export const seed = async (
 			'South zone with status': { filter: southZone },
 			'North zone without status': { filter: northZone, fields: everyFieldBut('status') },
 		}),
+		// The south zone without the primary key, which Directus reads for itself and leaves out of /items (V-183).
+		withoutKey: await userOf('Without key', 'without-key@example.com', {
+			'South zone without key': { filter: southZone, fields: everyFieldBut('id') },
+		}),
 	};
 };

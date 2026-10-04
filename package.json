@@ -27,6 +27,7 @@
 		"@commitlint/types": "catalog:",
 		"@directus/sdk": "catalog:",
 		"@eslint/js": "catalog:",
+		"@fast-check/vitest": "catalog:",
 		"@redocly/cli": "catalog:",
 		"@testcontainers/postgresql": "catalog:",
 		"@types/node": "catalog:",

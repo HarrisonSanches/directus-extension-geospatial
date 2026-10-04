@@ -82,7 +82,7 @@ export const directus11 = (received: Received = nothingReceived(), emitter = new
 			return Promise.resolve({
 				type: 'root',
 				name: options.collection,
-				children: [{ type: 'field', name: 'collection' }],
+				children: [{ type: 'field', name: 'collection', fieldKey: 'collection' }],
 				query: {},
 				cases: [],
 			});

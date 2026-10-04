@@ -16,6 +16,7 @@ import {
 	hasCustomPermissionRules,
 	type Occurrence,
 	type Role,
+	untilKnown,
 } from './directus.ts';
 import { planOf, summaryOfPlan } from './measure/measure.ts';
 import { callsOn, queryOn } from './postgres.ts';
@@ -156,8 +157,8 @@ const changeColumn = (collection: string, { type, using }: Column) =>
 	`alter table ${collection} alter column geometry type ${type} using ${using}`;
 
 // A collection only one test reads, as Directus creates it, with the geometry in 4326.
-const createCollectionOf = (collection: string) =>
-	as('admin').request(
+const createCollectionOf = async (collection: string) => {
+	await as('admin').request(
 		createCollection({
 			collection,
 			schema: {},
@@ -169,6 +170,8 @@ const createCollectionOf = (collection: string) =>
 			],
 		}),
 	);
+	await untilKnown(collection);
+};
 
 // A permission to read a collection, in a policy of the seed, found by its name.
 const permit = async (collection: string, policy: string, permissions: Record<string, unknown>, fields = ['*']) => {
@@ -564,6 +567,21 @@ describe('o raio no banco', () => {
 				expect(expected.every((item) => !('category' in item))).toBe(true);
 			});
 
+			it.each([['*'], ['region']] as const)(
+				'com fields=%s, a chave primária que a política não libera fica fora do raio, como do /items (V-183)',
+				async (fields) => {
+					const client = as('withoutKey');
+					const items: Record<string, unknown>[] = await client.request(readItems('occurrences', { fields: [fields] }));
+					const radiusItems = await radius(client, { fields });
+
+					expect(radiusItems.map((item) => Object.keys(withoutGeo(item)).sort())).toEqual(
+						items.slice(0, radiusItems.length).map((item) => Object.keys(item).sort()),
+					);
+					expect(radiusItems.length).toBeGreaterThan(0);
+					expect(radiusItems.every((item) => !('id' in item))).toBe(true);
+				},
+			);
+
 			it('pedido pelo nome, o campo sem permissão dá ao raio o mesmo erro do /items', async () => {
 				const client = as('withoutCategory');
 				const items = await errorsOf(client.request(readItems('occurrences', { fields: ['id', 'category'] })));
@@ -658,6 +676,7 @@ describe('o raio no banco', () => {
 						],
 					}),
 				);
+				await untilKnown(collection);
 
 				const readers: Role[] = ['admin', 'public'];
 
@@ -716,6 +735,7 @@ describe('o raio no banco', () => {
 					],
 				}),
 			);
+			await untilKnown(collection);
 			await admin.request(
 				customEndpoint({
 					path: `/items/${collection}`,
@@ -1030,6 +1050,7 @@ describe('o raio no banco', () => {
 					],
 				}),
 			);
+			await untilKnown(collection);
 			// The schema of the suite does not know the collection, so the items go by the path of /items.
 			await admin.request(
 				customEndpoint({
@@ -1129,7 +1150,7 @@ describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
 			const { data, meta } = await capped({ limit: String(limitMaximum) });
 			const distances = data.map(({ $geo }) => $geo.distance ?? Number.NaN);
 
-			expect(meta).toEqual({ capped: { limit: 50_000 } });
+			expect(meta).toEqual({ capped: { limit: 50_000 }, next: expect.any(String) as unknown });
 			expect(data).toHaveLength(limitMaximum);
 			expect(data.every(({ id }) => Number(id) <= 50_000)).toBe(true);
 			expect(distances).toEqual([...distances].sort((a, b) => a - b));
@@ -1150,7 +1171,7 @@ describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
 
 				const { meta } = await capped({ limit: String(limitMaximum) });
 
-				expect(meta).toEqual({ capped: { limit: 50_000 } });
+				expect(meta).toEqual({ capped: { limit: 50_000 }, next: expect.any(String) as unknown });
 				lags.push(await lagOf());
 			}
 
@@ -1160,7 +1181,7 @@ describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
 		it('com o sort da página, que o banco ordena, a lista vem inteira, sem o aviso', async () => {
 			const { data, meta } = await capped({ sort: '-id', limit: '3' });
 
-			expect(meta).toBeUndefined();
+			expect(meta).toEqual({ next: expect.any(String) as unknown });
 			expect(data.map(({ id }) => id)).toEqual([55_000, 54_999, 54_998]);
 		});
 
@@ -1187,6 +1208,7 @@ describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
 				],
 			}),
 		);
+		await untilKnown(collection);
 
 		expect(await errorOf(radius(as('admin'), {}, collection))).toMatchObject({
 			errors: [

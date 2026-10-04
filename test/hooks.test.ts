@@ -1,6 +1,6 @@
 import { createItems, createPermission, customEndpoint, readItems, readPolicies } from '@directus/sdk';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { as, type Client, hasCustomPermissionRules, type Occurrence, type Role } from './directus.ts';
+import { as, type Client, hasCustomPermissionRules, type Occurrence, type Role, untilKnown } from './directus.ts';
 import { circle, createOccurrences, occurrences, southZone, wgs84 } from './seed.ts';
 import { type Item, limitMaximum } from 'directus-geospatial-contract';
 
@@ -62,6 +62,7 @@ beforeAll(async () => {
 	const admin = as('admin');
 
 	await createOccurrences(admin, hooked);
+	await untilKnown(hooked);
 	await admin.request(createItems(hooked, occurrences));
 
 	// Maria reads the south zone of the collection of the other extension too.

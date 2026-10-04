@@ -151,6 +151,40 @@ describe('a ordem do raio', () => {
 	});
 });
 
+describe('o cursor do raio (D-054)', () => {
+	it('cada linha traz as chaves da ordem natural: a distância, e a chave primária no texto do Postgres', () => {
+		const { keys } = postgis.radius(database, { ...radius, permitted: permitted(), limit: 101, offset: 0 });
+
+		expect(keys).toEqual(['geospatial:distance', 'geospatial:key:1']);
+	});
+
+	it('com o cursor, a página começa logo depois do último item da anterior, pela distância e pela chave', async () => {
+		const { builder } = postgis.radius(database, {
+			...radius,
+			permitted: permitted(),
+			limit: 101,
+			offset: 0,
+			after: [1234.5, '42'],
+		});
+
+		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis-after.sql');
+	});
+
+	it('com o sort e o cursor, começa depois do último pelos campos da página, com o vazio onde o Postgres o põe', async () => {
+		const { builder, keys } = postgis.radius(database, {
+			...radius,
+			order: [{ field: 'region', direction: 'desc' }],
+			permitted: permitted(),
+			limit: 101,
+			offset: 0,
+			after: [null, '42'],
+		});
+
+		expect(keys).toEqual(['geospatial:key:0', 'geospatial:key:1']);
+		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis-sorted-after.sql');
+	});
+});
+
 describe('as caixas do raio no SRID da coluna', () => {
 	it('numa coluna em 4326, são as do círculo, sem perguntar ao banco', async () => {
 		expect(await postgis.boxesIn(database, created, center, 10_000)).toEqual(boxesOf(center, 10_000));

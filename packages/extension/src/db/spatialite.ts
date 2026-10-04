@@ -1,4 +1,5 @@
 import type { SelectingAdapter } from './adapter.js';
+import { type OrderKey, pastKeys } from './keyset.js';
 
 const isRow = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
@@ -31,7 +32,7 @@ export const spatialite: SelectingAdapter = {
 	// primary key, for the server to measure and order them.
 	radius: (
 		knex,
-		{ permitted, collection, geometry, key, center: [longitude, latitude], distance, order, limit, offset },
+		{ permitted, collection, geometry, key, center: [longitude, latitude], distance, order, limit, offset, after },
 	) => {
 		const near = permitted
 			.clone()
@@ -53,6 +54,32 @@ export const spatialite: SelectingAdapter = {
 			builder.offset(offset);
 		}
 
-		return { builder };
+		// With an order of the page, the keys of the order, as the cursor of the next page carries them (D-054): each one
+		// as SQLite hands it, so a number goes back as a number and a text as a text, and they compare as the order did.
+		// SQLite takes an empty value as the smallest. In the natural order, the server orders the list, and its keys.
+		const keys: OrderKey[] =
+			order.length === 0
+				? []
+				: [
+						...order.map(({ field, direction }): OrderKey => ({
+							column: knex.raw('??', [`p.${field}`]),
+							direction,
+							nullable: true,
+						})),
+						{ column: knex.raw('??', [`p.${key}`]), direction: 'asc', nullable: false },
+					];
+		const keyColumns = keys.map(({ column }, index) => {
+			const name = `geospatial:key:${String(index)}`;
+
+			builder.select(knex.raw('? as ??', [column, name]));
+
+			return name;
+		});
+
+		if (after !== undefined) {
+			pastKeys(builder, keys, after, 'smallest');
+		}
+
+		return { builder, keys: keyColumns };
 	},
 };

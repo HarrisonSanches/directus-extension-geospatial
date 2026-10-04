@@ -156,6 +156,10 @@ export type ItemsSearch = {
 	query?: {
 		[key: string]: unknown;
 	};
+	/**
+	 * Where the page starts, as the cursor of the GET, which the meta.next of the page before brings. In its place, the one of the URL.
+	 */
+	cursor?: Cursor;
 };
 
 /**
@@ -185,10 +189,19 @@ export type RegisteredQuery = {
 export type QueryId = string;
 
 /**
+ * Where a page of a list starts, opaque to the client: the order of the last item of the page before, sealed by the installation, in base64url. Nobody reads or changes what it holds, and it belongs to the list it came from.
+ */
+export type Cursor = string;
+
+/**
  * What the response tells about the list, the way /items of Directus does in its meta. It only carries what applies to the response.
  */
 export type ItemsMeta = {
 	capped?: Capped;
+	/**
+	 * The cursor of the next page, which is missing on the last one.
+	 */
+	next?: Cursor;
 };
 
 /**
@@ -306,13 +319,17 @@ export type ItemsData = {
 		 * The page, as in /items, starting at 1.
 		 */
 		page?: number;
+		/**
+		 * Where the page starts: right after the last item of the page before, by the cursor its meta.next brings. It belongs to the list it came from, with the same collection, geo and sort, and does not go with offset or page.
+		 */
+		cursor?: Cursor;
 	};
 	url: '/geospatial/items/{collection}';
 };
 
 export type ItemsErrors = {
 	/**
-	 * The geo is off the contract, or the field it names is not a geometry (code GEOSPATIAL_INVALID_INPUT). A parameter of /items is off, such as the limit, or the operation does not take it yet (code INVALID_QUERY of Directus).
+	 * The geo or the cursor is off the contract, the cursor is not one of this list, or the field the geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). A parameter of /items is off, such as the limit, the cursor goes with the offset or the page, or the operation does not take a parameter yet (code INVALID_QUERY of Directus).
 	 */
 	400: Errors;
 	/**
@@ -394,13 +411,17 @@ export type QueryItemsData = {
 		 * How many items, as in /items. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT.
 		 */
 		limit?: Limit;
+		/**
+		 * Where the page starts: right after the last item of the page before, by the cursor its meta.next brings. It belongs to the list it came from, with the same collection, geo and sort.
+		 */
+		cursor?: Cursor;
 	};
 	url: '/geospatial/queries/{id}/items';
 };
 
 export type QueryItemsErrors = {
 	/**
-	 * The id is off the contract, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The limit or the sort is off, the URL brings another parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).
+	 * The id or the cursor is off the contract, the cursor is not one of this list, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The limit or the sort is off, the URL brings another parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).
 	 */
 	400: Errors;
 	/**

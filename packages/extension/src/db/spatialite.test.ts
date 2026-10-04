@@ -58,6 +58,30 @@ describe('o raio na SpatiaLite', () => {
 	});
 });
 
+describe('o cursor do raio na SpatiaLite (D-054)', () => {
+	it('com o sort e o cursor, começa depois do último pelos campos da página, com o vazio onde o SQLite o põe', async () => {
+		const { builder, keys } = spatialite.radius(database, {
+			...radius,
+			permitted: permitted(),
+			order: [{ field: 'region', direction: 'asc' }],
+			limit: 101,
+			offset: 0,
+			after: ['south', 7],
+		});
+
+		expect(keys).toEqual(['geospatial:key:0', 'geospatial:key:1']);
+		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-spatialite-sorted-after.sql');
+	});
+
+	it('na ordem natural, quem ordena e corta a página é o servidor, e o SQL não leva o cursor nem as chaves', () => {
+		const natural = { ...radius, permitted: permitted(), limit: 50_001, offset: 0 };
+		const { builder, keys } = spatialite.radius(database, { ...natural, after: [12.5, 7] });
+
+		expect(keys).toEqual([]);
+		expect(builder.toSQL().sql).toBe(spatialite.radius(database, natural).builder.toSQL().sql);
+	});
+});
+
 describe('a coluna na SpatiaLite', () => {
 	it('é uma geometria em 4326, sem perguntar ao banco, que não guarda os metadados espaciais (V-147)', async () => {
 		expect(await spatialite.columnOf(database, 'occurrences', 'geometry')).toEqual({ type: 'geometry', srid: 4326 });

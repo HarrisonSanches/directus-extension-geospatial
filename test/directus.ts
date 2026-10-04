@@ -1,3 +1,4 @@
+import { setTimeout } from 'node:timers/promises';
 import { createDirectus, type DirectusClient, rest, type RestClient, staticToken } from '@directus/sdk';
 import { inject } from 'vitest';
 import type { Combination } from './combinations.ts';
@@ -14,6 +15,7 @@ export type Role =
 	| 'withoutGeometry'
 	| 'geometryInPart'
 	| 'statusInPart'
+	| 'withoutKey'
 	| 'public';
 
 // The database and the spatial extension a combination runs, with the versions as they report them.
@@ -97,11 +99,40 @@ export const as = (role: Role): Client => {
 };
 
 // A request as one of the users of the suite, with the whole body of the response: the client of the SDK hands over only
-// its data, and leaves the meta out. The response goes through the contract too.
-export const fetchAs = (role: Exclude<Role, 'public'>, path: string): Promise<Response> => {
+// its data, and leaves the meta out. A body goes as JSON. The response goes through the contract too.
+export const fetchAs = (
+	role: Exclude<Role, 'public'>,
+	path: string,
+	{ method = 'GET', body }: { method?: string; body?: string } = {},
+): Promise<Response> => {
 	const { url, tokens } = current();
+	const headers: Record<string, string> = { Authorization: `Bearer ${tokens[role]}` };
 
-	return checkedFetch(`${url}${path}`, { headers: { Authorization: `Bearer ${tokens[role]}` } });
+	if (body !== undefined) {
+		headers['Content-Type'] = 'application/json';
+	}
+
+	return checkedFetch(`${url}${path}`, { method, body, headers });
+};
+
+// Waits until Directus knows a collection a test just created. A process of Directus that was preparing the schema when
+// the collection came puts the schema without it in the cache, after the creation cleared it, and it stays there until
+// the next change (V-184). Between tries, the admin clears the cache of the system again.
+export const untilKnown = async (collection: string): Promise<void> => {
+	for (let attempt = 0; attempt < 20; attempt += 1) {
+		const read = await fetchAs('admin', `/items/${collection}?limit=0`);
+
+		await read.arrayBuffer();
+
+		if (read.ok) {
+			return;
+		}
+
+		await (await fetchAs('admin', '/utils/cache/clear?system', { method: 'POST' })).arrayBuffer();
+		await setTimeout(250);
+	}
+
+	throw new Error(`Directus did not get to know the collection ${collection}.`);
 };
 
 export const versions = (): Directus['versions'] => current().versions;

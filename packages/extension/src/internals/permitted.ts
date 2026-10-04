@@ -6,14 +6,15 @@ import { acceptedWith, offOnMismatch } from './accepted.js';
 import { chain, type Context, type Request } from './chain.js';
 import { type Load, load as loadDirectus } from './modules.js';
 
-// The permitted query of a request, and the query of the page as the hooks of items.query returned it, which the
-// operation reads its page by. The query of the request is the page as Directus sanitized it for /items, and queryOf
-// says what the operation asks of the chain out of what the hooks returned.
+// The permitted query of a request, the query of the page as the hooks of items.query returned it, which the operation
+// reads its page by, and the fields Directus keeps of each item, which /items would give. The query of the request is
+// the page as Directus sanitized it for /items, and queryOf says what the operation asks of the chain out of what the
+// hooks returned.
 export type PermittedQuery = (
 	request: Request,
 	context: Context,
 	queryOf?: (hooked: Query) => Query,
-) => Promise<{ builder: Knex.QueryBuilder; query: Query }>;
+) => Promise<{ builder: Knex.QueryBuilder; query: Query; fields: string[] }>;
 
 // The permitted query of a request (D-001), built by the adapter the check accepted for the running Directus, without
 // running it, in the order of the readByQuery of the ItemsService: what that Directus does before the hooks, the hooks
@@ -44,9 +45,9 @@ export const permittedQueryWith = (
 				{ database: context.knex, schema: context.schema, accountability },
 			);
 
-			const { builder } = await chain(take, { collection, query: queryOf(query), accountability }, context);
+			const { builder, fields } = await chain(take, { collection, query: queryOf(query), accountability }, context);
 
-			return { builder, query };
+			return { builder, query, fields };
 		}, logger);
 	};
 };

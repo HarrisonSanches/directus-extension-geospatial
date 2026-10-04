@@ -2,7 +2,8 @@ import { InvalidQueryError } from '@directus/errors';
 import type { Query } from '@directus/types';
 import type { RegisteredQuery } from 'directus-geospatial-contract';
 import { describe, expect, it, vi } from 'vitest';
-import { idKeyOf, idOf } from './id.js';
+import { idOf } from './id.js';
+import { keyOf } from './key.js';
 import { pageOfPart, questionOf, register } from './register.js';
 import { memoryRegistry } from './registry.js';
 
@@ -12,7 +13,7 @@ const question: RegisteredQuery = {
 	query: { filter: { occurred_at: { _lte: '$NOW' } }, search: 'car' },
 };
 
-const key = idKeyOf('a secret of Directus');
+const key = keyOf('a secret of Directus', 'registered query id');
 
 // A registration on a clock the test moves, with the query read as Directus reads it.
 const registrationAt = (now: number) => {

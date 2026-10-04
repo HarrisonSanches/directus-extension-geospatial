@@ -42,12 +42,15 @@ describe('a cadeia do ItemsService até o getDBQuery', () => {
 
 	it('passa ao getDBQuery só as relações de um para muitos do nível', async () => {
 		const received = nothingReceived();
-		const o2m = { type: 'o2m', name: 'comments' };
+		const o2m = { type: 'o2m', name: 'comments', fieldKey: 'comments' };
 		const modules = {
 			...directus11(received),
 			'database/run-ast/lib/parse-current-level': {
 				parseCurrentLevel: withArity(4, () =>
-					Promise.resolve({ fieldNodes: [], nestedCollectionNodes: [o2m, { type: 'm2o', name: 'author' }] }),
+					Promise.resolve({
+						fieldNodes: [],
+						nestedCollectionNodes: [o2m, { type: 'm2o', name: 'author', fieldKey: 'author' }],
+					}),
 				),
 			},
 		};
@@ -59,6 +62,32 @@ describe('a cadeia do ItemsService até o getDBQuery', () => {
 		);
 
 		expect(received.getDBQuery).toEqual([expect.objectContaining({ o2mNodes: [o2m] })]);
+	});
+
+	it('devolve os campos da árvore, os que o Directus deixa em cada item depois de ler (removeTemporaryFields)', async () => {
+		const take = takeFrom(new Map(Object.entries(directus11())));
+		const { fields } = await chain(take, { collection: 'occurrences', query: {}, accountability: maria }, context);
+
+		expect(fields).toEqual(['collection']);
+	});
+
+	it('uma árvore cujo nó não traz a chave do campo é outra forma, e a operação se desliga', async () => {
+		const modules = {
+			...directus11(),
+			'database/get-ast-from-query/get-ast-from-query': {
+				getAstFromQuery: withArity(2, () =>
+					Promise.resolve({ type: 'root', name: 'occurrences', children: [{ type: 'field' }], query: {}, cases: [] }),
+				),
+			},
+		};
+
+		await expect(
+			chain(
+				takeFrom(new Map(Object.entries(modules))),
+				{ collection: 'occurrences', query: {}, accountability: maria },
+				context,
+			),
+		).rejects.toThrow('getAstFromQuery returned something other than a tree of fields.');
 	});
 
 	// The builder has a then of its own, and Knex without a connection would fail to run it.

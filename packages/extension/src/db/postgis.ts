@@ -1,6 +1,8 @@
 import type { Position } from 'directus-geospatial-contract';
-import type { MeasuringAdapter, SpatialColumn } from './adapter.js';
+import type { Knex } from 'knex';
+import type { MeasuringAdapter, RadiusEnvelope, SpatialColumn } from './adapter.js';
 import { type Box, boxesOf, ringOf } from './box.js';
+import { type OrderKey, pastKeys } from './keyset.js';
 
 // The SRID of what comes in, the center of a request, and of what goes out, the geometry of the items (D-007).
 const wgs84 = 4326;
@@ -63,6 +65,42 @@ export const unlessProjFails = async <T>(read: () => Promise<T>): Promise<T | nu
 		throw error;
 	}
 };
+
+// The keys of the order of the radius, as the cursor of the next page carries them (D-054): the distance and the
+// primary key in the natural order, or the fields of the sort and the primary key. Postgres takes an empty value as the
+// largest.
+const orderKeysOf = (knex: Knex, order: RadiusEnvelope['order'], key: string, measure: Knex.Raw): OrderKey[] => {
+	const byKey: OrderKey = { column: knex.raw('??', [`p.${key}`]), direction: 'asc', nullable: false };
+
+	if (order.length === 0) {
+		return [{ column: measure, direction: 'asc', nullable: false }, byKey];
+	}
+
+	return [
+		...order.map(({ field, direction }): OrderKey => ({
+			column: knex.raw('??', [`p.${field}`]),
+			direction,
+			nullable: true,
+		})),
+		byKey,
+	];
+};
+
+// The columns the rows bring the keys in. The distance comes in its own, and each other key in a column of its text, as
+// Postgres writes it, which goes back to its type with nothing lost, as the microseconds of a timestamp, which a date of
+// JavaScript would drop (V-185).
+const keyColumnsOf = (knex: Knex, builder: Knex.QueryBuilder, keys: OrderKey[], natural: boolean): string[] =>
+	keys.map(({ column }, index) => {
+		if (natural && index === 0) {
+			return measured;
+		}
+
+		const name = `geospatial:key:${String(index)}`;
+
+		builder.select(knex.raw('?::text as ??', [column, name]));
+
+		return name;
+	});
 
 const wktOf = (ring: Position[]) => `LINESTRING(${ring.map(([x, y]) => `${String(x)} ${String(y)}`).join(', ')})`;
 
@@ -134,7 +172,10 @@ export const postgis: MeasuringAdapter = {
 	// does the distance, which orders the list unless the page asks its own order. The order of the page reads the values
 	// the permitted query exposes, where Directus orders /items by the column itself, so an item whose field a policy
 	// holds back sorts as an empty one, and its place in the list tells nothing of the value (V-179).
-	radius: (knex, { permitted, collection, geometry, key, column, boxes, center, distance, order, limit, offset }) => {
+	radius: (
+		knex,
+		{ permitted, collection, geometry, key, column, boxes, center, distance, order, limit, offset, after },
+	) => {
 		const raw = `${collection}.${geometry}`;
 		const [longitude, latitude] = center;
 		const near = permitted.clone();
@@ -175,16 +216,14 @@ export const postgis: MeasuringAdapter = {
 				? knex.raw('ST_GeomFromText(??, 4326)', [`p.${geometry}`])
 				: knex.raw('ST_Transform(ST_GeomFromText(??, ?), 4326)', [`p.${geometry}`, column.srid]);
 
+		const measure = knex.raw('ST_Distance(?::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography)', [
+			exposed,
+			longitude,
+			latitude,
+		]);
+
 		const builder = knex
-			.select(
-				'p.*',
-				knex.raw('ST_Distance(?::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography) as ??', [
-					exposed,
-					longitude,
-					latitude,
-					measured,
-				]),
-			)
+			.select('p.*', knex.raw('? as ??', [measure, measured]))
 			.from(near.as('p'))
 			.whereNotNull(`p.${geometry}`);
 
@@ -206,6 +245,15 @@ export const postgis: MeasuringAdapter = {
 			builder.offset(offset);
 		}
 
-		return column.srid === wgs84 ? { builder, distance: measured } : { builder, distance: measured, converted };
+		const keys = orderKeysOf(knex, order, key, measure);
+		const keyColumns = keyColumnsOf(knex, builder, keys, order.length === 0);
+
+		if (after !== undefined) {
+			pastKeys(builder, keys, after, 'largest');
+		}
+
+		return column.srid === wgs84
+			? { builder, distance: measured, keys: keyColumns }
+			: { builder, distance: measured, converted, keys: keyColumns };
 	},
 };

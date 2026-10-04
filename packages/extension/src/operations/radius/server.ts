@@ -1,6 +1,7 @@
 import { setImmediate as nextTurn } from 'node:timers/promises';
 import type { Position } from 'directus-geospatial-contract';
 import geographiclib from 'geographiclib-geodesic';
+import type { Key } from '../../db/adapter.js';
 
 // What the server of the extension completes of the radius where the database tells which items are inside the circle
 // and not how far they are (D-002, §7.4): the distance, by GeographicLib, the same calculation as PostGIS (D-012), and
@@ -70,18 +71,38 @@ interface Window {
 	offset: number;
 	// The most rows the server orders.
 	cap: number;
+	// The distance and the key of the last item the page before saw, for the page to start right after it (D-054).
+	after?: Key[];
 }
+
+// Where the page starts in the list: right after the last item the page before saw, by the distance and then the key,
+// as the database does it with the keyset, or else past the offset.
+const startOf = (measured: { row: Record<string, unknown>; distance: number }[], { key, offset, after }: Window) => {
+	if (after === undefined) {
+		return offset;
+	}
+
+	const [distance, last] = after;
+	const past = measured.findIndex(
+		(item) => item.distance > Number(distance) || (item.distance === distance && compareKeys(item.row[key], last) > 0),
+	);
+
+	return past === -1 ? measured.length : past;
+};
 
 // The rows of a circle, which the database read in the order of the primary key, in the natural order of the radius:
 // the distance from the center, then the key, with the window of the page. Past the cap, only the first rows by the key
 // are measured and ordered, and the list says so.
 export const naturalOrderOf = async <Row extends Record<string, unknown>>(
 	rows: Row[],
-	{ geometry, key, center, limit, offset, cap }: Window,
+	window: Window,
 ): Promise<{ rows: Row[]; distances: number[]; capped: boolean }> => {
-	const measured = (await measuredInSlices(rows.slice(0, cap), (row) => distanceFrom(center, pointOf(row[geometry]))))
-		.sort((a, b) => a.distance - b.distance || compareKeys(a.row[key], b.row[key]))
-		.slice(offset, offset + limit);
+	const { geometry, key, center, limit, cap } = window;
+	const ordered = (
+		await measuredInSlices(rows.slice(0, cap), (row) => distanceFrom(center, pointOf(row[geometry])))
+	).sort((a, b) => a.distance - b.distance || compareKeys(a.row[key], b.row[key]));
+	const start = startOf(ordered, window);
+	const measured = ordered.slice(start, start + limit);
 
 	return {
 		rows: measured.map(({ row }) => row),

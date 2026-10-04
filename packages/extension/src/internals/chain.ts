@@ -16,7 +16,9 @@ export interface Context {
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
-const isNode = (value: unknown): value is Node => isRecord(value) && typeof value.type === 'string';
+// A node of the tree, with the key of its field, which Directus keeps of each item once it read the tree.
+const isNode = (value: unknown): value is Node =>
+	isRecord(value) && typeof value.type === 'string' && typeof value.fieldKey === 'string';
 
 const isTree = (value: unknown): value is AST =>
 	isRecord(value) &&
@@ -51,12 +53,14 @@ const shaped = <T>(value: unknown, isShape: (value: unknown) => value is T, step
 // getDBQuery, which returns the builder without running it (V-21, V-142). One level, with no relations.
 //
 // The builder goes back inside an object. It has a then of its own, so a promise that resolved to it would take it as
-// a promise and run the query (V-142).
+// a promise and run the query (V-142). The fields go with it: the keys of the nodes of the tree, the * as the policies
+// let the accountability read it, which are what Directus keeps of each item once it read the tree, without the primary
+// key it reads for itself (removeTemporaryFields, in api/src/database/run-ast/utils/, V-183).
 export const chain = async (
 	take: Take,
 	{ collection, query, accountability }: Request,
 	context: Context,
-): Promise<{ builder: Knex.QueryBuilder }> => {
+): Promise<{ builder: Knex.QueryBuilder; fields: string[] }> => {
 	const tree = shaped(
 		await take('getAstFromQuery')({ collection, query, accountability }, context),
 		isTree,
@@ -105,5 +109,5 @@ export const chain = async (
 		'a query builder',
 	);
 
-	return { builder };
+	return { builder, fields: ast.children.map(({ fieldKey }) => fieldKey) };
 };

@@ -1,6 +1,7 @@
 import type { RegisteredQuery } from 'directus-geospatial-contract';
 import { describe, expect, it } from 'vitest';
-import { canonicalOf, idKeyOf, idOf } from './id.js';
+import { canonicalOf, idOf } from './id.js';
+import { keyOf } from './key.js';
 
 const question: RegisteredQuery = {
 	collection: 'occurrences',
@@ -15,7 +16,7 @@ const reordered: RegisteredQuery = {
 	collection: 'occurrences',
 };
 
-const key = idKeyOf('a secret of Directus');
+const key = keyOf('a secret of Directus', 'registered query id');
 
 describe('a forma canônica de um JSON (RFC 8785)', () => {
 	it('ordena as chaves de cada objeto, sem espaços, e mantém a ordem das listas', () => {
@@ -48,12 +49,7 @@ describe('o id da consulta registrada', () => {
 	});
 
 	it('depende da chave da instalação, então não se calcula fora dela', () => {
-		expect(idOf(idKeyOf('another secret'), question)).not.toBe(idOf(key, question));
-		expect(idOf(idKeyOf('a secret of Directus'), question)).toBe(idOf(key, question));
-	});
-
-	it('sem o SECRET, a chave é sorteada no processo, como o Directus faz com o dele (V-182)', () => {
-		expect(idOf(idKeyOf(undefined), question)).not.toBe(idOf(idKeyOf(undefined), question));
-		expect(idOf(idKeyOf(''), question)).not.toBe(idOf(idKeyOf(''), question));
+		expect(idOf(keyOf('another secret', 'registered query id'), question)).not.toBe(idOf(key, question));
+		expect(idOf(keyOf('a secret of Directus', 'registered query id'), question)).toBe(idOf(key, question));
 	});
 });
