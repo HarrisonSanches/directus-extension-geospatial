@@ -288,6 +288,61 @@
 				}
 			}
 		},
+		"/geospatial/queries/{id}/shapes": {
+			"get": {
+				"operationId": "queryShapes",
+				"summary": "The shapes of a registered query",
+				"description": "The shapes the operation of the registered query produces, in GeoJSON: for the radius, the circle, with the center and the distance in its properties. The shapes read no item, but the user who asks gets them only where they can read what the items of the same query read, and otherwise the error /items gives them. The page goes in the URL, with the limit, and the next one by the cursor.",
+				"security": [{ "bearer": [] }, {}],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The id the registration returned.",
+						"schema": { "$ref": "#/components/schemas/QueryId" }
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"description": "How many shapes. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT.",
+						"schema": { "$ref": "#/components/schemas/Limit" }
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"description": "Where the page starts: right after the last shape of the page before, by the cursor its meta.next brings. The radius gives a single shape, so its list never brings one.",
+						"schema": { "$ref": "#/components/schemas/Cursor" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The shapes.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Shapes" } } }
+					},
+					"400": {
+						"description": "The id or the cursor is off the contract, the cursor is not one of this list, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The limit is off, the URL brings another parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"403": {
+						"description": "The user who asks cannot read the collection, a field the query asks for or the geometry, or the collection is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read it (code COLLECTION_INACTIVE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"404": {
+						"description": "This Directus does not know the id, because the registration expired or Directus restarted since (code GEOSPATIAL_UNKNOWN_QUERY). The client registers the question again, under the same id.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"501": {
+						"description": "The operation does not run on the database in use (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"503": {
+						"description": "The internals of the running Directus are not the ones the extension expects (code GEOSPATIAL_INTERNALS_UNSUPPORTED).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			}
+		},
 		"/geospatial/openapi.json": {
 			"get": {
 				"operationId": "openapi",
@@ -552,8 +607,97 @@
 					}
 				}
 			},
+			"Shapes": {
+				"description": "The shapes of a result, and what the response tells about the list.",
+				"type": "object",
+				"required": ["data"],
+				"properties": {
+					"data": { "$ref": "#/components/schemas/ShapeCollection" },
+					"meta": { "$ref": "#/components/schemas/ShapesMeta" }
+				}
+			},
+			"ShapeCollection": {
+				"description": "The shapes of the page, as a GeoJSON FeatureCollection (RFC 7946).",
+				"type": "object",
+				"required": ["type", "features"],
+				"additionalProperties": false,
+				"properties": {
+					"type": { "type": "string", "const": "FeatureCollection" },
+					"features": { "type": "array", "items": { "$ref": "#/components/schemas/Shape" } }
+				}
+			},
+			"Shape": {
+				"description": "A shape, as a GeoJSON Feature in WGS 84, with the values of the operation that belong to it in its properties.",
+				"type": "object",
+				"required": ["type", "geometry", "properties"],
+				"additionalProperties": false,
+				"properties": {
+					"type": { "type": "string", "const": "Feature" },
+					"geometry": {
+						"oneOf": [{ "$ref": "#/components/schemas/Polygon" }, { "$ref": "#/components/schemas/MultiPolygon" }],
+						"discriminator": {
+							"propertyName": "type",
+							"mapping": {
+								"Polygon": "#/components/schemas/Polygon",
+								"MultiPolygon": "#/components/schemas/MultiPolygon"
+							}
+						}
+					},
+					"properties": { "$ref": "#/components/schemas/ShapeValues" }
+				}
+			},
+			"ShapeValues": {
+				"description": "The values of the operation that belong to a shape. For the radius, the center and the distance of the circle, as the question gives them.",
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"center": { "$ref": "#/components/schemas/Position" },
+					"distance": { "description": "The distance, in meters.", "type": "number", "exclusiveMinimum": 0 }
+				}
+			},
+			"Polygon": {
+				"description": "A GeoJSON Polygon: the exterior ring counterclockwise, then each hole clockwise, every ring closed. A shape that crosses the antimeridian comes cut there, as a MultiPolygon (RFC 7946).",
+				"type": "object",
+				"required": ["type", "coordinates"],
+				"additionalProperties": false,
+				"properties": {
+					"type": { "type": "string", "const": "Polygon" },
+					"coordinates": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/LinearRing" } }
+				}
+			},
+			"MultiPolygon": {
+				"description": "A GeoJSON MultiPolygon, each polygon with its rings as in Polygon.",
+				"type": "object",
+				"required": ["type", "coordinates"],
+				"additionalProperties": false,
+				"properties": {
+					"type": { "type": "string", "const": "MultiPolygon" },
+					"coordinates": {
+						"type": "array",
+						"minItems": 1,
+						"items": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/LinearRing" } }
+					}
+				}
+			},
+			"LinearRing": {
+				"description": "A closed ring of positions, whose last one is the first.",
+				"type": "array",
+				"minItems": 4,
+				"items": { "$ref": "#/components/schemas/Position" }
+			},
+			"ShapesMeta": {
+				"description": "What the response tells about the list of shapes. It only carries what applies to the response.",
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"next": {
+						"description": "The cursor of the next page, which is missing on the last one.",
+						"$ref": "#/components/schemas/Cursor"
+					}
+				}
+			},
 			"Limit": {
-				"description": "How many items a page brings, up to the maximum of the contract.",
+				"description": "How many items or shapes a page brings, up to the maximum of the contract.",
 				"type": "integer",
 				"minimum": 1,
 				"maximum": 1000

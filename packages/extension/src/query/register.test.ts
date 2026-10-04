@@ -124,4 +124,20 @@ describe('a página de uma parte', () => {
 			});
 		},
 	);
+
+	it('das formas leva só o limit, e o sort volta com o INVALID_QUERY', async () => {
+		expect(await pageOfPart(question, { page: { fields: ['*'], limit: 1 }, raw: {} }, read, ['limit'])).toEqual({
+			...question.query,
+			fields: ['*'],
+			limit: 1,
+		});
+		await expect(
+			pageOfPart(question, { page: { fields: ['*'], sort: ['id'] }, raw: {} }, read, ['limit']),
+		).rejects.toMatchObject({
+			code: 'INVALID_QUERY',
+			extensions: {
+				reason: 'The URL of a part takes only the limit, and the rest of the query goes in its registration',
+			},
+		});
+	});
 });

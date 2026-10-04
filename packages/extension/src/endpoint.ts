@@ -1,6 +1,11 @@
 import { ForbiddenError } from '@directus/errors';
 import { defineEndpoint } from '@directus/extensions-sdk';
-import type { CapabilitiesResponse, ItemsResponse, RegisterQueryResponse } from 'directus-geospatial-contract';
+import type {
+	CapabilitiesResponse,
+	ItemsResponse,
+	QueryShapesResponse,
+	RegisterQueryResponse,
+} from 'directus-geospatial-contract';
 import { pageQueryWith } from './internals/page.js';
 import { permittedQueryWith } from './internals/permitted.js';
 import { checkOnStartup } from './internals/startup.js';
@@ -11,6 +16,7 @@ import { readCapabilities } from './routes/capabilities.js';
 import { getItems, queryItems, searchItems } from './routes/items.js';
 import { readOpenapi } from './routes/openapi.js';
 import { registerQuery } from './routes/queries.js';
+import { queryShapes } from './routes/shapes.js';
 
 export default defineEndpoint({
 	id: 'geospatial',
@@ -76,6 +82,16 @@ export default defineEndpoint({
 			Promise.resolve()
 				.then(() => queryItems(context, req, { internals, permittedQuery, pageQuery, registry, cursorKey }))
 				.then((body: ItemsResponse) => {
+					res.json(body);
+				})
+				.catch(next);
+		});
+
+		// The shapes of a registered query, the circle of the radius (D-022).
+		router.get('/queries/:id/shapes', (req, res, next) => {
+			Promise.resolve()
+				.then(() => queryShapes(context, req, { internals, permittedQuery, pageQuery, registry }))
+				.then((body: QueryShapesResponse) => {
 					res.json(body);
 				})
 				.catch(next);
