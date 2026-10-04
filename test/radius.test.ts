@@ -16,6 +16,7 @@ import {
 	hasCustomPermissionRules,
 	type Occurrence,
 	type Role,
+	untilKnown,
 } from './directus.ts';
 import { planOf, summaryOfPlan } from './measure/measure.ts';
 import { callsOn, queryOn } from './postgres.ts';
@@ -156,8 +157,8 @@ const changeColumn = (collection: string, { type, using }: Column) =>
 	`alter table ${collection} alter column geometry type ${type} using ${using}`;
 
 // A collection only one test reads, as Directus creates it, with the geometry in 4326.
-const createCollectionOf = (collection: string) =>
-	as('admin').request(
+const createCollectionOf = async (collection: string) => {
+	await as('admin').request(
 		createCollection({
 			collection,
 			schema: {},
@@ -169,6 +170,8 @@ const createCollectionOf = (collection: string) =>
 			],
 		}),
 	);
+	await untilKnown(collection);
+};
 
 // A permission to read a collection, in a policy of the seed, found by its name.
 const permit = async (collection: string, policy: string, permissions: Record<string, unknown>, fields = ['*']) => {
@@ -673,6 +676,7 @@ describe('o raio no banco', () => {
 						],
 					}),
 				);
+				await untilKnown(collection);
 
 				const readers: Role[] = ['admin', 'public'];
 
@@ -731,6 +735,7 @@ describe('o raio no banco', () => {
 					],
 				}),
 			);
+			await untilKnown(collection);
 			await admin.request(
 				customEndpoint({
 					path: `/items/${collection}`,
@@ -1045,6 +1050,7 @@ describe('o raio no banco', () => {
 					],
 				}),
 			);
+			await untilKnown(collection);
 			// The schema of the suite does not know the collection, so the items go by the path of /items.
 			await admin.request(
 				customEndpoint({
@@ -1202,6 +1208,7 @@ describe.skipIf(postgis)('o raio no SQLite, com limite (D-052)', () => {
 				],
 			}),
 		);
+		await untilKnown(collection);
 
 		expect(await errorOf(radius(as('admin'), {}, collection))).toMatchObject({
 			errors: [

@@ -1,7 +1,7 @@
 import { createCollection, customEndpoint } from '@directus/sdk';
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 import { combinations } from './combinations.ts';
-import { as, databaseContainer, fetchAs, hasCustomPermissionRules, type Role } from './directus.ts';
+import { as, databaseContainer, fetchAs, hasCustomPermissionRules, type Role, untilKnown } from './directus.ts';
 import { callsOn, queryOn } from './postgres.ts';
 import { circle, wgs84 } from './seed.ts';
 import { type Item, type ItemsResponse, limitMaximum } from 'directus-geospatial-contract';
@@ -76,6 +76,7 @@ const collectionWith = async (collection: string, meters: number[]) => {
 			],
 		}),
 	);
+	await untilKnown(collection);
 	await admin.request(
 		customEndpoint({
 			path: `/items/${collection}`,
