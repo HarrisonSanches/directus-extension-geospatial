@@ -60,7 +60,8 @@ const at = (meters: number) => {
 };
 
 // A collection only one test reads, as Directus creates it, with items at the distances given, by the path of /items,
-// since the schema of the suite does not know it.
+// since the schema of the suite does not know it. Each item goes with its key, which leans on no flag of the schema of
+// Directus, whose cache a schema of the moment another test changes it can take (V-184).
 const collectionWith = async (collection: string, meters: number[]) => {
 	const admin = as('admin');
 
@@ -81,7 +82,7 @@ const collectionWith = async (collection: string, meters: number[]) => {
 		customEndpoint({
 			path: `/items/${collection}`,
 			method: 'POST',
-			body: JSON.stringify(meters.map((distance) => ({ geometry: at(distance) }))),
+			body: JSON.stringify(meters.map((distance, index) => ({ id: index + 1, geometry: at(distance) }))),
 		}),
 	);
 };
@@ -169,7 +170,10 @@ describe('o cursor do raio (D-054)', () => {
 			customEndpoint({
 				path: `/items/${collection}`,
 				method: 'POST',
-				body: JSON.stringify([{ geometry: at(50) }, { geometry: at(350) }]),
+				body: JSON.stringify([
+					{ id: 7, geometry: at(50) },
+					{ id: 8, geometry: at(350) },
+				]),
 			}),
 		);
 
