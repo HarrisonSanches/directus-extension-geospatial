@@ -53,6 +53,11 @@ paridade com o `/items` alcançar também os hooks de outras extensões (V-144, 
 da extensão, então o código dela fica de fora, e só uma rodada com pacotes além dos da suíte deixa de somar. A suíte
 carrega também o observador de `test/measure/observer/`, para o teste do índice ler o SQL do raio.
 
+**Uma coleção que um teste cria espera o Directus conhecê-la,** pelo `untilKnown` de `test/directus.ts`, antes do
+primeiro uso. Com a suíte criando coleções ao mesmo tempo, o Directus pode guardar no cache um esquema preparado antes
+da criação (V-184), e entre as tentativas o admin limpa o cache do sistema. Depois de reiniciar o Directus, o primeiro
+pedido espera passar o limitador de pressão.
+
 **Os dados de teste entram pela API do Directus,** com o `@directus/sdk`: o esquema, os papéis, as políticas e os
 itens. Assim cada banco guarda a geometria do jeito que o Directus grava nele. O volume que a API não grava a tempo entra por
 SQL, na coluna que o Directus criou: no Postgres, pelo `queryOn` de `test/postgres.ts`; no SQLite, pelo `runOnSqlite`
@@ -122,9 +127,10 @@ como o Nominatim, é testado contra um servidor falso local (MSW), nunca contra 
 tempos máximos, a contagem em dois tempos, o limite de um pedido por segundo do Nominatim e a hora no futuro são
 testados em milissegundos, sem espera real.
 
-**Teste de propriedade onde entra dado de fora** (fast-check, com `@fast-check/vitest`): GeoJSON enviado,
-geometria desenhada, coordenadas digitadas e filtros. Casos que sempre entram: polígono inválido, vértices demais,
-antimeridiano, polos e coordenada fora da faixa.
+**Teste de propriedade onde entra dado de fora** (fast-check, com `@fast-check/vitest`): GeoJSON enviado, geometria
+desenhada, coordenadas digitadas, filtros e o cursor, que volta do cliente e não pode trazer nada mudado. A paginação
+também tem a sua: percorrer uma lista com empates por páginas de qualquer tamanho dá cada item uma vez. Casos que sempre
+entram: polígono inválido, vértices demais, antimeridiano, polos e coordenada fora da faixa.
 
 **Arquivos dourados para o que é gerado:** os tiles MVT (decodificados para GeoJSON antes de comparar), o
 documento OpenAPI, o SQL montado de cada operação e o PDF (comparado pelo texto e pela estrutura, não pelos

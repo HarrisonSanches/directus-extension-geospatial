@@ -60,7 +60,8 @@
 - Toda operação que devolve itens responde como o `/items` também fora das permissões (V-173): a coleção do sistema,
   pelo prefixo `directus_`, responde `FORBIDDEN`, também ao admin; a inativa do 12, o `COLLECTION_INACTIVE`, que a
   própria cadeia lança; e os valores saem pelo `PayloadService` do Directus, como o `/items` os dá, com a geometria
-  convertida por ele do texto da query permitida.
+  convertida por ele do texto da query permitida. Cada item leva só os campos da árvore que o Directus montou, o `*`
+  pelo que o usuário pode ler, sem a chave primária que ele lê para si (V-183).
 - Valores calculados no campo reservado `$geo`; nas formas, nas propriedades do GeoJSON. No raio, a `distance`, em
   metros, até o centro.
 - A lista de itens segue a ordem natural da operação, ou o `sort` da página, sempre terminando pela chave primária. A
@@ -73,7 +74,13 @@
 
 ## Paginação
 
-- Por `limit` e `cursor`. O cursor é opaco para o cliente: a chave da ordem mais a chave primária, codificadas.
+- Por `limit` e `cursor` (D-054). Cada lista traz no `meta.next` o cursor da página seguinte, que falta na última. O
+  cursor vai na URL do `GET` e das partes da consulta registrada, e no corpo do `SEARCH`. A página começa logo depois do
+  último item da anterior, pela chave da ordem, a distância ou os campos do `sort`, e pela chave primária (_keyset_).
+- O cursor é opaco e cifrado: AES-256-GCM, com a chave derivada do `SECRET` e a lista (a coleção, o `geo` e o `sort`)
+  como dado associado. Ele guarda os valores da ordem como o banco os escreve, o texto no Postgres (V-185). Um cursor
+  mudado ou de outra lista volta com o `GEOSPATIAL_INVALID_INPUT`, antes do banco, e junto do `offset` ou do `page`,
+  com o `INVALID_QUERY`.
 - O estilo do `/items` também aceita `page` e `offset`, por compatibilidade, e a documentação diz que eles ficam
   lentos em páginas fundas.
 - Todo `limit` tem máximo, declarado no contrato. Nas listas de itens, de 1 a 1.000, o schema `Limit`, e o `-1` do

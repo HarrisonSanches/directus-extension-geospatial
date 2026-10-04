@@ -221,7 +221,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   `sort` vão na URL. O `$NOW` do filtro vira o minuto do registro, que o Directus compara como compara o `$NOW` (V-182).
   O registro fica na memória por 24 h sem uso, com um teto de 32 MB, e o Directus reiniciado responde
   `GEOSPATIAL_UNKNOWN_QUERY` até o cliente registrar de novo, com o mesmo id.
-- Próximo passo: `/implement-issue F02-14`, o cursor nas duas rotas de itens.
+- F02-14 feita em 03/10/2026: as listas de itens, no estilo do `/items` e na consulta registrada, paginam por cursor.
+  A página começa logo depois do último item, pela chave da ordem e pela chave primária (_keyset_), e o `meta.next`
+  traz o cursor da seguinte. O cursor guarda a ordem como o banco a escreve, o texto no Postgres, que mantém os
+  microssegundos, cifrada por AES-256-GCM com a chave derivada do `SECRET` e presa à lista (D-054, V-185). A issue
+  achou e corrigiu uma falha da regra de ouro: o raio entregava a chave primária a quem a política não a libera, e
+  agora cada item leva só os campos da árvore do Directus, como o `/items` (V-183).
+- Próximo passo: `/implement-issue F02-15`, as formas: o círculo do raio.
 
 ## Documentação
 
