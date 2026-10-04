@@ -63,7 +63,17 @@
   convertida por ele do texto da query permitida. Cada item leva só os campos da árvore que o Directus montou, o `*`
   pelo que o usuário pode ler, sem a chave primária que ele lê para si (V-183).
 - Valores calculados no campo reservado `$geo`; nas formas, nas propriedades do GeoJSON. No raio, a `distance`, em
-  metros, até o centro.
+  metros, até o centro, e no círculo, o `center` e a `distance` da pergunta.
+- **As formas** (D-022, D-055):
+  - o `GET /geospatial/queries/:id/shapes` devolve `{ data, meta }`, com o `data` numa `FeatureCollection` do GeoJSON
+    e o `meta.next` como nas listas de itens;
+  - cada forma é uma `Feature` em WGS 84, com os valores da operação nas propriedades;
+  - os anéis seguem a RFC 7946: o de fora no anti-horário e o furo no horário, e a forma que cruza o antimeridiano sai
+    cortada nele, num `MultiPolygon`;
+  - a URL leva só o `limit` e o `cursor`;
+  - as formas não leem item nenhum, mas a query permitida é montada, sem rodar: quem não lê o que os itens da mesma
+    pergunta leem recebe o erro do `/items`;
+  - o círculo do raio sai do servidor, pela GeographicLib, com 128 lados, igual em todo banco.
 - A lista de itens segue a ordem natural da operação, ou o `sort` da página, sempre terminando pela chave primária. A
   ordem lê os valores que a query permitida expõe, e não a coluna crua, como o `/items` faz (D-051, V-179). O `sort` por
   um campo de relação ou por uma função volta com o `INVALID_QUERY`, por enquanto.

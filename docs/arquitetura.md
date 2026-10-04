@@ -134,12 +134,12 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
 
 ### Básico
 
-| #   | Operação      | O que o usuário faz                         | O que aparece no mapa                                                           | Referência PostGIS                                       |
-| --- | ------------- | ------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| 1   | Raio          | Clica num ponto e informa a distância       | Círculo desenhado, itens de dentro destacados, lista com a distância de cada um | `ST_Buffer` (desenho), `ST_DWithin` (seleção)            |
-| 2   | Por área      | Desenha uma área ou usa uma forma existente | Os itens que tocam a área, ficam inteiramente dentro ou ficam fora              | `ST_Intersects`; `ST_CoveredBy` em "inteiramente dentro" |
-| 3   | Medir         | Seleciona dois itens, ou um polígono        | Linha entre os itens com a distância; área e perímetro do polígono              | `ST_Distance`, `ST_MakeLine`, `ST_Area`, `ST_Perimeter`  |
-| 4   | Mais próximos | Clica num ponto e escolhe N                 | Os N itens mais próximos ligados ao ponto por linhas                            | Operador `<->` (KNN)                                     |
+| #   | Operação      | O que o usuário faz                         | O que aparece no mapa                                                           | Referência PostGIS                                                        |
+| --- | ------------- | ------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1   | Raio          | Clica num ponto e informa a distância       | Círculo desenhado, itens de dentro destacados, lista com a distância de cada um | `ST_DWithin` (seleção); o círculo pela GeographicLib, no servidor (D-055) |
+| 2   | Por área      | Desenha uma área ou usa uma forma existente | Os itens que tocam a área, ficam inteiramente dentro ou ficam fora              | `ST_Intersects`; `ST_CoveredBy` em "inteiramente dentro"                  |
+| 3   | Medir         | Seleciona dois itens, ou um polígono        | Linha entre os itens com a distância; área e perímetro do polígono              | `ST_Distance`, `ST_MakeLine`, `ST_Area`, `ST_Perimeter`                   |
+| 4   | Mais próximos | Clica num ponto e escolhe N                 | Os N itens mais próximos ligados ao ponto por linhas                            | Operador `<->` (KNN)                                                      |
 
 ### Intermediário
 
