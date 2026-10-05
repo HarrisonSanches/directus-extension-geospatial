@@ -2,7 +2,8 @@ import type { RegisteredQuery } from 'directus-geospatial-contract';
 import { describe, expect, it } from 'vitest';
 import { memoryRegistry } from './registry.js';
 
-const hour = 60 * 60 * 1000;
+const minute = 60 * 1000;
+const hour = 60 * minute;
 
 const questionOf = (search: string): RegisteredQuery => ({
 	collection: 'occurrences',
@@ -13,12 +14,26 @@ const questionOf = (search: string): RegisteredQuery => ({
 // The bytes a question of a search of that length takes, in JSON.
 const bytesOf = (length: number) => Buffer.byteLength(JSON.stringify(questionOf('x'.repeat(length))));
 
-// A registry on a clock the test moves.
+// A registry on a clock the test moves, with the periodic runs it asks for, which the test fires by hand.
 const registryAt = (bytes = 1024 * 1024) => {
 	const clock = { now: 0 };
-	const registry = memoryRegistry({ retention: 24 * hour, bytes, now: () => clock.now });
+	const periodic: { ms: number; run: () => void }[] = [];
+	const registry = memoryRegistry({
+		retention: 24 * hour,
+		bytes,
+		sweep: minute,
+		now: () => clock.now,
+		every: (ms, run) => {
+			periodic.push({ ms, run });
+		},
+	});
+	const tick = () => {
+		for (const { run } of periodic) {
+			run();
+		}
+	};
 
-	return { registry, clock };
+	return { registry, clock, periodic, tick };
 };
 
 describe('o registro em memória', () => {
@@ -40,6 +55,21 @@ describe('o registro em memória', () => {
 
 		clock.now += 24 * hour;
 		expect(await registry.get('a')).toBeUndefined();
+	});
+
+	it('a pergunta vencida sai da memória na varredura de cada minuto, sem esperar um pedido (D-038)', async () => {
+		const { registry, clock, periodic, tick } = registryAt();
+
+		expect(periodic.map(({ ms }) => ms)).toEqual([minute]);
+
+		await registry.put('a', questionOf('car'));
+		clock.now = 24 * hour - 1;
+		tick();
+		expect(registry.held()).toBe(Buffer.byteLength(JSON.stringify(questionOf('car'))));
+
+		clock.now += 1;
+		tick();
+		expect(registry.held()).toBe(0);
 	});
 
 	it('cada uso renova o prazo, e registrar de novo também', async () => {

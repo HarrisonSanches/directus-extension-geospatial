@@ -20,14 +20,24 @@ interface Options {
 	retention: number;
 	// The most bytes the questions take, in JSON, past which the least recently used ones go first.
 	bytes: number;
+	// How often the expired entries leave the memory, in milliseconds, with no request to do it.
+	sweep: number;
 	// The clock, in milliseconds.
 	now: () => number;
+	// Runs run every ms milliseconds, for as long as the process runs.
+	every: (ms: number, run: () => void) => void;
+}
+
+// The registry in memory, with the bytes its questions take now.
+export interface MemoryRegistry extends Registry {
+	held: () => number;
 }
 
 // The registry in the memory of the process, the default, for a Directus without Redis (§7.8). A Directus that restarts
 // forgets it, and the client registers again, under the same id. Each entry is kept for the retention since it was last
-// used, and past the bytes it holds, the least recently used ones go first (LRU).
-export const memoryRegistry = ({ retention, bytes, now }: Options): Registry => {
+// used, and past the bytes it holds, the least recently used ones go first (LRU). The expired ones leave at the next
+// request, and at most a sweep later in a process with no requests, since a question may hold personal data (D-038).
+export const memoryRegistry = ({ retention, bytes, sweep: interval, now, every }: Options): MemoryRegistry => {
 	// A Map keeps the order in which its keys went in, and each use puts the entry back at the end, so the first one is
 	// the least recently used, and the first to expire.
 	const entries = new Map<string, Entry>();
@@ -55,7 +65,12 @@ export const memoryRegistry = ({ retention, bytes, now }: Options): Registry => 
 		}
 	};
 
+	every(interval, () => {
+		sweep(now());
+	});
+
 	return {
+		held: () => held,
 		put: (id, question) => {
 			const at = now();
 
