@@ -41,6 +41,12 @@ export interface RadiusEnvelope {
 	after?: Key[];
 }
 
+// The circle of the radius around the permitted query, without the page: what a count reads.
+export type CircleEnvelope = Pick<
+	RadiusEnvelope,
+	'permitted' | 'collection' | 'geometry' | 'column' | 'boxes' | 'center' | 'distance'
+>;
+
 // What every adapter does, and the statement of the radius, which differs by what the database measures.
 interface Adapter<Statement> {
 	// The type and the SRID of a geometry column, read from the database, by the name of its table and its field.
@@ -51,6 +57,12 @@ interface Adapter<Statement> {
 	// The items within a distance of a point, out of the permitted query, in one statement. The rows keep the columns of
 	// the permitted query, with the geometry as its text, which Directus turns into the values of /items (V-173).
 	radius: (knex: Knex, envelope: RadiusEnvelope) => Statement;
+	// How many items are inside the circle, out of the permitted query, in one statement whose row brings the number in
+	// the column count: at most limit of them, or every one without a limit (§7.1).
+	count: (knex: Knex, envelope: CircleEnvelope, limit?: number) => Knex.QueryBuilder;
+	// Runs a read in a transaction whose statements the database cancels past a time maximum, in milliseconds, where the
+	// database bounds a statement in time (banco-e-sql.md). It is missing where the database does not.
+	bounded?: <T>(knex: Knex, timeout: number, read: (transaction: Knex.Transaction) => Promise<T>) => Promise<T>;
 }
 
 // The adapter of a database that measures the distance in meters, which orders the list by it where the page asks no

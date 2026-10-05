@@ -74,6 +74,14 @@
   - as formas não leem item nenhum, mas a query permitida é montada, sem rodar: quem não lê o que os itens da mesma
     pergunta leem recebe o erro do `/items`;
   - o círculo do raio sai do servidor, pela GeographicLib, com 128 lados, igual em todo banco.
+- **O resumo** (D-022, D-056):
+  - o `GET /geospatial/queries/:id/summary` devolve `{ data: { total, exact, counting } }`, e a URL não leva parâmetro
+    do `/items`;
+  - até 10.000 itens, o `total` vem exato de uma vez;
+  - acima disso, o `total` é o piso, 10.000, com o `exact` falso, e o `counting` diz se a contagem exata roda em
+    segundo plano, para a interface pedir de novo;
+  - o total exato vale por 5 min, só para quem tem as mesmas permissões;
+  - no SQLite, fica o 10.000+, com o `counting` falso.
 - A lista de itens segue a ordem natural da operação, ou o `sort` da página, sempre terminando pela chave primária. A
   ordem lê os valores que a query permitida expõe, e não a coluna crua, como o `/items` faz (D-051, V-179). O `sort` por
   um campo de relação ou por uma função volta com o `INVALID_QUERY`, por enquanto.

@@ -56,9 +56,13 @@ export const questionOf = async (registry: Registry, id: string): Promise<Regist
 	return question;
 };
 
-// The parameters of /items the URL of a part takes, the page of the part: the limit and the sort for the items, and the
-// limit for the shapes.
+// The parameters of /items the URL of a part takes, the page of the part: the limit and the sort for the items, the limit
+// for the shapes, and none for the summary.
 type OfThePart = 'limit' | 'sort';
+
+// What the URL of a part takes, in the error that refuses another parameter.
+const takenIn = (takes: OfThePart[]) =>
+	takes.length === 0 ? 'no parameter of /items' : `only the ${takes.join(' and the ')}`;
 
 // The page of a part: the query of the question, as Directus reads it for whoever asks, which resolves the variables of
 // the filter for them, with the limit and the sort of the URL. Another parameter of /items in the URL belongs to the
@@ -74,7 +78,7 @@ export const pageOfPart = async (
 
 	if (url.raw.fields !== undefined || Object.keys(url.page).some((name) => !taken.has(name))) {
 		throw new InvalidQueryError({
-			reason: `The URL of a part takes only the ${takes.join(' and the ')}, and the rest of the query goes in its registration`,
+			reason: `The URL of a part takes ${takenIn(takes)}, and the rest of the query goes in its registration`,
 		});
 	}
 

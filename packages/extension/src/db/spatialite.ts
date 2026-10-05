@@ -1,4 +1,4 @@
-import type { SelectingAdapter } from './adapter.js';
+import type { CircleEnvelope, SelectingAdapter } from './adapter.js';
 import { type OrderKey, pastKeys } from './keyset.js';
 
 const isRow = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -10,6 +10,19 @@ export const holdsPoints = (result: unknown): boolean => {
 
 	return typeof row?.type === 'string' && row.type.toLowerCase() === 'point';
 };
+
+// The permitted query with the distance over the ellipsoid, on the column, as one more of its conditions, as in PostGIS
+// (D-049), so the edge keeps the precision of SpatiaLite, and not the 6 decimals of the text the permitted query exposes
+// (A-026).
+const nearOf = ({ permitted, collection, geometry, center: [longitude, latitude], distance }: CircleEnvelope) =>
+	permitted
+		.clone()
+		.andWhereRaw('PtDistWithin(??, MakePoint(?, ?, 4326), ?, 1)', [
+			`${collection}.${geometry}`,
+			longitude,
+			latitude,
+			distance,
+		]);
 
 // The adapter of SQLite with SpatiaLite, which Directus never loads by itself (V-121), and whose spatial metadata it
 // never creates (V-147). Without them, no function of SpatiaLite measures in meters, and the PtDistWithin, which
@@ -25,24 +38,13 @@ export const spatialite: SelectingAdapter = {
 	measures: async (knex, collection, field) =>
 		holdsPoints(await knex.raw('select type from pragma_table_info(?) where name = ?', [collection, field])),
 
-	// The distance over the ellipsoid, on the column, as one more condition of the permitted query, as in PostGIS (D-049),
-	// so the edge keeps the precision of SpatiaLite, and not the 6 decimals of the text the permitted query exposes
-	// (A-026). What goes out is still decided by that value: the case when of a policy leaves it null where the item goes
-	// through without the field, and those items stay out (V-143). Without an order of the page, the rows come by the
-	// primary key, for the server to measure and order them.
-	radius: (
-		knex,
-		{ permitted, collection, geometry, key, center: [longitude, latitude], distance, order, limit, offset, after },
-	) => {
-		const near = permitted
-			.clone()
-			.andWhereRaw('PtDistWithin(??, MakePoint(?, ?, 4326), ?, 1)', [
-				`${collection}.${geometry}`,
-				longitude,
-				latitude,
-				distance,
-			]);
-		const builder = knex.select('p.*').from(near.as('p')).whereNotNull(`p.${geometry}`);
+	// The circle, as one more condition of the permitted query (nearOf). What goes out is still decided by the value the
+	// permitted query exposes: the case when of a policy leaves it null where the item goes through without the field,
+	// and those items stay out (V-143). Without an order of the page, the rows come by the primary key, for the server to
+	// measure and order them.
+	radius: (knex, envelope) => {
+		const { geometry, key, order, limit, offset, after } = envelope;
+		const builder = knex.select('p.*').from(nearOf(envelope).as('p')).whereNotNull(`p.${geometry}`);
 
 		for (const { field, direction } of order) {
 			builder.orderBy(`p.${field}`, direction);
@@ -81,5 +83,21 @@ export const spatialite: SelectingAdapter = {
 		}
 
 		return { builder, keys: keyColumns };
+	},
+
+	// The items of the circle whose geometry the permitted query exposes, as the radius gives them, without its order,
+	// which only costs a count and changes none of its rows. SQLite bounds no statement in time, and the knex of Directus
+	// holds a single connection to it, so no count runs without a limit in the background (D-056).
+	count: (knex, envelope, limit) => {
+		const inside = knex
+			.select(knex.raw('1'))
+			.from(nearOf(envelope).clearOrder().as('p'))
+			.whereNotNull(`p.${envelope.geometry}`);
+
+		if (limit !== undefined) {
+			inside.limit(limit);
+		}
+
+		return knex.count({ count: '*' }).from(inside.as('c'));
 	},
 };

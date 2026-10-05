@@ -1,6 +1,6 @@
 import type { Position } from 'directus-geospatial-contract';
 import type { Knex } from 'knex';
-import type { MeasuringAdapter, RadiusEnvelope, SpatialColumn } from './adapter.js';
+import type { CircleEnvelope, MeasuringAdapter, RadiusEnvelope, SpatialColumn } from './adapter.js';
 import { type Box, boxesOf, ringOf } from './box.js';
 import { type OrderKey, pastKeys } from './keyset.js';
 
@@ -104,6 +104,50 @@ const keyColumnsOf = (knex: Knex, builder: Knex.QueryBuilder, keys: OrderKey[], 
 
 const wktOf = (ring: Position[]) => `LINESTRING(${ring.map(([x, y]) => `${String(x)} ${String(y)}`).join(', ')})`;
 
+// The permitted query with the filter in two stages, both on the column, as more of its conditions (D-049): the box,
+// which the GiST answers, and the distance over the ellipsoid, through geography (D-007, V-42). Directus orders every
+// permitted query, which keeps Postgres from pulling it up, so a condition around it never reaches the index (V-177).
+// The conditions only discard rows. In another SRID, what comes in goes to the one of the column, and the stage the
+// index answers reads the column as it is. Only the distance reads a projected column in 4326, on what the box left,
+// since geography takes degrees.
+const nearOf = ({ permitted, collection, geometry, column, boxes, center, distance }: CircleEnvelope) => {
+	const raw = `${collection}.${geometry}`;
+	const [longitude, latitude] = center;
+	const near = permitted.clone();
+
+	if (boxes !== null) {
+		near.andWhere((inBox) => {
+			for (const box of boxes) {
+				inBox.orWhereRaw('?? && ST_MakeEnvelope(?, ?, ?, ?, ?)', [raw, ...box, column.srid]);
+			}
+		});
+	}
+
+	if (column.type === 'geography' && column.srid === wgs84) {
+		near.andWhereRaw('ST_DWithin(??, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)', [
+			raw,
+			longitude,
+			latitude,
+			distance,
+		]);
+	} else if (column.type === 'geography') {
+		near.andWhereRaw('ST_DWithin(??, ST_Transform(ST_SetSRID(ST_MakePoint(?, ?), 4326), ?::integer)::geography, ?)', [
+			raw,
+			longitude,
+			latitude,
+			column.srid,
+			distance,
+		]);
+	} else {
+		near.andWhereRaw(
+			`ST_DWithin(${column.srid === wgs84 ? '??' : 'ST_Transform(??, 4326)'}::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)`,
+			[raw, longitude, latitude, distance],
+		);
+	}
+
+	return near;
+};
+
 // The adapter of PostGIS, the reference of the catalog (D-002).
 export const postgis: MeasuringAdapter = {
 	// From the catalog, by the table the permitted query reads, resolved by the same search path.
@@ -160,55 +204,18 @@ export const postgis: MeasuringAdapter = {
 		return inSrid?.every((box): box is Box => box !== null) === true ? inSrid : null;
 	},
 
-	// The filter in two stages, both on the column, as more conditions of the permitted query (D-049): the box, which the
-	// GiST answers, and the distance over the ellipsoid, through geography (D-007, V-42). Directus orders every permitted
-	// query, which keeps Postgres from pulling it up, so a condition around it never reaches the index (V-177). The
-	// conditions only discard rows, and what goes out is still decided by the value the permitted query exposes: the case
-	// when of a policy leaves it null where the item goes through without the field, and those items stay out (V-142,
-	// V-143). The rows keep the columns of the permitted query, the geometry still as text, which Directus turns into
-	// GeoJSON as it does for /items (V-173). In another SRID, what comes in goes to the one of the column, and the stage
-	// the index answers reads the column as it is. Only the distance reads a projected column in 4326, on what the box
-	// left, since geography takes degrees. What goes out goes to 4326 from the text the permitted query exposes, and so
-	// does the distance, which orders the list unless the page asks its own order. The order of the page reads the values
-	// the permitted query exposes, where Directus orders /items by the column itself, so an item whose field a policy
-	// holds back sorts as an empty one, and its place in the list tells nothing of the value (V-179).
-	radius: (
-		knex,
-		{ permitted, collection, geometry, key, column, boxes, center, distance, order, limit, offset, after },
-	) => {
-		const raw = `${collection}.${geometry}`;
+	// The circle, as more conditions of the permitted query (nearOf). What goes out is still decided by the value the
+	// permitted query exposes: the case when of a policy leaves it null where the item goes through without the field,
+	// and those items stay out (V-142, V-143). The rows keep the columns of the permitted query, the geometry still as
+	// text, which Directus turns into GeoJSON as it does for /items (V-173). What goes out goes to 4326 from the text the
+	// permitted query exposes, and so does the distance, which orders the list unless the page asks its own order. The
+	// order of the page reads the values the permitted query exposes, where Directus orders /items by the column itself,
+	// so an item whose field a policy holds back sorts as an empty one, and its place in the list tells nothing of the
+	// value (V-179).
+	radius: (knex, envelope) => {
+		const { geometry, key, column, center, order, limit, offset, after } = envelope;
 		const [longitude, latitude] = center;
-		const near = permitted.clone();
-
-		if (boxes !== null) {
-			near.andWhere((inBox) => {
-				for (const box of boxes) {
-					inBox.orWhereRaw('?? && ST_MakeEnvelope(?, ?, ?, ?, ?)', [raw, ...box, column.srid]);
-				}
-			});
-		}
-
-		if (column.type === 'geography' && column.srid === wgs84) {
-			near.andWhereRaw('ST_DWithin(??, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)', [
-				raw,
-				longitude,
-				latitude,
-				distance,
-			]);
-		} else if (column.type === 'geography') {
-			near.andWhereRaw('ST_DWithin(??, ST_Transform(ST_SetSRID(ST_MakePoint(?, ?), 4326), ?::integer)::geography, ?)', [
-				raw,
-				longitude,
-				latitude,
-				column.srid,
-				distance,
-			]);
-		} else {
-			near.andWhereRaw(
-				`ST_DWithin(${column.srid === wgs84 ? '??' : 'ST_Transform(??, 4326)'}::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)`,
-				[raw, longitude, latitude, distance],
-			);
-		}
+		const near = nearOf(envelope);
 
 		// The geometry the permitted query exposes, in 4326.
 		const exposed =
@@ -256,4 +263,28 @@ export const postgis: MeasuringAdapter = {
 			? { builder, distance: measured, keys: keyColumns }
 			: { builder, distance: measured, converted, keys: keyColumns };
 	},
+
+	// The items of the circle whose geometry the permitted query exposes, as the radius gives them, without its order,
+	// which only costs a count and changes none of its rows.
+	count: (knex, envelope, limit) => {
+		const inside = knex
+			.select(knex.raw('1'))
+			.from(nearOf(envelope).clearOrder().as('p'))
+			.whereNotNull(`p.${envelope.geometry}`);
+
+		if (limit !== undefined) {
+			inside.limit(limit);
+		}
+
+		return knex.count({ count: '*' }).from(inside.as('c'));
+	},
+
+	// The time maximum as the SET LOCAL of the statement_timeout, through set_config, which takes the value as a
+	// parameter where SET takes none, for the transaction only. Postgres cancels the statement past it (V-187).
+	bounded: (knex, timeout, read) =>
+		knex.transaction(async (transaction) => {
+			await transaction.raw("select set_config('statement_timeout', ?, true)", [String(timeout)]);
+
+			return read(transaction);
+		}),
 };

@@ -38,8 +38,10 @@
 - A ordem lê os valores que a query permitida expõe, nunca a coluna crua, para a posição de um item não revelar o
   valor que uma política esconde (D-051, V-179).
 - Toda consulta tem um tempo máximo pelo tipo: tile, página, contagem ou análise. No Postgres, é o
-  `SET LOCAL statement_timeout` dentro da transação; nos outros bancos, o equivalente de cada um, registrado como
-  V-xx.
+  `SET LOCAL statement_timeout` dentro da transação, pelo `set_config(..., true)`, que aceita o valor como parâmetro
+  (V-187); nos outros bancos, o equivalente de cada um, registrado como V-xx. O adaptador que limita um comando no
+  tempo o declara pelo `bounded`, e onde não há, como no SQLite, nenhuma consulta sem limite roda em segundo plano
+  (D-056).
 - O pedido cancelado cancela a consulta no banco.
 - As consultas da extensão usam o pool próprio (D-006), nunca o do Directus.
 

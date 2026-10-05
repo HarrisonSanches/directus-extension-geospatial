@@ -343,6 +343,49 @@
 				}
 			}
 		},
+		"/geospatial/queries/{id}/summary": {
+			"get": {
+				"operationId": "querySummary",
+				"summary": "The summary of a registered query",
+				"description": "The total of the items of the registered query, in two times. A quick count reads at most 10,001 items, and up to 10,000 the total comes exact at once. Past that, the response says the total goes past 10,000, and the exact count runs in the background, with a time maximum, so a request after this one brings it. The total comes out of the query Directus builds of what the user who asks can read, and an exact total is kept only for whoever has the same permissions, so it never reaches someone whose permissions give another. Where the database in use cannot bound a statement in time, the summary keeps the quick count.",
+				"security": [{ "bearer": [] }, {}],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The id the registration returned.",
+						"schema": { "$ref": "#/components/schemas/QueryId" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The summary.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Summary" } } }
+					},
+					"400": {
+						"description": "The id is off the contract, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The URL brings a parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"403": {
+						"description": "The user who asks cannot read the collection, a field the query asks for or the geometry, or the collection is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read it (code COLLECTION_INACTIVE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"404": {
+						"description": "This Directus does not know the id, because the registration expired or Directus restarted since (code GEOSPATIAL_UNKNOWN_QUERY). The client registers the question again, under the same id.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"501": {
+						"description": "The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"503": {
+						"description": "The internals of the running Directus are not the ones the extension expects (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			}
+		},
 		"/geospatial/openapi.json": {
 			"get": {
 				"operationId": "openapi",
@@ -693,6 +736,33 @@
 					"next": {
 						"description": "The cursor of the next page, which is missing on the last one.",
 						"$ref": "#/components/schemas/Cursor"
+					}
+				}
+			},
+			"Summary": {
+				"description": "The summary of the result of a registered query.",
+				"type": "object",
+				"required": ["data"],
+				"properties": { "data": { "$ref": "#/components/schemas/SummaryValues" } }
+			},
+			"SummaryValues": {
+				"description": "The total of the items of the result, in two times (§7.1): exact at once up to the most the quick count reads, and past that a floor, until the exact count running in the background brings the total.",
+				"type": "object",
+				"required": ["total", "exact", "counting"],
+				"additionalProperties": false,
+				"properties": {
+					"total": {
+						"description": "How many items the result holds, or, where exact is false, the most the quick count reads, 10,000, which the result goes past.",
+						"type": "integer",
+						"minimum": 0
+					},
+					"exact": {
+						"description": "Whether total is the number of items of the result, and not a floor.",
+						"type": "boolean"
+					},
+					"counting": {
+						"description": "Whether the exact count runs in the background, or waits for its turn, so a request after this one may bring it. It is false once the total is exact, after the exact count went past its time maximum, and where the database in use does not run it.",
+						"type": "boolean"
 					}
 				}
 			},

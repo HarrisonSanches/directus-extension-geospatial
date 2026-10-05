@@ -1,7 +1,7 @@
 import { defineHook } from '@directus/extensions-sdk';
 import type { Query } from '@directus/types';
 import type { Knex } from 'knex';
-import { answered, hooked, sent } from './reads.js';
+import { answered, hooked, inTransaction, sent } from './reads.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
@@ -13,7 +13,7 @@ const uidOf = (event: unknown): string | undefined =>
 	isRecord(event) && typeof event.__knexQueryUid === 'string' ? event.__knexQueryUid : undefined;
 
 // Times the reads of the radius inside Directus, through what Directus already emits: the hooks of items.query, and the
-// events of its connection, the one the radius runs on (V-141).
+// events of its connection, the one the radius runs on (V-141). It also keeps the statements of each transaction.
 export default defineHook(({ filter }, { database }) => {
 	filter<Query>('items.query', (query, meta) => {
 		if (typeof meta.collection === 'string') {
@@ -34,6 +34,11 @@ export default defineHook(({ filter }, { database }) => {
 
 		if (Array.isArray(bindings) && bindings.every(isValue)) {
 			sent({ uid, sql: event.sql, bindings });
+
+			// A statement inside a transaction, with the id Knex gives the transaction.
+			if (typeof event.__knexTxId === 'string') {
+				inTransaction(event.__knexTxId, { uid, sql: event.sql, bindings });
+			}
 		}
 	});
 

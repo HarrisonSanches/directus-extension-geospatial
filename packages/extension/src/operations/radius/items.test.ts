@@ -4,6 +4,8 @@ import geographiclib from 'geographiclib-geodesic';
 import type { Knex } from 'knex';
 import { describe, expect, it } from 'vitest';
 import type { MeasuringAdapter, RadiusEnvelope, SelectingAdapter } from '../../db/adapter.js';
+import { postgis } from '../../db/postgis.js';
+import { spatialite } from '../../db/spatialite.js';
 import type { Request } from '../../internals/chain.js';
 import { database } from '../../internals/fake-directus.js';
 import { limits } from '../../limits.js';
@@ -224,6 +226,7 @@ const northOf = (meters: number) => {
 const selecting = (result: unknown, measures = true, keys: string[] = []) => {
 	const envelopes: RadiusEnvelope[] = [];
 	const adapter: SelectingAdapter = {
+		...spatialite,
 		columnOf: () => Promise.resolve({ type: 'geometry', srid: 4326 }),
 		boxesIn: () => Promise.resolve(null),
 		measures: () => Promise.resolve(measures),
@@ -316,6 +319,7 @@ describe('o raio onde o servidor mede (D-052)', () => {
 
 describe('o raio onde o banco mede', () => {
 	const measuring = (row: Record<string, unknown>, converted?: string): MeasuringAdapter => ({
+		...postgis,
 		columnOf: () => Promise.resolve({ type: 'geometry', srid: converted === undefined ? 4326 : 31_983 }),
 		boxesIn: () => Promise.resolve(null),
 		radius: () => ({
@@ -396,6 +400,7 @@ describe('o cursor do raio (D-054)', () => {
 	const measuringRows = (rows: Record<string, unknown>[]) => {
 		const envelopes: RadiusEnvelope[] = [];
 		const adapter: MeasuringAdapter = {
+			...postgis,
 			columnOf: () => Promise.resolve({ type: 'geometry', srid: 4326 }),
 			boxesIn: () => Promise.resolve(null),
 			radius: (_, envelope) => {
@@ -483,6 +488,7 @@ describe('os campos de cada item, como o /items os dá (V-183)', () => {
 				postgres: {
 					level: 'indexed',
 					adapter: {
+						...postgis,
 						columnOf: () => Promise.resolve({ type: 'geometry', srid: 4326 }),
 						boxesIn: () => Promise.resolve(null),
 						radius: () => ({

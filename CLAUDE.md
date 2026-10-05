@@ -232,7 +232,12 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   128 lados, igual em todo banco, e o corta no antimeridiano, como pede a RFC 7946 (D-055). O `ST_Buffer` em `geography`,
   que a issue pedia, erra 9,8% num raio de 5.000 km, dá a volta no mundo no antimeridiano e deixa o polo de fora (V-186).
   As formas não leem item, mas a query permitida é montada, sem rodar, e quem não lê a coleção recebe o erro do `/items`.
-- Próximo passo: `/implement-issue F02-16`, o resumo: o total em dois tempos.
+- F02-16 feita em 04/10/2026: o `GET /geospatial/queries/:id/summary` traz o total em dois tempos,
+  `{ total, exact, counting }`. Até 10.000 itens, o total vem exato de uma vez. Acima disso, vem o 10.000+, e a contagem
+  exata roda em segundo plano, até 30 s e no máximo 2 ao mesmo tempo, numa transação com o `statement_timeout`, que o
+  Postgres cancela além do tempo (V-187). O total vale por 5 min, guardado pelo SQL com os valores, então quem tem
+  outras permissões nunca o recebe (D-006). No SQLite, que tem uma conexão só, fica o 10.000+ (D-056).
+- Próximo passo: `/implement-issue F02-17`, o registro no Redis, e o Redis fora do ar.
 
 ## Documentação
 

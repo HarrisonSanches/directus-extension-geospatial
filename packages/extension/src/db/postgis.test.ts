@@ -1,3 +1,4 @@
+import type { Knex } from 'knex';
 import { describe, expect, it } from 'vitest';
 import { database } from '../internals/fake-directus.js';
 import type { SpatialColumn } from './adapter.js';
@@ -125,6 +126,45 @@ describe('o raio no PostGIS', () => {
 		expect(converted).toBe('geospatial:4326');
 
 		await expect(statementOf(builder)).toMatchFileSnapshot('../../testdata/sql/radius-postgis-geography-srid.sql');
+	});
+});
+
+describe('a contagem do resumo no PostGIS (§7.1)', () => {
+	const circleOf = () => ({ ...radius, permitted: permitted().orderBy('occurrences.id') });
+
+	it('conta os itens do círculo que a query permitida expõe, sem a ordem dela, até o limite da contagem rápida', async () => {
+		await expect(statementOf(postgis.count(database, circleOf(), 10_001))).toMatchFileSnapshot(
+			'../../testdata/sql/count-postgis-limit.sql',
+		);
+	});
+
+	it('sem o limite, conta todos, para a contagem exata', async () => {
+		await expect(statementOf(postgis.count(database, circleOf()))).toMatchFileSnapshot(
+			'../../testdata/sql/count-postgis.sql',
+		);
+	});
+
+	it('o tempo máximo vai no set_config da transação, antes da leitura, que roda dentro dela', async () => {
+		const sent: unknown[] = [];
+		const transaction = {
+			raw: (sql: string, bindings: unknown[]) => {
+				sent.push([sql, bindings]);
+
+				return Promise.resolve();
+			},
+		};
+		const knex = {
+			transaction: (handler: (trx: typeof transaction) => Promise<unknown>) => handler(transaction),
+		} as unknown as Knex;
+
+		const read = await postgis.bounded?.(knex, 30_000, (trx) => {
+			sent.push(trx === (transaction as unknown) ? 'read in the transaction' : 'read outside');
+
+			return Promise.resolve(42);
+		});
+
+		expect(read).toBe(42);
+		expect(sent).toEqual([["select set_config('statement_timeout', ?, true)", ['30000']], 'read in the transaction']);
 	});
 });
 

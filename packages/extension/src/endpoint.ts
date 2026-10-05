@@ -4,12 +4,14 @@ import type {
 	CapabilitiesResponse,
 	ItemsResponse,
 	QueryShapesResponse,
+	QuerySummaryResponse,
 	RegisterQueryResponse,
 } from 'directus-geospatial-contract';
 import { pageQueryWith } from './internals/page.js';
 import { permittedQueryWith } from './internals/permitted.js';
 import { checkOnStartup } from './internals/startup.js';
 import { limits } from './limits.js';
+import { memoryCounts } from './query/counts.js';
 import { keyOf } from './query/key.js';
 import { memoryRegistry } from './query/registry.js';
 import { readCapabilities } from './routes/capabilities.js';
@@ -17,6 +19,7 @@ import { getItems, queryItems, searchItems } from './routes/items.js';
 import { readOpenapi } from './routes/openapi.js';
 import { registerQuery } from './routes/queries.js';
 import { queryShapes } from './routes/shapes.js';
+import { querySummary } from './routes/summary.js';
 
 export default defineEndpoint({
 	id: 'geospatial',
@@ -30,6 +33,20 @@ export default defineEndpoint({
 		const key = keyOf(context.env.SECRET, 'registered query id');
 		// The key of the cursors, which seals where each page of a list starts (D-054).
 		const cursorKey = keyOf(context.env.SECRET, 'cursor');
+		// The exact counts of the summaries, in the memory of the process (§7.1). A timer of its own does not keep Node
+		// running past the end of Directus.
+		const { timeout, retention, concurrency, entries } = limits.summary;
+		const counts = memoryCounts({
+			timeout,
+			retention,
+			concurrency,
+			entries,
+			now: Date.now,
+			after: (ms, run) => {
+				setTimeout(run, ms).unref();
+			},
+			logger,
+		});
 
 		router.get('/capabilities', (req, res, next) => {
 			// Any error, from the detection or from sending the response, goes to the error handler of Directus.
@@ -92,6 +109,16 @@ export default defineEndpoint({
 			Promise.resolve()
 				.then(() => queryShapes(context, req, { internals, permittedQuery, pageQuery, registry }))
 				.then((body: QueryShapesResponse) => {
+					res.json(body);
+				})
+				.catch(next);
+		});
+
+		// The summary of a registered query, the total of the radius in two times (§7.1).
+		router.get('/queries/:id/summary', (req, res, next) => {
+			Promise.resolve()
+				.then(() => querySummary(context, req, { internals, permittedQuery, pageQuery, registry, counts }))
+				.then((body: QuerySummaryResponse) => {
 					res.json(body);
 				})
 				.catch(next);

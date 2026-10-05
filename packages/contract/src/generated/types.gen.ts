@@ -288,6 +288,31 @@ export type ShapesMeta = {
 };
 
 /**
+ * The summary of the result of a registered query.
+ */
+export type Summary = {
+	data: SummaryValues;
+};
+
+/**
+ * The total of the items of the result, in two times (§7.1): exact at once up to the most the quick count reads, and past that a floor, until the exact count running in the background brings the total.
+ */
+export type SummaryValues = {
+	/**
+	 * How many items the result holds, or, where exact is false, the most the quick count reads, 10,000, which the result goes past.
+	 */
+	total: number;
+	/**
+	 * Whether total is the number of items of the result, and not a floor.
+	 */
+	exact: boolean;
+	/**
+	 * Whether the exact count runs in the background, or waits for its turn, so a request after this one may bring it. It is false once the total is exact, after the exact count went past its time maximum, and where the database in use does not run it.
+	 */
+	counting: boolean;
+};
+
+/**
  * How many items or shapes a page brings, up to the maximum of the contract.
  */
 export type Limit = number;
@@ -580,6 +605,52 @@ export type QueryShapesResponses = {
 };
 
 export type QueryShapesResponse = QueryShapesResponses[keyof QueryShapesResponses];
+
+export type QuerySummaryData = {
+	body?: never;
+	path: {
+		/**
+		 * The id the registration returned.
+		 */
+		id: QueryId;
+	};
+	query?: never;
+	url: '/geospatial/queries/{id}/summary';
+};
+
+export type QuerySummaryErrors = {
+	/**
+	 * The id is off the contract, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The URL brings a parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).
+	 */
+	400: Errors;
+	/**
+	 * The user who asks cannot read the collection, a field the query asks for or the geometry, or the collection is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read it (code COLLECTION_INACTIVE).
+	 */
+	403: Errors;
+	/**
+	 * This Directus does not know the id, because the registration expired or Directus restarted since (code GEOSPATIAL_UNKNOWN_QUERY). The client registers the question again, under the same id.
+	 */
+	404: Errors;
+	/**
+	 * The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
+	 */
+	501: Errors;
+	/**
+	 * The internals of the running Directus are not the ones the extension expects (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).
+	 */
+	503: Errors;
+};
+
+export type QuerySummaryError = QuerySummaryErrors[keyof QuerySummaryErrors];
+
+export type QuerySummaryResponses = {
+	/**
+	 * The summary.
+	 */
+	200: Summary;
+};
+
+export type QuerySummaryResponse = QuerySummaryResponses[keyof QuerySummaryResponses];
 
 export type OpenapiData = {
 	body?: never;

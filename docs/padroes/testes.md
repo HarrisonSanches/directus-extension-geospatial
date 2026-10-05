@@ -106,7 +106,8 @@ item que a distância sozinha manteria.
 **O caminho conferido no SQL.** Um caminho que só muda o desempenho, como a caixa do primeiro estágio, dá o resultado
 certo também quando não é tomado. O teste dele confere o resultado e, no SQL que o observador entrega, que o caminho
 estava lá, ou que não estava, onde ele não vale. Sem isso, a caixa em outro SRID passou nos testes sem nunca ter ido ao
-banco (V-178).
+banco (V-178). O observador entrega também os comandos de uma transação, como o tempo máximo e a contagem exata do
+resumo, que precisariam de 30 s de espera para se ver cancelar (V-187).
 
 **A coluna que o Directus não cria.** O Directus só cria `geometry` em 4326 (V-25). O teste da coluna em outro SRID ou
 em `geography` cria a coleção pelo Directus e muda o tipo da coluna por SQL, no container da suíte, com os pontos
