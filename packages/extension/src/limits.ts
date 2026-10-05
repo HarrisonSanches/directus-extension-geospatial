@@ -9,9 +9,10 @@ export const limits = {
 	page: limitMaximum,
 	// The items of a circle the server measures and orders, where the database does not (D-052).
 	server: 50_000,
-	// The registered queries in memory: each one kept for 24 hours since it was last used, and the least recently used
-	// ones out first past the bytes of their questions, in JSON (D-053).
-	registry: { retention: 24 * 60 * 60 * 1000, bytes: 32 * 1024 * 1024 },
+	// The registered queries, in memory or in Redis: each one kept for 24 hours since it was last used, and the least
+	// recently used ones out first past the bytes of their questions, in JSON (D-053). The memory sweeps the expired ones
+	// every minute, and a command of Redis that takes over a second sends the request to the memory (D-057).
+	registry: { retention: 24 * 60 * 60 * 1000, bytes: 32 * 1024 * 1024, sweep: 60 * 1000, answer: 1000 },
 	// The summary, in two times (§7.1): the quick count reads up to 10,000 items, and past them the exact one runs in the
 	// background, for up to 30 seconds and 2 at a time, and its total is kept for 5 minutes, for at most 10,000 keys
 	// (D-056).
