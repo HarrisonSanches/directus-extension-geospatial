@@ -62,6 +62,14 @@
 			],
 			datasourceTemplate: 'docker',
 		},
+		// The Redis of the integration suite, the image of the development environment, which the manager of Docker Compose
+		// follows in dev/compose.yaml.
+		{
+			customType: 'regex',
+			managerFilePatterns: ['/^test/environment\\.ts$/'],
+			matchStrings: ["const redisImage = '(?<depName>redis):(?<currentValue>[^']+)'"],
+			datasourceTemplate: 'docker',
+		},
 		// The versions in the workflows that no manager reads, each under a comment that names its source.
 		{
 			customType: 'regex',

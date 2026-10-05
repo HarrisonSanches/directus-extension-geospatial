@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
-import { GenericContainer, Network, type StartedTestContainer, Wait } from 'testcontainers';
+import { GenericContainer, Network, type StartedNetwork, type StartedTestContainer, Wait } from 'testcontainers';
 import { type Combination, combinations } from './combinations.ts';
 import type { Client, DatabaseVersions } from './directus.ts';
 import { activateLicense, hasProjectOfTests, publicUrl } from './license.ts';
@@ -35,6 +35,10 @@ const copiesOf = async (packages: readonly string[]) =>
 		}),
 	);
 
+// The Redis of an installation that scales, the image of the development environment, which Renovate follows
+// (.github/renovate.json5).
+const redisImage = 'redis:8.10.2-alpine';
+
 export const newSecret = (): string => randomBytes(32).toString('hex');
 
 export const seconds = (since: number): string => ((performance.now() - since) / 1000).toFixed(1);
@@ -48,8 +52,9 @@ interface Backend {
 	// Directus, before it starts, and what it needs to reach its database.
 	directus: GenericContainer;
 	environment: Record<string, string>;
-	// The container of the database, when it runs apart from Directus.
+	// The container of the database, when it runs apart from Directus, on a network of its own.
 	database?: StartedTestContainer;
+	network?: StartedNetwork;
 	versions: (directus: StartedTestContainer) => Promise<DatabaseVersions>;
 	// Applies the key of the tests, which only goes to the PostGIS database, under the project the key is bound to. Any
 	// other database would be another project, and another activation of the key (D-043, D-044).
@@ -85,6 +90,7 @@ const withPostgis = async (directus: string, image: string): Promise<Backend> =>
 			DB_PASSWORD: database.getPassword(),
 		},
 		database,
+		network,
 		versions: () => postgresVersionsOf(database),
 		activate: (admin, key) => activateLicense(admin, database, key),
 		hasProjectOfTests: () => hasProjectOfTests(database),
@@ -114,6 +120,8 @@ export interface Environment {
 	url: string;
 	admin: { email: string; password: string; token: string };
 	backend: Backend;
+	// The Redis Directus uses, when the run asked for one.
+	redis?: StartedTestContainer;
 	// Starts another Directus on the same database, with the same configuration, as an installation that scales.
 	another: () => Promise<StartedTestContainer>;
 	// Restarts the first Directus, as an installation restarts it, and returns where the suite reaches it now.
@@ -138,7 +146,24 @@ interface Options {
 	// Whether Node records the coverage of the Directus processes. The measurements run without it, as an installation
 	// runs, since recording it slows the code down.
 	coverage?: boolean;
+	// Whether Directus uses a Redis, in a container on the network of the database, as an installation that scales. With
+	// REDIS set, Directus moves its bus, its locks and the cache of the permissions there, and the extension its registry
+	// (V-188).
+	redis?: boolean;
 }
+
+// A Redis on the network of the database, which Directus reaches by the name redis.
+const redisOn = async (network: StartedNetwork | undefined): Promise<StartedTestContainer> => {
+	if (network === undefined) {
+		throw new Error('Only a database in a container of its own takes a Redis beside it.');
+	}
+
+	return new GenericContainer(redisImage)
+		.withNetwork(network)
+		.withNetworkAliases('redis')
+		.withWaitStrategy(Wait.forLogMessage('Ready to accept connections'))
+		.start();
+};
 
 // Starts the database and the Directus of one combination.
 export const startEnvironment = async (
@@ -149,12 +174,14 @@ export const startEnvironment = async (
 		packages = [extension],
 		directus: image = combinations[combination].directus,
 		coverage: recordsCoverage = true,
+		redis: usesRedis = false,
 	}: Options = {},
 ): Promise<Environment> => {
 	const { database } = combinations[combination];
 
 	const backend =
 		database.client === 'postgres' ? await withPostgis(image.image, database.image) : await withSqlite(name, image);
+	const redis = usesRedis ? await redisOn(backend.network) : undefined;
 
 	// The container user of Directus writes the coverage here, so the folder is open to any user.
 	const coverage = join(root, name);
@@ -170,6 +197,7 @@ export const startEnvironment = async (
 	const container = backend.directus
 		.withEnvironment({
 			...backend.environment,
+			...(redis !== undefined && { REDIS: 'redis://redis:6379' }),
 			SECRET: newSecret(),
 			ADMIN_EMAIL: admin.email,
 			ADMIN_PASSWORD: admin.password,
@@ -211,6 +239,7 @@ export const startEnvironment = async (
 		url: urlOf(directus),
 		admin,
 		backend,
+		redis,
 		another: () => {
 			// SQLite keeps its database inside the container of Directus, so another one would have another database.
 			if (backend.database === undefined) {
@@ -231,6 +260,7 @@ export const startEnvironment = async (
 		stop: async () => {
 			// Time for Directus to shut down and for Node to write the coverage. Without it, Docker kills the container at once.
 			await Promise.all(instances.map((instance) => instance.stop({ timeout: 60_000 })));
+			await redis?.stop();
 			await backend.stop();
 		},
 	};
