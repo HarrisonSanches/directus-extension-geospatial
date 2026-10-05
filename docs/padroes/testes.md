@@ -198,8 +198,10 @@ rodada longa, cujos números são os que valem.
 
 Cada ensaio de falha de uma fase vira teste automatizado quando a fase termina, na suíte de integração ou na de
 ponta a ponta. Os que derrubam uma peça (o banco, o Redis, o processo do Directus) usam os próprios containers do
-teste. Os que mudam o Directus montam a imagem na suíte, sobre a oficial, como a do módulo da cadeia fora do lugar
-(`test/moved-module/`), e sobem um ambiente próprio, pelo `startEnvironment`.
+teste, que o `test/containers.ts` para sem esperar e sobe de novo. O `startEnvironment` sobe um Redis na rede do banco
+com a opção `redis`, e o `another()` sobe outra instância do Directus sobre o mesmo banco e o mesmo Redis, como uma
+instalação que escala. Os que mudam o Directus montam a imagem na suíte, sobre a oficial, como a do módulo da cadeia
+fora do lugar (`test/moved-module/`), e sobem um ambiente próprio, pelo `startEnvironment`.
 
 ## Quando cada teste roda
 

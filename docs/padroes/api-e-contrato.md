@@ -48,7 +48,9 @@
   O id é o HMAC-SHA-256 da pergunta na forma canônica do JSON (RFC 8785), com a chave derivada do `SECRET` do Directus.
   O `$NOW` do filtro vira o minuto do registro, e a query passa pelo `sanitizeQuery` e pelo `validateQuery` do
   Directus, sem ler o esquema nem as permissões. Cada parte, como o `GET /geospatial/queries/:id/items`, aplica as
-  permissões de quem pede e leva na URL só o `limit` e o `sort`.
+  permissões de quem pede e leva na URL só o `limit` e o `sort`. O registro fica no Redis do Directus, quando ele usa
+  um, e na memória de cada instância sem ele ou com ele fora, o que a API não mostra: um id que a instância não conhece
+  só faz o cliente registrar de novo (D-057).
 - Um parâmetro do `/items` fora do lugar, como o `limit` acima do máximo, ou que a operação ainda não trata, volta com
   o `INVALID_QUERY` do Directus, em vez de ficar de fora calado. O `geo`, o corpo do `SEARCH` e o campo que não é de
   geometria, que são da extensão, voltam com o `GEOSPATIAL_INVALID_INPUT`, e o corpo acima de 256 KB, abaixo do 1 MB
