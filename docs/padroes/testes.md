@@ -168,8 +168,12 @@ com o rastro do Playwright guardado para investigar.
 - O provedor de cobertura é o V8, pelo Vitest.
 - **O código que roda dentro do Directus** (a rota, o endpoint e o hook) só é medido pela integração: o Directus do
   teste sobe com o `NODE_V8_COVERAGE`, para com tempo de gravar a cobertura, e ela é convertida pela mesma biblioteca
-  do Vitest e somada à dos unitários no `pnpm test:coverage` (V-117). Como os dois lados dividem o código em trechos
-  com posições um pouco diferentes, essa soma é um piso, e o critério de 90% se lê em linhas (V-118).
+  do Vitest e somada à dos unitários no `pnpm test:coverage` (V-117). Os dois lados dividem o código em trechos com
+  posições um pouco diferentes (V-118), e a biblioteca só soma dois trechos com o mesmo início e o mesmo fim. Então,
+  antes da soma, o trecho da integração que começa onde começa um dos unitários toma a posição dele e conta uma vez
+  só, coberto se um dos lados passou por ele (A-065). Sem isso, a ramificação que os unitários cobrem e que a
+  integração só percorre numa corrida de tempo mudava a catraca de uma rodada para outra. O trecho que começa em outro
+  lugar segue contado à parte, então a soma é um piso, e o critério de 90% se lê em linhas.
 
 ## A medição
 
