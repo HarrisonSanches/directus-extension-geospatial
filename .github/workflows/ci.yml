@@ -30,7 +30,7 @@ concurrency:
 jobs:
   check:
     name: Format, lint, types, Knip and unit tests
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -60,7 +60,7 @@ jobs:
 
   combinations:
     name: Combinations of the integration suite
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
       names: ${{ steps.list.outputs.names }}
@@ -80,7 +80,7 @@ jobs:
   integration:
     name: Integration (${{ matrix.combination }})
     needs: combinations
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -113,7 +113,7 @@ jobs:
   coverage:
     name: Coverage (ratchet, Codecov and SonarQube Cloud)
     needs: [check, integration]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read # checks out the repository
@@ -163,7 +163,7 @@ jobs:
 
   secrets:
     name: Secrets in the history (gitleaks)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       # The whole history, so a secret that a later commit removed is still found.
@@ -187,7 +187,7 @@ jobs:
 
   dependencies:
     name: Vulnerable dependencies (pnpm audit and OSV-Scanner)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -206,7 +206,7 @@ jobs:
 
   workflows:
     name: Workflows (zizmor)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -221,7 +221,7 @@ jobs:
 
   renovate:
     name: Renovate configuration (renovate-config-validator)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
