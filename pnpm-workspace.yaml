@@ -100,6 +100,13 @@ overrides:
   # GHSA-vh66-26gq-q6x8 and GHSA-x97p-jq2g-jp4f: the composables of the extensions SDK pin a version of axios these
   # advisories reach, fixed in the same line. The SDK is shared with the Studio, so axios never reaches the bundle.
   'axios@>=1.0.0 <1.20.0': 1.20.0
+  # GHSA-g2v6-rqmx-r4w6: the extensions SDK and the composables of Directus pin vue 3.5.24, whose server renderer lets a
+  # carriage return through the names of attributes it refuses, open to XSS, fixed in the same line. The extension
+  # renders nothing on a server, and the Studio runs the vue of Directus, so it never reaches the bundle.
+  '@vue/server-renderer@>=3.5.0 <3.5.42': 3.5.42
+  # GHSA-68fv-2mgg-jv7q: the compilers of vue and css-tree take a version of source-map-js that an indexed source map
+  # drives to block the event loop, fixed in the same line.
+  'source-map-js@>=1.0.0 <1.2.2': 1.2.2
 
 # Dependencies that these packages use in their type declarations and do not declare. pnpm then resolves them from
 # its hidden hoisting folder, where typescript is the TypeScript 7 package, which has no API, and type-fest is missing.
