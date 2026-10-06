@@ -152,7 +152,7 @@ jobs:
       - if: >-
           github.event_name == 'push' ||
           (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       # Holds the sum against test/coverage-thresholds.json. It comes last, so a pull request that lowers the coverage
@@ -230,5 +230,5 @@ jobs:
       - name: renovate-config-validator
         env:
           # renovate: datasource=docker depName=renovate/renovate
-          IMAGE: renovate/renovate:44.115.10@sha256:e262ed52b23dd8c545c80faf5b1ad5c95a07b3f198888de8d7b8928f45c307c7
+          IMAGE: renovate/renovate:44.132.2@sha256:0191afbc3937e5316263426fc0ce1450f5c143d42e3f91da8c6f771e317fae51
         run: docker run --rm --volume "$PWD:/usr/src/app:ro" "$IMAGE" renovate-config-validator --strict

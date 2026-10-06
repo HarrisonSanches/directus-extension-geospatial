@@ -22,24 +22,24 @@ catalog:
   '@fast-check/vitest': 0.5.0
   '@hey-api/openapi-ts': 0.99.0
   # The lint of the contract (D-016), one package with no dependencies of its own.
-  '@redocly/cli': 2.54.3
-  '@testcontainers/postgresql': 12.1.0
-  '@types/node': 24.19.0
+  '@redocly/cli': 2.57.0
+  '@testcontainers/postgresql': 12.2.0
+  '@types/node': 24.19.1
   # TypeScript runs side by side (V-90): this alias is the TypeScript 7 behind tsc, and the typescript name below
   # serves the 6.0 API that typescript-eslint loads, until typescript-eslint supports TypeScript 7 (P-25).
   '@typescript/native': npm:typescript@7.0.2
-  '@vitest/coverage-v8': 5.0.2
+  '@vitest/coverage-v8': 5.0.3
   # The coverage libraries @vitest/coverage-v8 5.0.2 uses, so the coverage from inside Directus is converted and summed
   # the same way as the one from the unit tests.
-  '@vitest/istanbul-lib-coverage': 1.0.1
-  '@vitest/istanbul-lib-report': 1.0.1
+  '@vitest/istanbul-lib-coverage': 1.0.2
+  '@vitest/istanbul-lib-report': 1.0.2
   # The validation by the JSON Schema of the contract, in the dialect of OpenAPI 3.1 (D-016).
   ajv: 8.20.0
   ast-v8-to-istanbul: 1.0.7
   # The version Directus 11.17 and 12 use, whose functions move a $NOW of the registered query as the adjustDate of
   # Directus does (V-182).
-  date-fns: 4.1.0
-  eslint: 10.11.0
+  date-fns: 4.4.0
+  eslint: 10.12.0
   eslint-config-prettier: 10.1.8
   eslint-plugin-import-x: 4.17.1
   # The geodesics of Karney, the same calculation as PostGIS on the ellipsoid (V-42), for the answers the tests expect.
@@ -48,21 +48,21 @@ catalog:
   jiti: 2.7.0
   # The exact version Directus uses and @directus/types names as its peer.
   knex: 3.1.0
-  knip: 6.38.0
+  knip: 6.39.0
   # The exact version @directus/types names as its optional peer, for the type of the logger.
   pino: 9.7.0
   prettier: 3.9.9
-  testcontainers: 12.1.0
+  testcontainers: 12.2.0
   typescript: npm:@typescript/typescript6@6.0.2
-  typescript-eslint: 8.70.1
-  vite: 8.3.1
-  vitest: 5.0.2
+  typescript-eslint: 8.71.0
+  vite: 8.3.2
+  vitest: 5.0.3
   yaml: 2.9.1
 
 catalogs:
   # The code of the extension runs in the Node of the Directus images, the 22 (V-80), so its types come from that line.
   node22:
-    '@types/node': 22.20.4
+    '@types/node': 22.20.5
 
 # pnpm add only accepts versions from the catalog, so the repository keeps one version of each dependency.
 catalogMode: strict
@@ -103,7 +103,7 @@ overrides:
   # GHSA-g2v6-rqmx-r4w6: the extensions SDK and the composables of Directus pin vue 3.5.24, whose server renderer lets a
   # carriage return through the names of attributes it refuses, open to XSS, fixed in the same line. The extension
   # renders nothing on a server, and the Studio runs the vue of Directus, so it never reaches the bundle.
-  '@vue/server-renderer@>=3.5.0 <3.5.42': 3.5.42
+  '@vue/server-renderer@>=3.5.0 <3.5.42': 3.5.43
   # GHSA-68fv-2mgg-jv7q: the compilers of vue and css-tree take a version of source-map-js that an indexed source map
   # drives to block the event loop, fixed in the same line.
   'source-map-js@>=1.0.0 <1.2.2': 1.2.2
