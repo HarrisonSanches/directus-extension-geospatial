@@ -161,6 +161,29 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
     - o id fica gravado na conexão, que o pool depois empresta a outros comandos com ele;
     - o `BEGIN;` e o `COMMIT;` saem sem o id de comando.
   - **No ensaio,** o `set_config` e a contagem saíram na mesma transação, nessa ordem.
+- **V-188** **Directus e ioredis: quando o Directus usa o Redis, o cliente que ele divide e o que acontece com o Redis fora** (código-fonte das tags `v11.17.4` e `v12.4.1` do Directus, `api/src/redis/`, `api/src/lock/`, `api/src/bus/`, `api/src/permissions/cache.ts`, `api/src/cache.ts`, `api/src/rate-limiter.ts`, `api/src/synchronization.ts`, `api/src/services/server.ts` e `packages/memory`; código-fonte do ioredis 5.8.2; e ensaio da F02-17 no 11.17.4 e no 12.4.1 com o PostGIS, em 04/10/2026):
+  - **Quando o Directus usa o Redis:** o `redisConfigAvailable()` decide. Com o `REDIS_ENABLED` no ambiente, vale ele; sem ele, basta o `REDIS` ou qualquer variável que comece com `REDIS_`. A pasta `api/src/redis/` é a mesma nas duas tags.
+  - **O cliente dividido:** o `useRedis()` cria um cliente só do ioredis no primeiro uso, com `new Redis(env.REDIS ?? getConfigFromEnv('REDIS'))`, e o devolve a cada chamada. O Directus não muda nenhuma opção dele. Sem o `REDIS`, cada `REDIS_*` vira uma opção do ioredis, como o `REDIS_HOST` vira o `host`; com o `REDIS`, vale só a URL.
+  - **Quem usa o cliente dividido,** sem configuração além do Redis:
+    - o bus, as travas, o cache das permissões, que guarda na memória e no Redis, e os contadores da telemetria;
+    - no 12, também a conferência de saúde.
+  - **O que só vai para o Redis por escolha,** cada um com um cliente próprio: o cache, pelo `CACHE_STORE=redis`; o limitador de pedidos, pelo `RATE_LIMITER_STORE=redis`; e a sincronização, pelo `SYNCHRONIZATION_STORE=redis`.
+  - **O pacote:** o `exports` do `@directus/api` mapeia `./*` para `./dist/*.js`, e o build não junta os arquivos, então `@directus/api/redis/index` exporta o `useRedis` e o `redisConfigAvailable` a quem importa. A extensão recebe o mesmo cliente que o Directus.
+  - **O `@directus/memory`** tem um `set` sem prazo por chave: o prazo é um só para o armazenamento inteiro, e no 11 só a versão do Redis o lê.
+  - **O ioredis com o Redis fora,** com os padrões do 5.8.2:
+    - fora do estado `ready`, o comando vai para uma fila, e é reenviado quando a conexão volta;
+    - o cliente tenta de novo para sempre, a cada `min(n × 50, 2000)` ms;
+    - a fila só falha, com o `MaxRetriesPerRequestError`, a cada 21 tentativas: 10,5 s depois da queda, e depois a cada 42 s;
+    - com os pacotes perdidos em vez de recusados, cada tentativa ainda espera os 10 s do `connectTimeout`, e a primeira falha leva 210,5 s;
+    - não há tempo máximo por comando.
+  - **O log:** o Directus não põe ouvinte de `error` em nenhum cliente, então o ioredis escreve cada tentativa no stderr, fora do log do Directus.
+  - **A saúde:** o `/server/health` do 11 não confere o Redis. O do 12 confere, mas antes lê o resultado guardado sob uma trava no próprio Redis, que espera pela fila.
+  - **O cache das permissões com o Redis** guarda cada chave na memória do processo, até 100, e no Redis. A leitura vai ao Redis só quando a memória não tem a chave, e quem grava uma chave avisa as outras instâncias pelo bus para apagarem a cópia delas (`packages/memory`, `CacheMulti`).
+  - **No ensaio, com o Redis parado sem espera:**
+    - na instância que registrou, o registro e a leitura do admin e da Maria saíram da memória em uns 45 ms;
+    - um usuário que a instância ainda não tinha atendido recebeu do Directus um 500 depois de 10,3 s, com o `MaxRetriesPerRequestError`, antes da rota da extensão;
+    - na segunda instância, o admin também recebeu um 500 depois de uns 10 s. O código do cache explica por quê: o bus apaga a cópia local das chaves que a outra instância grava;
+    - com o Redis de volta, o cliente reconectou sozinho, e o registro voltou a ele em poucos segundos.
 - **V-148** **CockroachDB, o envelope sobre a query permitida e as lacunas do catálogo** (código-fonte das tags `v11.17.4` e `v12.4.1` do Directus e dos ramos `release-25.4`, `release-26.1`, `release-26.2` e `master` do CockroachDB, e ensaio da F01-08 no Directus 11.17.4 com o CockroachDB 25.4.17, em 28/09/2026). Resolve em parte a P-06:
   - o Directus trata o CockroachDB como Postgres: o Knex usa o `Client_CockroachDB`, filho do `Client_PG`, o `getDatabaseClient` o chama de `cockroachdb`, e a geometria usa o `GeometryHelperPostgres` (V-27), com a coluna em `geometry(Point, 4326)`. O pool roda em cada conexão o `SET serial_normalization = "sql_sequence"` e o `SET default_int_size = 4`, então a chave primária sai de uma sequência, em inteiros de 32 bits, e não do `unique_rowid()`, que passaria do inteiro seguro do JavaScript (`api/src/database/index.ts`);
   - a prova sobe o banco como o sandbox de testes do Directus: o `start-single-node --insecure`, com os dados em memória, o usuário `root` sem senha e o banco `defaultdb` (`tests/sandbox/src/config.ts` e `tests/sandbox/src/docker/cockroachdb.yml`). O Directus 11.17 levou de 46 s a 62 s para responder sobre ele, e uns 12 s sobre o PostGIS, na mesma máquina;

@@ -17,7 +17,13 @@ const key = keyOf('a secret of Directus', 'registered query id');
 
 // A registration on a clock the test moves, with the query read as Directus reads it.
 const registrationAt = (now: number) => {
-	const registry = memoryRegistry({ retention: 24 * 60 * 60 * 1000, bytes: 1024 * 1024, now: () => now });
+	const registry = memoryRegistry({
+		retention: 24 * 60 * 60 * 1000,
+		bytes: 1024 * 1024,
+		sweep: 60 * 1000,
+		now: () => now,
+		every: () => undefined,
+	});
 	const read = vi.fn((raw: Record<string, unknown>) => Promise.resolve(raw));
 
 	return { registry, read, options: { registry, key, now: () => now, read } };

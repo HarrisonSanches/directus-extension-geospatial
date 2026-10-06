@@ -9,10 +9,13 @@ import type {
 } from 'directus-geospatial-contract';
 import { pageQueryWith } from './internals/page.js';
 import { permittedQueryWith } from './internals/permitted.js';
+import { redisOf } from './internals/redis.js';
 import { checkOnStartup } from './internals/startup.js';
 import { limits } from './limits.js';
 import { memoryCounts } from './query/counts.js';
+import { fallbackRegistry } from './query/fallback.js';
 import { keyOf } from './query/key.js';
+import { sharedOn } from './query/redis-registry.js';
 import { memoryRegistry } from './query/registry.js';
 import { readCapabilities } from './routes/capabilities.js';
 import { getItems, queryItems, searchItems } from './routes/items.js';
@@ -28,8 +31,34 @@ export default defineEndpoint({
 		const internals = checkOnStartup({ getSchema: () => context.getSchema(), database: context.database, logger });
 		const permittedQuery = permittedQueryWith(internals, logger);
 		const pageQuery = pageQueryWith(internals, logger);
-		// The registered queries, in the memory of the process, which a restart empties (§7.8), and the key of their ids.
-		const registry = memoryRegistry({ ...limits.registry, now: Date.now });
+		// The registered queries, in the Redis of Directus when it uses one, which every instance shares, and in the memory
+		// of the process otherwise, or while Redis is down, which a restart empties (§7.8, D-057). The timers of their own
+		// do not keep Node running past the end of Directus.
+		const { sweep, answer, ...kept } = limits.registry;
+		const memory = memoryRegistry({
+			...kept,
+			sweep,
+			now: Date.now,
+			every: (ms, run) => {
+				setInterval(run, ms).unref();
+			},
+		});
+		const registry = fallbackRegistry({
+			shared: sharedOn(redisOf(logger), { ...kept, now: Date.now }),
+			memory,
+			answer,
+			after: (ms, run) => {
+				const timer = setTimeout(run, ms);
+
+				timer.unref();
+
+				return () => {
+					clearTimeout(timer);
+				};
+			},
+			logger,
+		});
+		// The key of the ids of the registered queries.
 		const key = keyOf(context.env.SECRET, 'registered query id');
 		// The key of the cursors, which seals where each page of a list starts (D-054).
 		const cursorKey = keyOf(context.env.SECRET, 'cursor');

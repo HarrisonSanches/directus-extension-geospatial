@@ -237,7 +237,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   exata roda em segundo plano, até 30 s e no máximo 2 ao mesmo tempo, numa transação com o `statement_timeout`, que o
   Postgres cancela além do tempo (V-187). O total vale por 5 min, guardado pelo SQL com os valores, então quem tem
   outras permissões nunca o recebe (D-006). No SQLite, que tem uma conexão só, fica o 10.000+ (D-056).
-- Próximo passo: `/implement-issue F02-17`, o registro no Redis, e o Redis fora do ar.
+- F02-17 feita em 04/10/2026: quando o Directus usa o Redis, o registro das consultas vai para ele, pelo cliente que o
+  próprio Directus divide, e um id registrado numa instância é lido na outra. O teto de 32 MB vale para as instâncias
+  juntas, num script Lua, e a pergunta vencida sai na hora, no Redis e na memória. Com o Redis fora, cada instância cai
+  para a própria memória sem esperar a fila do cliente, que só desiste depois de 10,5 s, o log avisa, e o Redis volta a
+  ser usado quando volta (D-057). Com o Redis fora, o próprio Directus responde 500 a quem não tem o acesso na memória
+  da instância (V-188).
+- Próximo passo: `/implement-issue F02-18`, o SDK nasce: `geoCapabilities()` e `geoRadius()`.
 
 ## Documentação
 

@@ -960,3 +960,30 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Um total exato pode ficar até 5 min atrás das gravações, enquanto a contagem rápida segue ao vivo. A versão da coleção, que muda a cada gravação (D-006), entra com o cache da F03.
   - Até o pool próprio da F03, as contagens exatas ocupam até 2 das 10 conexões do Directus.
   - O total guardado fica na memória de cada instância, como o registro (§7.8).
+
+## D-057 — O registro no Redis do Directus, com a queda para a memória da instância
+
+- **Estado:** aceita em 04/10/2026. Detalha a D-053, a D-038 e o §7.8.
+- **Onde:** §7.8 · §7.10 · `docs/padroes/testes.md` · V-188.
+- **Contexto:** o §7.8 diz que o registro das consultas vai para o Redis quando o Directus usa um, sem dizer como a extensão chega a ele, o que acontece quando ele cai, nem se o teto de 32 MB da D-053 vale lá. Com o Redis fora, o cliente do Directus segura cada comando numa fila e só desiste de 10,5 s a minutos depois (V-188). Qualquer um registra uma consulta, até sem sessão (D-053), e o Redis é o mesmo das travas, do bus e do cache das permissões do Directus.
+- **Decisão:**
+  - **O Redis é o do Directus,** por escolha do mantenedor: o registro usa o cliente que o `useRedis()` divide, pelo módulo `redis/index` do `@directus/api`, e segue o `redisConfigAvailable()`, sem configuração própria. A partida confere o módulo, as duas funções sem parâmetros e a forma do cliente. Se a conferência recusar, o registro fica na memória, com um aviso no log, e o resto da extensão segue.
+  - **Com o Redis fora, o registro cai para a memória da instância,** por escolha do mantenedor:
+    - com a conexão fora do `ready`, nenhum comando sai, e o pedido vai direto para a memória;
+    - um comando sem resposta em 1 s também manda o pedido para a memória;
+    - o log avisa uma vez por queda e diz quando o Redis volta;
+    - com o Redis de volta, o registro volta a ir para ele, e um id ausente no Redis ainda é procurado na memória, então o registrado durante a queda segue valendo naquela instância.
+  - **O teto de 32 MB vale para todas as instâncias juntas,** por escolha do mantenedor. Dois scripts Lua, atômicos entre as instâncias, guardam a soma dos bytes e a ordem de uso, e acima do teto sai primeiro a pergunta usada há mais tempo (LRU).
+  - **A pergunta vencida sai na hora,** por escolha do mantenedor (a sugestão da F02-13): no Redis, pelo prazo de 24 h na própria chave, que cada uso renova; na memória, por uma varredura a cada minuto, também numa instância sem pedidos.
+  - **O total exato do resumo fica na memória de cada instância,** por escolha do mantenedor (a sugestão da F02-16), até o cache da F03 (A-061).
+- **Alternativas descartadas:**
+  - **Falhar com um erro 503 com o Redis fora:** a interface pararia enquanto o Redis não voltasse.
+  - **Gravar sempre na memória e no Redis:** a pergunta, que pode ter dado pessoal, ficaria em dois lugares, e a memória de cada instância cresceria sempre.
+  - **Um cliente próprio do ioredis:** mais uma conexão por instância, o ioredis no bundle e a leitura das `REDIS_*` repetida.
+  - **Só o prazo de 24 h no Redis, sem o teto:** quem registra muito ocuparia o Redis das travas e do bus do Directus.
+  - **O `@directus/memory`:** o `set` dele não aceita um prazo por chave (V-188).
+- **Consequências:**
+  - Várias instâncias sem Redis seguem como antes: cada uma tem a própria memória, e a interface registra de novo quando muda de instância. O guia do admin avisa (F16).
+  - Durante uma queda, cada instância só conhece o que ela mesma registrou, e a interface registra de novo na outra.
+  - Uma instalação com o Redis em cluster não é atendida, como o próprio Directus, que se conecta a um Redis só.
+  - O painel de saúde da F06 pode mostrar onde o registro está.

@@ -152,3 +152,11 @@ declare module '@directus/api/utils/validate-query' {
 
 	export function validateQuery(query: Query): Query;
 }
+
+// The Redis of Directus (api/src/redis/index.ts): whether its environment turns Redis on, and the client of ioredis its
+// own parts share, which it creates on the first call (V-188). The extension reads the shape of the client it needs
+// (internals/redis.ts).
+declare module '@directus/api/redis/index' {
+	export function redisConfigAvailable(): boolean;
+	export function useRedis(): unknown;
+}
