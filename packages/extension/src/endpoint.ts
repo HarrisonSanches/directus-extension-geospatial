@@ -12,6 +12,7 @@ import { permittedQueryWith } from './internals/permitted.js';
 import { redisOf } from './internals/redis.js';
 import { checkOnStartup } from './internals/startup.js';
 import { limits } from './limits.js';
+import { sendList } from './media.js';
 import { memoryCounts } from './query/counts.js';
 import { fallbackRegistry } from './query/fallback.js';
 import { keyOf } from './query/key.js';
@@ -99,7 +100,7 @@ export default defineEndpoint({
 			Promise.resolve()
 				.then(() => getItems(context, req, { internals, permittedQuery, cursorKey }))
 				.then((body: ItemsResponse) => {
-					res.json(body);
+					sendList(req, res, body);
 				})
 				.catch(next);
 		});
@@ -109,7 +110,7 @@ export default defineEndpoint({
 			Promise.resolve()
 				.then(() => searchItems(context, req, { internals, permittedQuery, pageQuery, cursorKey }))
 				.then((body: ItemsResponse) => {
-					res.json(body);
+					sendList(req, res, body);
 				})
 				.catch(next);
 		});

@@ -9,6 +9,8 @@ reports/
 playwright-report/
 test-results/
 *.tsbuildinfo
+# The SDK as pnpm packs it, which pnpm sdk:check reads.
+*.tgz
 
 # Environment and secrets
 .env

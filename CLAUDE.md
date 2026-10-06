@@ -243,7 +243,14 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   para a própria memória sem esperar a fila do cliente, que só desiste depois de 10,5 s, o log avisa, e o Redis volta a
   ser usado quando volta (D-057). Com o Redis fora, o próprio Directus responde 500 a quem não tem o acesso na memória
   da instância (V-188).
-- Próximo passo: `/implement-issue F02-18`, o SDK nasce: `geoCapabilities()` e `geoRadius()`.
+- F02-18 feita em 06/10/2026: o SDK nasce, no pacote `directus-geospatial-sdk`, com o `@directus/sdk` como dependência
+  de par e nenhuma outra. O `geoCapabilities()` e o `geoRadius()` são comandos usados em `client.request(...)`, com os
+  campos tipados pelo esquema do projeto, e o `isGeospatialError()` tipa o erro pelo código. O `request` do SDK do
+  Directus entrega só o `data` de uma resposta `application/json`, então a lista de itens responde também como
+  `application/vnd.directus-geospatial+json`, com o mesmo corpo, a quem a pede assim, e o `geoRadius()` devolve o
+  `{ data, meta }` (D-058, V-189). O tsdown faz o build em ESM e em CommonJS, e o `pnpm sdk:check` confere o pacote
+  como o npm o receberia, pelo `publint` e pelo `attw` (V-190).
+- Próximo passo: `/implement-issue F02-19`, o SDK na consulta registrada, com o cursor como iterador.
 
 ## Documentação
 

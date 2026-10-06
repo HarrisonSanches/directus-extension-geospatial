@@ -3,7 +3,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test:coverage",
+		"check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm sdk:check && pnpm test:coverage",
 		"dev": "node dev/env.ts && pnpm --filter directus-extension-geospatial build && docker compose --file dev/compose.yaml up --detach --wait && pnpm --filter directus-extension-geospatial dev",
 		"dev:down": "docker compose --file dev/compose.yaml down",
 		"dev:logs": "docker compose --file dev/compose.yaml logs --follow",
@@ -13,13 +13,15 @@
 		"lint": "eslint --max-warnings 0 . && redocly lint",
 		"measure": "pnpm --filter directus-extension-geospatial build && pnpm --filter directus-extension-geospatial-test-observer build && vitest run --project \"measure:*\" --no-file-parallelism",
 		"prepare": "husky",
+		"sdk:check": "pnpm --filter directus-geospatial-sdk build && pnpm --filter directus-geospatial-sdk pack --out packages/sdk/directus-geospatial-sdk.tgz && publint --strict packages/sdk/directus-geospatial-sdk.tgz && attw packages/sdk/directus-geospatial-sdk.tgz",
 		"test": "vitest run --project unit",
 		"test:bind-license": "node test/bind-license.ts",
 		"test:coverage": "vitest run --project unit --coverage && pnpm test:integration && node test/coverage.ts && node test/ratchet.ts",
 		"test:integration": "pnpm --filter directus-extension-geospatial build --no-minify --sourcemap && pnpm --filter directus-extension-geospatial-test-hook build && pnpm --filter directus-extension-geospatial-test-observer build && vitest run --project \"integration:*\"",
-		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension && tsc -p test/hook && tsc -p test/measure/observer"
+		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension && tsc -p packages/sdk && tsc -p test/hook && tsc -p test/measure/observer"
 	},
 	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
 		"@commitlint/cli": "catalog:",
 		"@commitlint/config-conventional": "catalog:",
 		"@commitlint/lint": "catalog:",
@@ -37,6 +39,7 @@
 		"@vitest/istanbul-lib-report": "catalog:",
 		"ast-v8-to-istanbul": "catalog:",
 		"directus-geospatial-contract": "workspace:*",
+		"directus-geospatial-sdk": "workspace:*",
 		"eslint": "catalog:",
 		"eslint-config-prettier": "catalog:",
 		"eslint-plugin-import-x": "catalog:",
@@ -45,6 +48,7 @@
 		"jiti": "catalog:",
 		"knip": "catalog:",
 		"prettier": "catalog:",
+		"publint": "catalog:",
 		"testcontainers": "catalog:",
 		"typescript": "catalog:",
 		"typescript-eslint": "catalog:",

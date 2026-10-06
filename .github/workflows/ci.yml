@@ -47,6 +47,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm knip
+      # The SDK as npm would receive it, read by publint and attw.
+      - run: pnpm sdk:check
       # The coverage job sums the unit coverage with the one of the integration suite.
       - run: pnpm test --coverage
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

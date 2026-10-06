@@ -135,9 +135,14 @@ paths:
         '200':
           description: >-
             The items, in the natural order of the operation, the distance for the radius, or in the sort of the request,
-            and then by the primary key.
+            and then by the primary key. A request that prefers application/vnd.directus-geospatial+json in its Accept
+            gets the same body as that type, which is how the SDK of the extension reads the meta: the request of the
+            Directus SDK hands over only the data of an application/json response.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Items'
+            application/vnd.directus-geospatial+json:
               schema:
                 $ref: '#/components/schemas/Items'
         '400':
@@ -202,9 +207,14 @@ paths:
                 $ref: '#/components/schemas/ItemsSearch'
         responses:
           '200':
-            description: The items, as the GET gives them.
+            description: >-
+              The items, as the GET gives them, also as application/vnd.directus-geospatial+json when the request
+              prefers it.
             content:
               application/json:
+                schema:
+                  $ref: '#/components/schemas/Items'
+              application/vnd.directus-geospatial+json:
                 schema:
                   $ref: '#/components/schemas/Items'
           '400':

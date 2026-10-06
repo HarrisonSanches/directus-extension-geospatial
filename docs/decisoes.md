@@ -987,3 +987,26 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Durante uma queda, cada instância só conhece o que ela mesma registrou, e a interface registra de novo na outra.
   - Uma instalação com o Redis em cluster não é atendida, como o próprio Directus, que se conecta a um Redis só.
   - O painel de saúde da F06 pode mostrar onde o registro está.
+
+## D-058 — A lista de itens também no tipo próprio da extensão, para o SDK ler o `meta`
+
+- **Estado:** aceita em 06/10/2026. Detalha a D-016 e a D-052.
+- **Onde:** §7.8 (API e SDK) · `docs/padroes/api-e-contrato.md` · V-189.
+- **Contexto:**
+  - O `request` do `@directus/sdk` lê o corpo de uma resposta `application/json` e entrega só o `data`, e o `onResponse` de um comando recebe o que sobra desse corte (V-189).
+  - Um comando usado em `client.request(...)` nunca vê o `meta`. O `capped`, o aviso da lista parcial do SQLite (D-052), não chegaria a quem usa o SDK, e o cursor da página seguinte (D-054) também não.
+  - Com outro tipo de conteúdo, o `request` entrega a resposta inteira ao `onResponse` do comando.
+- **Decisão:**
+  - **A negociação de conteúdo,** por escolha do mantenedor: a lista de itens responde também como `application/vnd.directus-geospatial+json`, com o mesmo corpo, `{ data, meta }`, ao pedido que prefere esse tipo no `Accept` (RFC 9110). Sem ele, segue o `application/json`, o tipo do Directus. As duas respostas levam o `Vary: Accept`.
+  - **O nome** segue o dos pacotes do workspace, com o sufixo `+json` da RFC 6839, por escolha do mantenedor.
+  - **O comando do SDK** pede esse tipo e devolve o `{ data, meta }`. Se a resposta vier como `application/json`, de uma versão da extensão anterior ao SDK, ele devolve o `data`, sem o `meta`.
+  - **Os erros** seguem no `application/json` do Directus, e o `request` do SDK os rejeita como sempre.
+  - **O alcance:** toda lista de itens com `meta`. O `GET` e o `SEARCH` de `/geospatial/items/:coleção` respondem assim desde a F02-18, e as partes da consulta registrada passam a responder na F02-19.
+- **Alternativas descartadas:**
+  - **Só os itens, como o `readItems`:** o `capped` e o cursor não chegariam a quem usa o SDK, contra a D-052 e o resultado honesto (§2).
+  - **Um composable próprio,** o `client.with(geospatial())`, com um `fetch` da extensão: não enxergaria a configuração privada do `rest()`, como o `credentials` da sessão por cookie e os hooks, e repetiria a lógica do pedido.
+  - **O `{ data, meta }` dentro do `data`:** mudaria o formato do `/items` (D-016) para todo cliente.
+- **Consequências:**
+  - **O retorno:** o `client.request(geoRadius(...))` devolve o `{ data, meta }`, e não a lista, como o `readItems` devolve. A documentação do SDK diz por quê.
+  - **Cache e proxy:** um cache no caminho precisa respeitar o `Vary`. Um proxy que entregue o `application/json` ao SDK só tira o `meta`.
+  - **O nome é contrato:** o tipo entra no contrato de cada lista, e mudar o nome depois da primeira publicação quebra cliente (D-016).

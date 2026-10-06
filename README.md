@@ -92,7 +92,7 @@ flowchart LR
   OpenAPI contract and a typed SDK in the style of the official one.
 
 ```ts
-const nearby = await client.request(
+const { data: nearby } = await client.request(
 	geoRadius('stores', { center: [-46.63, -23.55], distance: 2000, fields: ['id', 'name'] }),
 );
 ```
