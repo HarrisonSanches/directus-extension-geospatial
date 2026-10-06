@@ -448,7 +448,7 @@ export type ItemsError = ItemsErrors[keyof ItemsErrors];
 
 export type ItemsResponses = {
 	/**
-	 * The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key.
+	 * The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key. A request that prefers application/vnd.directus-geospatial+json in its Accept gets the same body as that type, which is how the SDK of the extension reads the meta: the request of the Directus SDK hands over only the data of an application/json response.
 	 */
 	200: Items;
 };

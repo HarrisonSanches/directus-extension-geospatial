@@ -28,6 +28,10 @@
 - Tudo sob `/geospatial` (D-019), com os nomes das operações em camelCase: o termo canônico do glossário (D-024).
 - Respostas no formato do Directus: `{ data, meta }`. O `meta` só traz o que vale para a resposta, como o `capped`, o
   aviso de que o Node completou a operação sobre um volume máximo e a lista ficou parcial (D-052).
+- Uma lista de itens sai também como `application/vnd.directus-geospatial+json`, com o mesmo corpo, quando o `Accept`
+  do pedido prefere esse tipo, e sempre com o `Vary: Accept` (D-058). É como o SDK da extensão lê o `meta`: o `request`
+  do SDK do Directus entrega só o `data` de uma resposta `application/json` (V-189). Os erros seguem no
+  `application/json` do Directus.
 - Erros no formato do Directus, com códigos próprios em `UPPER_SNAKE_CASE` e o prefixo `GEOSPATIAL_` (D-045), todos
   listados no schema `ErrorCode` do contrato: banco fora (`GEOSPATIAL_DATABASE_UNAVAILABLE`, 503), internos do Directus
   recusados (`GEOSPATIAL_INTERNALS_UNSUPPORTED`, 503), operação indisponível no banco
@@ -117,11 +121,19 @@
 
 ## SDK
 
-- O pacote `directus-geospatial-sdk`, com o `@directus/sdk` como dependência de par (_peer_).
+- O pacote `directus-geospatial-sdk`, em `packages/sdk`, com o `@directus/sdk` como dependência de par (_peer_).
 - Um comando por rota, no estilo do SDK oficial, usado em `client.request(...)`, com o prefixo `geo` (D-024).
-- Os tipos saem do contrato, e os campos se completam pelo esquema do usuário.
-- A paginação é um iterador (`for await`); os erros são tipados, com os códigos da API; e o `geoCapabilities()`
-  serve para checar antes de chamar.
-- Nenhuma dependência de execução além do par.
-- O build é com o tsdown, como em pacotes do Directus (V-59), e o pacote passa pelo `publint` e pelo
-  `@arethetypeswrong/cli` antes de publicar.
+- Os tipos saem do contrato, e os campos se completam pelo esquema do usuário, pelos mesmos tipos do `readItems`
+  (`Query` e `ApplyQueryFields`).
+- Um comando de lista pede o tipo próprio da extensão e devolve o `{ data, meta }`, e não só os itens, como o
+  `readItems` (D-058).
+- A paginação é um iterador (`for await`). O `geoCapabilities()` serve para checar antes de chamar.
+- Os erros são tipados, com os códigos da API, pelo `isGeospatialError(erro, código?)`, no molde do `isDirectusError`
+  do SDK oficial. Sem o código, ele reconhece um erro da extensão pelo prefixo `GEOSPATIAL_` (D-045); com o código, o
+  erro desse código, da extensão ou do Directus, como o `FORBIDDEN` (D-042).
+- Nenhuma dependência de execução além do par: o build falha se a saída importar outro pacote. O contrato, privado,
+  entra no código e nos tipos do SDK.
+- O build é com o tsdown, em ESM e em CommonJS, como o `@directus/sdk` (V-59, V-190). No workspace, os `exports`
+  apontam para o código-fonte, e o `publishConfig` troca-os pelos do build quando o `pnpm pack` empacota.
+- O `pnpm sdk:check` confere o pacote como o npm o receberia: o tarball do `pnpm pack`, pelo `publint --strict` e
+  pelo `@arethetypeswrong/cli`, em todos os modos de resolução do TypeScript. O `pnpm check` e a CI o rodam.

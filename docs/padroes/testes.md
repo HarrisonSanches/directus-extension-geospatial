@@ -5,16 +5,17 @@ sem um teste que a quebraria se ela deixasse de ser verdade. A primeira dessas p
 
 ## As camadas
 
-| Camada                    | Pega                                                                   | Ferramentas                                                                   | Roda                                                                                                      |
-| ------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **Unitário**              | Regra de domínio, cálculo, formato, montagem de SQL                    | Vitest, `it.each`, fast-check, arquivos dourados                              | A cada mudança, em segundos                                                                               |
-| **Integração**            | O motor contra o Directus e o banco de verdade                         | Vitest, testcontainers, `@directus/sdk` para montar os dados                  | A cada push                                                                                               |
-| **Paridade de permissão** | Resultado diferente do que o `/items` daria ao mesmo papel             | A suíte de integração, com os papéis de teste                                 | A cada push                                                                                               |
-| **Contrato por banco**    | Banco que faz diferente do que a matriz declara                        | A mesma suíte, em cada banco da matriz                                        | PostGIS e SQLite a cada push; todos à noite                                                               |
-| **Contrato da API**       | Rota respondendo fora do OpenAPI                                       | O `fetch` da suíte, com o Ajv, valida cada resposta contra o documento        | A cada push                                                                                               |
-| **Ponta a ponta**         | O Studio montado: o mapa abre, os tiles chegam, o clique abre o drawer | Playwright com `@axe-core/playwright`                                         | O curto, em pull request que toca a interface, bloqueando o merge; o completo, à noite e antes da release |
-| **Mutação**               | Teste que executa o código sem testar nada                             | StrykerJS com o executor do Vitest, no módulo de permissões                   | Toda noite                                                                                                |
-| **Medição**               | Regressão de desempenho                                                | k6 nos tiles, `EXPLAIN ANALYZE` no SQL, `bench` do Vitest no que é JavaScript | Sob demanda, pelo `pnpm measure`; os números vão para `verificacoes.md` e para o histórico                |
+| Camada                    | Pega                                                                   | Ferramentas                                                                                                                | Roda                                                                                                      |
+| ------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Unitário**              | Regra de domínio, cálculo, formato, montagem de SQL                    | Vitest, `it.each`, fast-check, arquivos dourados                                                                           | A cada mudança, em segundos                                                                               |
+| **Integração**            | O motor contra o Directus e o banco de verdade                         | Vitest, testcontainers, `@directus/sdk` para montar os dados                                                               | A cada push                                                                                               |
+| **Paridade de permissão** | Resultado diferente do que o `/items` daria ao mesmo papel             | A suíte de integração, com os papéis de teste                                                                              | A cada push                                                                                               |
+| **Contrato por banco**    | Banco que faz diferente do que a matriz declara                        | A mesma suíte, em cada banco da matriz                                                                                     | PostGIS e SQLite a cada push; todos à noite                                                               |
+| **Contrato da API**       | Rota respondendo fora do OpenAPI                                       | O `fetch` da suíte, com o Ajv, valida cada resposta contra o documento                                                     | A cada push                                                                                               |
+| **Tipos**                 | Tipo público do SDK que aceita o que não devia ou dá o que não deve    | O `expectTypeOf` do Vitest, que o `tsc` confere. O que não compila se prova pelo `.not.toExtend`, sem o `@ts-expect-error` | A cada mudança, no `pnpm typecheck`                                                                       |
+| **Ponta a ponta**         | O Studio montado: o mapa abre, os tiles chegam, o clique abre o drawer | Playwright com `@axe-core/playwright`                                                                                      | O curto, em pull request que toca a interface, bloqueando o merge; o completo, à noite e antes da release |
+| **Mutação**               | Teste que executa o código sem testar nada                             | StrykerJS com o executor do Vitest, no módulo de permissões                                                                | Toda noite                                                                                                |
+| **Medição**               | Regressão de desempenho                                                | k6 nos tiles, `EXPLAIN ANALYZE` no SQL, `bench` do Vitest no que é JavaScript                                              | Sob demanda, pelo `pnpm measure`; os números vão para `verificacoes.md` e para o histórico                |
 
 Quanto mais baixa a camada, mais testes: muitos unitários, bons de integração, poucos e valiosos de ponta a
 ponta.
@@ -29,6 +30,10 @@ junto, mas vem.
 **Nada de mock de banco nem de Directus** (D-017). O motor roda contra um Directus 11.17 e um 12 de verdade, com
 os bancos em containers, nas mesmas imagens dos testes do Directus (V-28). Um mock do Knex não pega a diferença
 entre dialetos, que é exatamente onde o risco mora.
+
+**O SDK nos unitários** roda pelo cliente de verdade do `@directus/sdk`, com o `fetch` trocado por respostas fixas
+(`packages/sdk/src/fake-fetch.ts`), o que prova a forma do pedido e o caminho da resposta pelo `request` do SDK. O
+Directus de verdade fica com a integração, que chama cada comando nas quatro combinações e compara com a rota.
 
 **Cada teste de integração roda em todas as combinações** de versão do Directus e banco (`test/combinations.ts`),
 um projeto do Vitest por combinação. O `pnpm test:integration` roda as do pull request, com o PostGIS mínimo, e a

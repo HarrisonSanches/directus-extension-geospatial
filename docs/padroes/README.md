@@ -41,8 +41,8 @@ que o mantenedor guarda num repositório privado.
 Toda mudança, de qualquer tamanho, só está pronta quando:
 
 - [ ] tem testes no nível certo ([`testes.md`](testes.md)), escritos antes do código na regra de domínio;
-- [ ] `pnpm check` passa: formatação, lint, tipos, Knip, testes unitários e de integração no PostGIS e no SQLite,
-      no Directus 11.17 e no 12;
+- [ ] `pnpm check` passa: formatação, lint, tipos, Knip, o pacote do SDK, testes unitários e de integração no
+      PostGIS e no SQLite, no Directus 11.17 e no 12;
 - [ ] nenhum erro nem aviso do TypeScript, do lint ou do editor, e nenhum comentário que desliga uma regra
       (`@ts-ignore`, `@ts-expect-error`, `eslint-disable` e parecidos);
 - [ ] se devolve dado, tem o teste de paridade de permissão com o `/items`;
@@ -62,22 +62,23 @@ Nenhuma fase do plano termina sem esta lista valendo para tudo o que ela entrego
 
 Os nomes são estes, e a F00 os cria.
 
-| Comando                                               | Faz                                                                                                                                                                              |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm install`                                        | Instala as dependências; na CI, com o lockfile congelado                                                                                                                         |
-| `pnpm dev`                                            | Sobe Directus 12, PostGIS e Redis em `127.0.0.1`, com a extensão em watch, e gera os segredos. Antes, copie o `dev/.env.example` para `dev/.env`. A chave do 12 vai no Studio    |
-| `pnpm dev:down`                                       | Derruba o ambiente e guarda os dados; com `--volumes`, apaga o banco e os uploads, e antes a licença do 12, se aplicada, é desativada em Settings → License (D-044)              |
-| `pnpm dev:logs`                                       | Os logs do ambiente de desenvolvimento; com o nome de um serviço, como `directus`, só os dele                                                                                    |
-| `pnpm test`                                           | Testes unitários, em segundos                                                                                                                                                    |
-| `pnpm test:coverage`                                  | Os unitários e a integração, com a cobertura do V8 somada, inclusive a de dentro do Directus (V-117); o portão e o Codecov entram na F00-10                                      |
-| `pnpm typecheck`                                      | Os tipos, com o `tsc` do TypeScript 7                                                                                                                                            |
-| `pnpm format`                                         | Formata o repositório inteiro com o Prettier                                                                                                                                     |
-| `pnpm lint`                                           | O ESLint, que reprova com qualquer aviso; com `--fix`, corrige o que tem correção automática                                                                                     |
-| `pnpm knip`                                           | Código morto: arquivo, export e dependência sem uso                                                                                                                              |
-| `pnpm --filter directus-geospatial-contract generate` | Gera os tipos do contrato a partir do `openapi.yaml`                                                                                                                             |
-| `pnpm test:integration`                               | Directus e bancos de verdade em containers, uma combinação por projeto; `INTEGRATION=12-sqlite` roda uma só. O 12 com PostGIS usa a chave do `test/.env` ou fica no Core         |
-| `pnpm test:bind-license`                              | Uma vez só, com a chave no `test/.env`: prende a chave do 12 a um projeto que o servidor escolhe, para o `test/license.ts` (D-044). Gasta uma ativação                           |
-| `pnpm measure`                                        | As medições, fora da CI: sobe o 11.17 com o PostGIS 3.2 e o 3.6 e o 12, carrega o volume, mede e derruba tudo; com `MEASURE_QUICK=1`, confere em minutos que ele funciona        |
-| `pnpm test:e2e`                                       | Playwright com axe, no Studio de verdade                                                                                                                                         |
-| `pnpm check`                                          | Formatação, lint, tipos, Knip, `test` e `test:integration`: o que a CI roda no pull request, menos as análises que só existem nela (cobertura do diff, SonarQube Cloud e zizmor) |
-| `pnpm vitest run <arquivo> -t "<nome>"`               | Um teste só: o ciclo do TDD                                                                                                                                                      |
+| Comando                                               | Faz                                                                                                                                                                                           |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install`                                        | Instala as dependências; na CI, com o lockfile congelado                                                                                                                                      |
+| `pnpm dev`                                            | Sobe Directus 12, PostGIS e Redis em `127.0.0.1`, com a extensão em watch, e gera os segredos. Antes, copie o `dev/.env.example` para `dev/.env`. A chave do 12 vai no Studio                 |
+| `pnpm dev:down`                                       | Derruba o ambiente e guarda os dados; com `--volumes`, apaga o banco e os uploads, e antes a licença do 12, se aplicada, é desativada em Settings → License (D-044)                           |
+| `pnpm dev:logs`                                       | Os logs do ambiente de desenvolvimento; com o nome de um serviço, como `directus`, só os dele                                                                                                 |
+| `pnpm test`                                           | Testes unitários, em segundos                                                                                                                                                                 |
+| `pnpm test:coverage`                                  | Os unitários e a integração, com a cobertura do V8 somada, inclusive a de dentro do Directus (V-117); o portão e o Codecov entram na F00-10                                                   |
+| `pnpm typecheck`                                      | Os tipos, com o `tsc` do TypeScript 7                                                                                                                                                         |
+| `pnpm format`                                         | Formata o repositório inteiro com o Prettier                                                                                                                                                  |
+| `pnpm lint`                                           | O ESLint, que reprova com qualquer aviso; com `--fix`, corrige o que tem correção automática                                                                                                  |
+| `pnpm knip`                                           | Código morto: arquivo, export e dependência sem uso                                                                                                                                           |
+| `pnpm sdk:check`                                      | O SDK como o npm o receberia: o build, o pacote do `pnpm pack`, que troca os `exports` do workspace pelos do `publishConfig`, o `publint` e o `attw`                                          |
+| `pnpm --filter directus-geospatial-contract generate` | Gera os tipos do contrato a partir do `openapi.yaml`                                                                                                                                          |
+| `pnpm test:integration`                               | Directus e bancos de verdade em containers, uma combinação por projeto; `INTEGRATION=12-sqlite` roda uma só. O 12 com PostGIS usa a chave do `test/.env` ou fica no Core                      |
+| `pnpm test:bind-license`                              | Uma vez só, com a chave no `test/.env`: prende a chave do 12 a um projeto que o servidor escolhe, para o `test/license.ts` (D-044). Gasta uma ativação                                        |
+| `pnpm measure`                                        | As medições, fora da CI: sobe o 11.17 com o PostGIS 3.2 e o 3.6 e o 12, carrega o volume, mede e derruba tudo; com `MEASURE_QUICK=1`, confere em minutos que ele funciona                     |
+| `pnpm test:e2e`                                       | Playwright com axe, no Studio de verdade                                                                                                                                                      |
+| `pnpm check`                                          | Formatação, lint, tipos, Knip, `sdk:check`, `test` e `test:integration`: o que a CI roda no pull request, menos as análises que só existem nela (cobertura do diff, SonarQube Cloud e zizmor) |
+| `pnpm vitest run <arquivo> -t "<nome>"`               | Um teste só: o ciclo do TDD                                                                                                                                                                   |

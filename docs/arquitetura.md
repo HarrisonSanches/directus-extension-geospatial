@@ -933,12 +933,12 @@ O prefixo `/geospatial` vem do nome do pacote (7.5). As rotas de relatório est�
 
 **SDK**
 
-- **Estilo:** o mesmo do SDK oficial, com comandos usados em `client.request(...)`, como o `readItems`. Por exemplo, `client.request(geoRadius('ocorrencias', { center, distance, fields }))`.
+- **Estilo:** o mesmo do SDK oficial, com comandos usados em `client.request(...)`, como o `readItems`. Por exemplo, `client.request(geoRadius('ocorrencias', { center, distance, fields }))`. Um comando de lista devolve `{ data, meta }`, com o `capped` e o cursor, e não só os itens: o `request` do SDK oficial entrega só o `data` de uma resposta `application/json`, e o comando pede a lista no tipo próprio da extensão, `application/vnd.directus-geospatial+json`, com o mesmo corpo (D-058).
 - **Comandos:** o id da operação com o prefixo `geo` (`geoRadius()`, `geoByArea()`, `geoCountByRegion()`), como o `geoCapabilities()`. O prefixo evita colisão de nomes genéricos, como `center()` e `measure()`, com o código de quem usa e com outras extensões, e agrupa tudo no autocompletar (D-024).
 - **Tipos:** usa o esquema do usuário, com autocompletar de campos.
 - **Paginação:** por cursor, como iterador (`for await`).
 - **Partes do resultado:** na consulta registrada, um comando para cada parte (itens, formas e resumo).
-- **Erros e capacidades:** erros tipados com os códigos da API, e `geoCapabilities()` para checar antes de chamar.
+- **Erros e capacidades:** erros tipados com os códigos da API, pelo `isGeospatialError()`, e `geoCapabilities()` para checar antes de chamar.
 - **Mapas externos:** um ajudante monta a URL dos tiles.
 - **Tempo real:** `geoLive()`, um iterador sobre o canal ao vivo, com o token no cabeçalho (D-035).
 

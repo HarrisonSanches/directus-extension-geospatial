@@ -113,8 +113,11 @@
 				],
 				"responses": {
 					"200": {
-						"description": "The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key.",
-						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Items" } } }
+						"description": "The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key. A request that prefers application/vnd.directus-geospatial+json in its Accept gets the same body as that type, which is how the SDK of the extension reads the meta: the request of the Directus SDK hands over only the data of an application/json response.",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Items" } },
+							"application/vnd.directus-geospatial+json": { "schema": { "$ref": "#/components/schemas/Items" } }
+						}
 					},
 					"400": {
 						"description": "The geo or the cursor is off the contract, the cursor is not one of this list, or the field the geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). A parameter of /items is off, such as the limit, the cursor goes with the offset or the page, or the operation does not take a parameter yet (code INVALID_QUERY of Directus).",
@@ -155,8 +158,11 @@
 					},
 					"responses": {
 						"200": {
-							"description": "The items, as the GET gives them.",
-							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Items" } } }
+							"description": "The items, as the GET gives them, also as application/vnd.directus-geospatial+json when the request prefers it.",
+							"content": {
+								"application/json": { "schema": { "$ref": "#/components/schemas/Items" } },
+								"application/vnd.directus-geospatial+json": { "schema": { "$ref": "#/components/schemas/Items" } }
+							}
 						},
 						"400": {
 							"description": "The body is off the contract, its cursor is not one of this list, or the field the geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The query is off, such as the limit, the cursor goes with the offset or the page, or the operation does not take a parameter of it yet (code INVALID_QUERY of Directus).",

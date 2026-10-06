@@ -1,0 +1,50 @@
+{
+	"name": "directus-geospatial-sdk",
+	"version": "0.1.0",
+	"description": "Commands of the Geospatial extension for the Directus SDK.",
+	"license": "MIT",
+	"type": "module",
+	"keywords": [
+		"directus",
+		"directus-sdk",
+		"geospatial"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/HarrisonSanches/directus-extension-geospatial.git",
+		"directory": "packages/sdk"
+	},
+	"sideEffects": false,
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": "./src/index.ts",
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"main": "./dist/index.cjs",
+		"types": "./dist/index.d.cts",
+		"exports": {
+			".": {
+				"import": "./dist/index.js",
+				"require": "./dist/index.cjs"
+			},
+			"./package.json": "./package.json"
+		}
+	},
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"build": "tsdown"
+	},
+	"peerDependencies": {
+		"@directus/sdk": "^26.0.0"
+	},
+	"devDependencies": {
+		"@directus/sdk": "catalog:",
+		"directus-geospatial-contract": "workspace:*",
+		"tsdown": "catalog:"
+	}
+}
