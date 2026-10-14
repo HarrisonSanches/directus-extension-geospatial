@@ -38,7 +38,7 @@ jobs:
           persist-credentials: false
       # The version comes from packageManager in package.json.
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -51,7 +51,7 @@ jobs:
       - run: pnpm sdk:check
       # The coverage job sums the unit coverage with the one of the integration suite.
       - run: pnpm test --coverage
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-unit
           path: coverage/unit/coverage-final.json
@@ -68,7 +68,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       # test/combinations.ts lists them, so a new combination gets its job without a change here.
@@ -91,7 +91,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -103,7 +103,7 @@ jobs:
           # a fork gets no secrets, so its Directus 12 runs on the Core tier (D-043).
           DIRECTUS_LICENSE_KEY: ${{ startsWith(matrix.combination, '12-postgis') && secrets.DIRECTUS_LICENSE_KEY || '' }}
       # The coverage recorded inside the Directus of the combination, for the coverage job.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-integration-${{ matrix.combination }}
           path: coverage/integration/coverage-final.json
@@ -125,17 +125,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: coverage-unit
           path: coverage/unit
       # Each combination lands in a folder of its own, under coverage/integration.
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: coverage-integration-*
           path: coverage/integration
@@ -194,13 +194,13 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       # Both read the lockfile, so nothing is installed. The advisories they ignore, each with its reason, are in
       # pnpm-workspace.yaml and in osv-scanner.toml.
       - run: pnpm audit
-      - uses: docker://ghcr.io/google/osv-scanner:v2.6.0@sha256:afd838850ac1a0fcc15ff4a041dc9ba11123c3f0d2666217a5f0fcf9222b55fa
+      - uses: docker://ghcr.io/google/osv-scanner:v2.7.0@sha256:4f3b7e2c64b9d38a5febc5a7e4a3dfef1d1362f726dea7a2ef4762b46469fcd0
         with:
           args: scan source --lockfile pnpm-lock.yaml --config osv-scanner.toml
 
@@ -232,5 +232,5 @@ jobs:
       - name: renovate-config-validator
         env:
           # renovate: datasource=docker depName=renovate/renovate
-          IMAGE: renovate/renovate:44.132.2@sha256:0191afbc3937e5316263426fc0ce1450f5c143d42e3f91da8c6f771e317fae51
+          IMAGE: renovate/renovate:44.150.1@sha256:4355df2a8b79b7d3095c0fc4e4ea6aae958c44aeb134c4d5033e002832517ae3
         run: docker run --rm --volume "$PWD:/usr/src/app:ro" "$IMAGE" renovate-config-validator --strict
