@@ -14,6 +14,7 @@ import {
 	type Position,
 	wholeBodyType,
 } from 'directus-geospatial-contract';
+import { wholeBodyOf } from './whole-body.js';
 
 // The radius, and the page of /items the route takes (D-016): the fields, the filter, the search and the sort typed by
 // the schema of the project, as readItems types them.
@@ -48,17 +49,6 @@ export interface GeoRadiusOutput<
 	data: GeoRadiusItem<Schema, Collection, TQuery>[];
 	meta?: ItemsMeta;
 }
-
-// Whether the request of the Directus SDK handed over the response itself, as it does when the response comes as a
-// media type other than application/json, the way it checks one.
-const isResponse = (value: unknown): value is Response =>
-	typeof value === 'object' && value !== null && 'json' in value && typeof value.json === 'function';
-
-// The whole body of a list, the meta included (D-058). The request of the Directus SDK hands over the response itself
-// when it comes as the media type of the extension, and only the data when it comes as application/json, as an
-// extension older than the SDK answers.
-const wholeBodyOf = async (response: unknown): Promise<unknown> =>
-	isResponse(response) ? response.json() : { data: response };
 
 // The items of a collection within a distance of a point, in the format of /items (D-016), with the permissions of
 // whoever asks. It asks for the media type of the extension, whose body the request of the Directus SDK hands over

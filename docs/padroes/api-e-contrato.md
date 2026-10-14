@@ -28,8 +28,8 @@
 - Tudo sob `/geospatial` (D-019), com os nomes das operações em camelCase: o termo canônico do glossário (D-024).
 - Respostas no formato do Directus: `{ data, meta }`. O `meta` só traz o que vale para a resposta, como o `capped`, o
   aviso de que o Node completou a operação sobre um volume máximo e a lista ficou parcial (D-052).
-- Uma lista de itens sai também como `application/vnd.directus-geospatial+json`, com o mesmo corpo, quando o `Accept`
-  do pedido prefere esse tipo, e sempre com o `Vary: Accept` (D-058). É como o SDK da extensão lê o `meta`: o `request`
+- Uma lista com `meta`, de itens ou de formas, sai também como `application/vnd.directus-geospatial+json`, com o mesmo
+  corpo, quando o `Accept` do pedido prefere esse tipo, e sempre com o `Vary: Accept` (D-058). É como o SDK da extensão lê o `meta`: o `request`
   do SDK do Directus entrega só o `data` de uma resposta `application/json` (V-189). Os erros seguem no
   `application/json` do Directus.
 - Erros no formato do Directus, com códigos próprios em `UPPER_SNAKE_CASE` e o prefixo `GEOSPATIAL_` (D-045), todos
@@ -122,12 +122,23 @@
 ## SDK
 
 - O pacote `directus-geospatial-sdk`, em `packages/sdk`, com o `@directus/sdk` como dependência de par (_peer_).
-- Um comando por rota, no estilo do SDK oficial, usado em `client.request(...)`, com o prefixo `geo` (D-024).
+- Um comando por rota, no estilo do SDK oficial, usado em `client.request(...)`, com o prefixo `geo` (D-024): o id da
+  operação, como o `geoRadius()`, ou o `operationId` da rota no contrato, como o `geoCapabilities()` e os da consulta
+  registrada, `geoRegisterQuery()`, `geoQueryItems()`, `geoQueryShapes()` e `geoQuerySummary()`.
+- O registro devolve a consulta, `{ id }`, que leva só nos tipos a coleção e os campos da pergunta, e o comando de cada
+  parte a recebe e tipa o que dá. Um id sozinho, como o de um link, também serve, com os tipos do contrato.
 - Os tipos saem do contrato, e os campos se completam pelo esquema do usuário, pelos mesmos tipos do `readItems`
   (`Query` e `ApplyQueryFields`).
 - Um comando de lista pede o tipo próprio da extensão e devolve o `{ data, meta }`, e não só os itens, como o
   `readItems` (D-058).
-- A paginação é um iterador (`for await`). O `geoCapabilities()` serve para checar antes de chamar.
+- A paginação é um iterador (`for await`), o `geoPaginate(client, comando)`, para qualquer lista com cursor. Cada volta
+  é uma página inteira, com o `meta`, para o `capped` de uma lista parcial chegar a quem lê (D-052), como os
+  _paginators_ do AWS SDK, por escolha do mantenedor. Uma página que chegou em `application/json`, sem o `meta`, não diz
+  se outra vem depois, e o iterador falha em vez de acabar a lista nela.
+- O `geoFinalSummary(client, consulta)` espera o resumo que não muda mais, pedindo de novo enquanto a contagem exata
+  roda (§7.1), como os _waiters_ do AWS SDK, por escolha do mantenedor. Cada pedido refaz a contagem rápida, então o
+  intervalo padrão é de 1 s, e o tempo máximo, de 30 s, o da contagem exata.
+- O `geoCapabilities()` serve para checar antes de chamar.
 - Os erros são tipados, com os códigos da API, pelo `isGeospatialError(erro, código?)`, no molde do `isDirectusError`
   do SDK oficial. Sem o código, ele reconhece um erro da extensão pelo prefixo `GEOSPATIAL_` (D-045); com o código, o
   erro desse código, da extensão ou do Directus, como o `FORBIDDEN` (D-042).

@@ -8,12 +8,18 @@ export interface Answer {
 }
 
 // A client of the Directus SDK, with the rest and the token of an installation, whose fetch answers each request with
-// the answer of the test and keeps the request, so the unit tests run the commands through the request of the SDK
-// itself. The integration suite runs them against Directus.
-export const fakeClient = <Schema>(answer: Answer) => {
+// the answer of the test, or with the next one of a list, one for each request in order, and keeps the request, so the
+// unit tests run the commands through the request of the SDK itself. The integration suite runs them against Directus.
+export const fakeClient = <Schema>(answers: Answer | Answer[]) => {
 	const requests: Request[] = [];
 	const fetch = (input: string | URL | Request, init?: RequestInit) => {
 		requests.push(new Request(input, init));
+
+		const answer = Array.isArray(answers) ? answers[requests.length - 1] : answers;
+
+		if (answer === undefined) {
+			return Promise.reject(new Error(`The test has no answer for request ${String(requests.length)}.`));
+		}
 
 		return Promise.resolve(
 			new Response(JSON.stringify(answer.body), {

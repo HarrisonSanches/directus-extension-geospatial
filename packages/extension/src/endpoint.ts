@@ -129,7 +129,7 @@ export default defineEndpoint({
 			Promise.resolve()
 				.then(() => queryItems(context, req, { internals, permittedQuery, pageQuery, registry, cursorKey }))
 				.then((body: ItemsResponse) => {
-					res.json(body);
+					sendList(req, res, body);
 				})
 				.catch(next);
 		});
@@ -139,7 +139,7 @@ export default defineEndpoint({
 			Promise.resolve()
 				.then(() => queryShapes(context, req, { internals, permittedQuery, pageQuery, registry }))
 				.then((body: QueryShapesResponse) => {
-					res.json(body);
+					sendList(req, res, body);
 				})
 				.catch(next);
 		});
