@@ -7,8 +7,8 @@ const directus = {
 		image: 'directus/directus:11.17.4@sha256:eb326f679ae847c0a776f93b972761dc2ebe84980e0b9d274a6bc31cd62809f7',
 	},
 	'12': {
-		version: '12.4.1',
-		image: 'directus/directus:12.4.1@sha256:9cc8ab88e6f1fc98d860416d89d53dd15838860c315a66c6d8ee68cb72f6b3a6',
+		version: '12.5.0',
+		image: 'directus/directus:12.5.0@sha256:7de5d6898b955dab1672619aed590035dcade4f8d7396d913e55543e114d1331',
 	},
 };
 
