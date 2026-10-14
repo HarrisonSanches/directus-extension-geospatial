@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { adapters } from './adapters.js';
 import { checkInternals } from './check.js';
-import { context, directus11 } from './fake-directus.js';
+import { context, directus11, withArity } from './fake-directus.js';
 import { functions, InternalsMismatchError, load, takeFrom } from './modules.js';
 
 describe('os módulos do Directus em execução', () => {
@@ -12,6 +12,23 @@ describe('os módulos do Directus em execução', () => {
 			new InternalsMismatchError(
 				'The running Directus has no assertCollectionActive with the arity the adapter expects.',
 			),
+		);
+	});
+
+	it('na hora do pedido, uma função com outra aridade falha como a que falta', () => {
+		const modules = { ...directus11(), 'database/run-ast/lib/get-db-query': { getDBQuery: withArity(3, () => null) } };
+		const take = takeFrom(new Map(Object.entries(modules)));
+
+		expect(() => take('getDBQuery')).toThrow(
+			new InternalsMismatchError('The running Directus has no getDBQuery with the arity the adapter expects.'),
+		);
+	});
+
+	it('um módulo que carregou como nada não tem o emissor, e o pedido falha como na função que falta', () => {
+		const take = takeFrom(new Map(Object.entries({ ...directus11(), emitter: null })));
+
+		expect(() => take('emitFilter')).toThrow(
+			new InternalsMismatchError('The running Directus has no emitFilter with the arity the adapter expects.'),
 		);
 	});
 

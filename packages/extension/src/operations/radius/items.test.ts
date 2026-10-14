@@ -110,6 +110,22 @@ describe('o raio, antes do banco', () => {
 		expect(built).toEqual([]);
 	});
 
+	it('a query permitida recebe o esquema e o Knex que o Directus deu à extensão', async () => {
+		const contexts: unknown[] = [];
+		const { engine: base } = engineWith();
+		const { engine } = engineWith({
+			permittedQuery: (request, context, queryOf) => {
+				contexts.push(context);
+
+				return base.permittedQuery(request, context, queryOf);
+			},
+		});
+
+		// The Knex of the test never connects, so the radius fails closed past the permitted query.
+		await expect(radiusWith({}, engine)).rejects.toMatchObject({ code: 'GEOSPATIAL_DATABASE_UNAVAILABLE' });
+		expect(contexts).toEqual([{ schema, knex: database }]);
+	});
+
 	it('onde o raio não roda, o erro diz a operação e o motivo', async () => {
 		const { engine } = engineWith({ client: 'mysql' });
 
@@ -298,6 +314,21 @@ describe('o raio onde o servidor mede (D-052)', () => {
 		// The columns of the keys stay out of the item, as the fields the page did not ask.
 		expect(response.data[0]).toEqual({ id: 7, $geo: expect.anything() as unknown });
 		expect(response.data[0]?.$geo.distance).toBeCloseTo(150, 6);
+		// The database ordered the whole list, so it is not partial.
+		expect(response).not.toHaveProperty('meta');
+	});
+
+	it('com o sort da página, o cursor leva os valores da ordem da última linha da página', async () => {
+		const { adapter } = selecting(
+			[7, 8].map((id) => ({ id, geometry: northOf(100), 'geospatial:key:0': 'open', 'geospatial:key:1': id })),
+			true,
+			['geospatial:key:0', 'geospatial:key:1'],
+		);
+		const { engine } = onSqlite(adapter);
+		const response = await radiusWith({ page: { fields: ['id'], sort: ['-status'], limit: 1 } }, engine);
+
+		expect(response.meta).toEqual({ next: expect.any(String) as unknown });
+		expect(afterOf(cursorKey, { ...natural, sort: ['-status'] }, String(response.meta?.next))).toEqual(['open', 7]);
 	});
 
 	it('o que o banco devolve sem linhas vira uma lista vazia', async () => {
@@ -446,6 +477,23 @@ describe('o cursor do raio (D-054)', () => {
 			{ limit: 3, offset: 0, after: [20, '2'] },
 		]);
 		expect(response).toEqual({ data: [{ id: 1, $geo: { distance: 30 } }] });
+	});
+
+	it('a página pelo número abre a janela no banco depois das páginas anteriores', async () => {
+		const { engine, envelopes } = measuringRows(rowsAt(10));
+
+		await radiusWith({ page: { fields: ['id'], limit: 10, page: 3 } }, engine);
+
+		expect(envelopes.map(({ limit, offset }) => ({ limit, offset }))).toEqual([{ limit: 11, offset: 20 }]);
+	});
+
+	it('com o sort, o cursor da mesma ordem leva o valor do campo e a chave até o banco', async () => {
+		const { engine, envelopes } = measuringRows(rowsAt(30));
+		const cursor = cursorOf(cursorKey, { ...natural, sort: ['-status'] }, ['open', '2']);
+
+		await radiusWith({ page: { fields: ['id'], sort: ['-status'], limit: 2 }, cursor }, engine);
+
+		expect(envelopes.map(({ after }) => after)).toEqual([['open', '2']]);
 	});
 
 	it('onde o servidor mede, o cursor leva a distância e a chave, e a página seguinte começa depois deles', async () => {

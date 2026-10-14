@@ -47,7 +47,7 @@ const countsWith = (overrides: { concurrency?: number; entries?: number } = {}) 
 		entries: 100,
 		now: clock.now,
 		after: clock.after,
-		logger: { warn: (error: unknown) => logged.push(error) },
+		logger: { warn: (...entry: unknown[]) => logged.push(entry) },
 		...overrides,
 	});
 
@@ -100,7 +100,7 @@ describe('a contagem exata em segundo plano (§7.1)', () => {
 		await settled();
 
 		expect(counts.exactOf('a', count)).toEqual({ state: 'given up' });
-		expect(logged).toEqual([failure]);
+		expect(logged).toEqual([[failure, 'The exact count of a summary gave up']]);
 	});
 
 	it('uma contagem que lança antes de devolver a promessa também desiste, e libera a vaga', () => {
@@ -113,7 +113,7 @@ describe('a contagem exata em segundo plano (§7.1)', () => {
 		});
 
 		expect(counts.exactOf('a', count)).toEqual({ state: 'given up' });
-		expect(logged).toEqual([failure]);
+		expect(logged).toEqual([[failure, 'The exact count of a summary gave up']]);
 
 		counts.exactOf('b', count);
 
@@ -212,5 +212,21 @@ describe('a contagem exata em segundo plano (§7.1)', () => {
 		expect(counts.exactOf('b', count)).toEqual({ state: 'counted', total: 1 });
 		expect(counts.exactOf('c', count)).toEqual({ state: 'counted', total: 1 });
 		expect(counts.exactOf('a', count)).toEqual({ state: 'counting' });
+	});
+
+	it('a ordem de saída é a do fim de cada contagem, e não a do começo', async () => {
+		const { counts } = countsWith({ entries: 2 });
+		const { calls, count } = deferredCount();
+
+		counts.exactOf('a', count);
+		counts.exactOf('b', count);
+		calls[1]?.resolve(2);
+		await settled();
+		calls[0]?.resolve(1);
+		await settled();
+		counts.exactOf('c', count);
+
+		expect(counts.exactOf('a', count)).toEqual({ state: 'counted', total: 1 });
+		expect(counts.exactOf('b', count)).toEqual({ state: 'counting' });
 	});
 });

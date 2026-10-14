@@ -53,6 +53,23 @@ describe('o $NOW do filtro, no registro', () => {
 		expect(pinnedNow({ occurred_at: { _gte: now } }, registeredAt)).toEqual({ occurred_at: { _gte: instant } });
 	});
 
+	// Each name the adjustDate of Directus takes for a unit (V-182), and the instant 2 of that unit after the minute of the
+	// registration.
+	it.each([
+		...['milliseconds', 'millisecond', 'msecs', 'msec', 'ms'].map((unit) => [unit, '2026-10-03T14:37:00.002Z']),
+		...['seconds', 'second', 'secs', 'sec', 's'].map((unit) => [unit, '2026-10-03T14:37:02.000Z']),
+		...['minutes', 'minute', 'mins', 'min', 'm'].map((unit) => [unit, '2026-10-03T14:39:00.000Z']),
+		...['hours', 'hour', 'hrs', 'hr', 'h'].map((unit) => [unit, '2026-10-03T16:37:00.000Z']),
+		...['days', 'day', 'd'].map((unit) => [unit, '2026-10-05T14:37:00.000Z']),
+		...['weeks', 'week', 'w'].map((unit) => [unit, '2026-10-17T14:37:00.000Z']),
+		...['months', 'month', 'mth', 'mo'].map((unit) => [unit, '2026-12-03T14:37:00.000Z']),
+		...['years', 'year', 'yrs', 'yr', 'y'].map((unit) => [unit, '2028-10-03T14:37:00.000Z']),
+	])('$NOW(2 %s) move pela unidade que o Directus dá a esse nome', (unit, instant) => {
+		expect(pinnedNow({ occurred_at: { _gte: `$NOW(2 ${unit})` } }, registeredAt)).toEqual({
+			occurred_at: { _gte: instant },
+		});
+	});
+
 	it('um ajuste com milhares de dígitos, que nunca vale, deixa o minuto do registro, e sai logo', () => {
 		const startedAt = performance.now();
 
@@ -65,6 +82,7 @@ describe('o $NOW do filtro, no registro', () => {
 	it.each([
 		['.5 h', '2026-10-03T15:07:00.000Z'],
 		['-.5 h', '2026-10-03T14:07:00.000Z'],
+		['.25 h', '2026-10-03T14:52:00.000Z'],
 		['1.25 minutes', '2026-10-03T14:38:15.000Z'],
 		// A number Directus does not read leaves the minute of the registration as it is.
 		['5.', '2026-10-03T14:37:00.000Z'],
@@ -103,6 +121,7 @@ describe('o $NOW do filtro, no registro', () => {
 			count: { _gt: 3 },
 			closed: { _null: true },
 			note: { _eq: 'before $NOW' },
+			reviewer: { _eq: null },
 		};
 
 		expect(pinnedNow(filter, registeredAt)).toEqual(filter);

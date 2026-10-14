@@ -1,3 +1,4 @@
+import type { Knex } from 'knex';
 import knex from 'knex';
 import { describe, expect, it } from 'vitest';
 import { holdsPoints, spatialite } from './spatialite.js';
@@ -102,6 +103,23 @@ describe('a coluna na SpatiaLite', () => {
 			expect(holdsPoints([{ type }])).toBe(measured);
 		},
 	);
+
+	it('o tipo da coluna sai do pragma_table_info, pela tabela e pelo campo', async () => {
+		const statements: { sql: string; bindings: unknown[] }[] = [];
+		// The knex of SQLite hands the rows of a raw statement as they are.
+		const knex = {
+			raw: (sql: string, bindings: unknown[]) => {
+				statements.push({ sql, bindings });
+
+				return Promise.resolve([{ type: 'POINT' }]);
+			},
+		} as unknown as Knex;
+
+		expect(await spatialite.measures(knex, 'occurrences', 'geometry')).toBe(true);
+		expect(statements).toEqual([
+			{ sql: 'select type from pragma_table_info(?) where name = ?', bindings: ['occurrences', 'geometry'] },
+		]);
+	});
 
 	it('uma coluna que o banco não mostra não é medida', () => {
 		expect(holdsPoints([])).toBe(false);

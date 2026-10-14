@@ -54,6 +54,15 @@ describe('as linhas depois da última que a página viu (keyset)', () => {
 		).toBe('(ST_Distance("p"."geometry", ?), "p"."id") < (?, ?)');
 	});
 
+	it('com chaves que nunca são vazias, mas em direções diferentes, não há comparação de linhas, e sim a cadeia', () => {
+		const rank: OrderKey = { column: database.raw('??', ['p.rank']), direction: 'desc', nullable: false };
+
+		expect(whereOf([rank, id], [3, 42], 'largest')).toEqual({
+			where: '(("p"."rank" < ?) or ("p"."rank" = ? and "p"."id" > ?))',
+			bindings: [3, 3, 42],
+		});
+	});
+
 	it('com mais chaves, são as que vêm depois na primeira, ou empatam nela e vêm depois na seguinte', () => {
 		expect(whereOf([status('desc'), id], ['open', 42], 'largest')).toEqual({
 			where: '(("p"."status" < ?) or ("p"."status" = ? and "p"."id" > ?))',

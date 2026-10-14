@@ -53,7 +53,7 @@ confiança se constrói no repositório.
     link do diff de cada uma, e não as notas de versão;
   - as imagens do Directus a qualquer hora, com o patch separado da minor. O patch troca a versão da matriz, também a
     do piso, que só anda nos patches da minor dele. A minor nova toma o lugar da mais nova da major, ao lado do piso,
-    e a major nova entra na matriz com combinações próprias (D-037). O canário roda nelas;
+    e a major nova entra na matriz com combinações próprias (D-037). O canary roda nelas;
   - o que só anda junto vem num grupo: os pacotes do Directus, que o `@directus/extensions-sdk` prende em versões
     exatas, e, no major, o Vitest com as bibliotecas de cobertura;
   - o que segue outra coisa fica parado: o `knex` e o `pino`, peers exatos do `@directus/types`; o `vue`, que o

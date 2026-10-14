@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 import { describe, expect, it } from 'vitest';
 import { database } from '../internals/fake-directus.js';
 import type { SpatialColumn } from './adapter.js';
-import { boxesOf } from './box.js';
+import { boxesOf, ringOf } from './box.js';
 import { boxIn, columnIn, postgis, rowsIn, unlessProjFails } from './postgis.js';
 
 // The Knex of the fake Directus never connects, so no query of the test runs, and one that tried would fail.
@@ -225,7 +225,62 @@ describe('o cursor do raio (D-054)', () => {
 	});
 });
 
+// A Knex whose raw answers with the rows the test gives, or fails with its error, and keeps each statement: what only
+// PostGIS would answer, the catalog and PROJ.
+const answering = (answer: { rows: Record<string, unknown>[] } | Error) => {
+	const statements: { sql: string; bindings: unknown[] }[] = [];
+	const knex = {
+		raw: (sql: string, bindings: unknown[]) => {
+			statements.push({ sql, bindings });
+
+			return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer);
+		},
+	} as unknown as Knex;
+
+	return { knex, statements };
+};
+
+// The edge of a box as the text of a line in WKT, which PostGIS reads.
+const wktOf = (box: [number, number, number, number]) =>
+	`LINESTRING(${ringOf(box)
+		.map(([x, y]) => `${String(x)} ${String(y)}`)
+		.join(', ')})`;
+
+const utm23s: SpatialColumn = { type: 'geometry', srid: 31983 };
+
 describe('as caixas do raio no SRID da coluna', () => {
+	it('em outro SRID, a borda de cada caixa vai ao PROJ, como uma linha cortada em trechos, e volta como a caixa', async () => {
+		const boxes = boxesOf(center, 10_000) ?? [];
+		const converted = { west: 316_000, south: 7_373_000, east: 337_000, north: 7_394_000, missed: 0 };
+		const { knex, statements } = answering({ rows: [converted] });
+
+		expect(await postgis.boxesIn(knex, utm23s, center, 10_000)).toEqual([[316_000, 7_373_000, 337_000, 7_394_000]]);
+		expect(statements).toHaveLength(1);
+		// The SRID as an integer, without which ST_Transform reads it as a text of PROJ (V-178).
+		expect(statements[0]?.sql).toContain('ST_Transform(edge, ?::integer)');
+		expect(statements[0]?.sql).toContain('(ST_GeomFromText(?, 4326))');
+		expect(statements[0]?.bindings).toEqual([31983, ...boxes.map(wktOf)]);
+	});
+
+	it('com uma caixa de cada lado do antimeridiano, uma linha para cada, e sem a caixa se uma não voltar', async () => {
+		const near = { west: 0, south: 0, east: 1, north: 1, missed: 0 };
+		const both = answering({ rows: [near, near] });
+		const one = answering({ rows: [near, { ...near, missed: 3_100 }] });
+
+		expect(await postgis.boxesIn(both.knex, utm23s, [179.99, 10], 10_000)).toEqual([
+			[0, 0, 1, 1],
+			[0, 0, 1, 1],
+		]);
+		expect(both.statements[0]?.sql).toContain('(ST_GeomFromText(?, 4326)), (ST_GeomFromText(?, 4326))');
+		expect(await postgis.boxesIn(one.knex, utm23s, [179.99, 10], 10_000)).toBeNull();
+	});
+
+	it('a caixa que o PROJ não converte deixa o raio sem a caixa', async () => {
+		const outside = Object.assign(new Error('transform: Point outside of projection domain (2050)'), { code: 'XX000' });
+
+		expect(await postgis.boxesIn(answering(outside).knex, utm23s, center, 10_000)).toBeNull();
+	});
+
 	it('numa coluna em 4326, são as do círculo, sem perguntar ao banco', async () => {
 		expect(await postgis.boxesIn(database, created, center, 10_000)).toEqual(boxesOf(center, 10_000));
 	});
@@ -262,8 +317,18 @@ describe('o que o PostGIS devolve ao raio', () => {
 		expect(columnIn(row, 'occurrences', 'geometry')).toEqual(column);
 	});
 
+	it('o tipo e o SRID saem do catálogo, pela tabela e pelo campo', async () => {
+		const { knex, statements } = answering({ rows: [{ type: 'geometry', srid: 31983 }] });
+
+		expect(await postgis.columnOf(knex, 'occurrences', 'geometry')).toEqual(utm23s);
+		expect(statements[0]?.sql).toContain('from pg_attribute');
+		expect(statements[0]?.sql).toContain('to_regclass(quote_ident(?))');
+		expect(statements[0]?.bindings).toEqual(['occurrences', 'geometry']);
+	});
+
 	it.each([
 		['que não é espacial', { type: 'text', srid: 0 }],
+		['sem o SRID', { type: 'geometry', srid: null }],
 		['que a tabela não tem', undefined],
 	])('uma coluna %s, que o esquema do Directus diz ser de geometria, faz o raio falhar fechado', (_, row) => {
 		expect(() => columnIn(row, 'occurrences', 'geometry')).toThrow(
@@ -275,9 +340,13 @@ describe('o que o PostGIS devolve ao raio', () => {
 		const box = { west: 316_000, south: 7_373_000, east: 337_000, north: 7_394_000 };
 
 		expect(boxIn({ ...box, missed: 0 })).toEqual([316_000, 7_373_000, 337_000, 7_394_000]);
+		expect(boxIn({ ...box, missed: 0.001 })).toEqual([316_000, 7_373_000, 337_000, 7_394_000]);
 		expect(boxIn({ ...box, missed: 3_100 })).toBeNull();
 		expect(boxIn({ ...box, missed: null })).toBeNull();
-		expect(() => boxIn({ ...box, west: null })).toThrow('PostGIS did not return the converted box.');
+
+		for (const side of ['west', 'south', 'east', 'north']) {
+			expect(() => boxIn({ ...box, [side]: null })).toThrow('PostGIS did not return the converted box.');
+		}
 	});
 
 	it('o que o PROJ não converte vira nulo, e qualquer outro erro segue, para o raio falhar fechado', async () => {

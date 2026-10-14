@@ -9,6 +9,7 @@ import {
 	FakeEmitter,
 	type FakeModules,
 	loaderOf,
+	nothingReceived,
 	withArity,
 } from './fake-directus.js';
 import type { Load } from './modules.js';
@@ -150,6 +151,28 @@ describe('a checagem recusa o que não é o que o adaptador espera', () => {
 			status: 'refused',
 			problems: { '12': ['the chain failed on directus_collections: The collection is not active.'] },
 		});
+	});
+
+	it('a cadeia da checagem lê a directus_collections como o Directus lê para si, sem accountability, e um campo', async () => {
+		const received = nothingReceived();
+
+		expect(await check(directus12(received), '12')).toEqual({ status: 'accepted', adapter: '12' });
+		expect(received.getAstFromQuery).toEqual([
+			{ collection: 'directus_collections', query: { fields: ['collection'], limit: 1 }, accountability: null },
+		]);
+	});
+
+	it('cada módulo é importado uma vez, para todos os adaptadores que o usam', async () => {
+		const loaded = loaderOf(directus11());
+		const imported: string[] = [];
+		const load: Load = (path) => {
+			imported.push(path);
+
+			return loaded(path);
+		};
+
+		expect(await checkInternals(adapters, load, context)).toEqual({ status: 'accepted', adapter: '11.17' });
+		expect(imported).toEqual([...new Set(imported)]);
 	});
 
 	it('um import que falha por outro motivo, e o que não é um módulo', async () => {

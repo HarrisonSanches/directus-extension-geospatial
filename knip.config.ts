@@ -9,8 +9,14 @@ const entriesOf = (manifest: { 'directus:extension': { entries: { source: string
 
 export default {
 	workspaces: {
-		// Node runs the preload inside the image of Directus with SpatiaLite, whose Dockerfile Knip does not read.
-		'.': { entry: ['test/spatialite/load-spatialite.ts'] },
+		'.': {
+			// Node runs the preload inside the image of Directus with SpatiaLite, whose Dockerfile Knip does not read, and the
+			// command of the mutation testing runs Vitest with its own config, which Knip does not read in the command.
+			entry: ['test/spatialite/load-spatialite.ts', 'vitest.mutation.config.ts'],
+			// Knip takes the runner of the mutation testing for a package of its own, and the command runner comes inside
+			// @stryker-mutator/core (V-193).
+			ignoreDependencies: ['@stryker-mutator/command-runner'],
+		},
 		'packages/extension': {
 			// The extensions SDK reads extension.config.js when it builds.
 			entry: [...entriesOf(extension), 'extension.config.js'],

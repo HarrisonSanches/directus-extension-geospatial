@@ -108,7 +108,7 @@ A alternativa era usar só a API pública, ou seja, traduzir cada operação em 
 1. Só um módulo da extensão toca nos internos do Directus, com um adaptador por versão.
 2. Ao subir, a extensão confere se os internos são os esperados. Se não forem, ela desliga as operações afetadas e avisa, para não arriscar vazar dados.
 3. Testes de integração com Directus v11 e v12 reais e um papel restrito provam que a extensão devolve os mesmos itens que o `/items` (7.4).
-4. Um canário roda os testes contra cada nova versão do Directus (7.4).
+4. Um canary roda os testes contra cada nova versão do Directus (7.4).
 
 ### Perdas aceitas
 
@@ -655,7 +655,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 - Em todo pull request: PostGIS e SQLite na versão mais antiga e na mais nova da faixa do Directus (D-037), mais os testes unitários.
 - Em todo pull request que mexe na interface, também um ponta a ponta curto, que bloqueia o merge: o mapa abre no layout, um tile chega, o clique abre o drawer, e o axe-core não aponta violações. Roda com PostGIS e o Directus mais novo.
 - Toda noite e antes de cada release: a matriz inteira.
-- Um canário roda contra cada nova versão do Directus.
+- Um canary roda contra cada nova versão do Directus, três dias depois do lançamento (D-046).
 
 **Fora dos testes que bloqueiam:**
 
@@ -669,7 +669,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 - **Motor** (adaptadores, permissões, tiles, consulta registrada): 90% de linhas e 90% de ramificações.
 - **Cobertura somada entre os bancos.** Os relatórios de todos os bancos são somados, e um pull request que mexe num adaptador também roda o teste daquele banco.
 - **Interface.** A lógica (composables, stores, cálculos, estado das ferramentas) fica em módulos testáveis, com 90%. A camada fina que só desenha no WebGL é coberta pelos testes de ponta a ponta, sem meta de linhas.
-- **Teste de mutação** (Stryker) no módulo de permissões, toda noite, com meta de 90%.
+- **Teste de mutação** (Stryker) no caminho da regra de ouro, toda noite, com meta de 90% (`docs/padroes/testes.md`).
 - A cobertura precisa vir de testes de comportamento. Teste escrito só para bater a meta não conta.
 
 ### 7.5 Publicação e compatibilidade
@@ -686,7 +686,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 #### Versões suportadas
 
 - **Directus** (D-037): a major atual a partir do piso testado, mais a última minor de cada major anterior que continua na política. Hoje, `host: ^11.17.0 || ^12.4.0`; quando sair o v13, `^11.17.0 || ^12.<última minor> || ^13.<piso>`.
-  - O piso é a minor mais antiga que a matriz testa, e a matriz testa o piso e a mais nova. O piso só desce com teste, porque as funções internas usadas pela D-001 podem mudar entre minors. O canário testa cada versão nova.
+  - O piso é a minor mais antiga que a matriz testa, e a matriz testa o piso e a mais nova. O piso só desce com teste, porque as funções internas usadas pela D-001 podem mudar entre minors. O canary testa cada versão nova, três dias depois do lançamento (D-046).
   - Uma major anterior fica enquanto a matriz inteira passar nela, e só sai por decisão nova, com o aviso publicado uma minor antes. O v11 e o v12 têm licenças diferentes (V-60, V-61), e muita gente fica no v11 por causa disso.
   - O que depender de algo novo de uma major mais recente aparece como indisponível nas anteriores, pela matriz de capacidades.
   - O Marketplace só oferece a última versão de cada extensão, então todo release precisa valer para a faixa inteira; do contrário, quem está numa major anterior perderia a instalação pelo Marketplace.

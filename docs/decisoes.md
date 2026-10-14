@@ -28,7 +28,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Só a API pública: permissões exatas e contrato estável, mas ficariam de fora tiles e agregações em zoom baixo, a ordenação de grandes resultados por distância, os focos em volume e os mais próximos exatos.
   - O fluxo do handoff com `_in`.
 - **Consequências:**
-  - Dependemos de API interna. Por isso: só um módulo toca nos internos, com um adaptador por versão; uma checagem na inicialização desliga as operações afetadas e avisa; testes de paridade com o `/items` rodam em v11 e v12; e um canário roda contra cada versão nova.
+  - Dependemos de API interna. Por isso: só um módulo toca nos internos, com um adaptador por versão; uma checagem na inicialização desliga as operações afetadas e avisa; testes de paridade com o `/items` rodam em v11 e v12; e um canary roda contra cada versão nova.
   - Perdas aceitas: os hooks `items.read` de outras extensões não rodam em tiles e agregações, e os valores saem crus do banco, sem o `PayloadService`.
 
 ## D-002 — PostGIS como referência, um adaptador por banco e a matriz de capacidades
@@ -260,7 +260,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Uma suíte de contrato para todos os bancos, com os dados carregados pela API do Directus.
   - Paridade com o `/items` para um papel restrito: IDs idênticos, ou um gabarito calculado com a GeographicLib.
   - Directus v11 e v12 e bancos reais em containers, sem mock.
-  - Camadas de CI: pull request, noite, release e canário.
+  - Camadas de CI: pull request, noite, release e canary.
   - Cobertura: pelo menos 90% no código novo; 90% de linhas e de ramificações no motor; relatórios somados entre os bancos.
   - Teste de mutação no módulo de permissões, com meta de 90%.
   - Testes de ponta a ponta com Playwright e axe-core.
@@ -588,7 +588,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Contexto:** a D-018 prometia todo o 12 (`^12.0.0`), mas a matriz testava só a última minor, e os internos usados pela D-001 podem mudar entre minors. Ela também tirava o 11 quando o 13 chegasse. Só que o 11 e o 12 têm licenças diferentes (V-60, V-61), e muita gente fica no 11 por causa disso.
 - **Decisão:**
   - A faixa é a major atual a partir do piso testado, mais a última minor de cada major anterior que continua na política. Hoje, `^11.17.0 || ^12.4.0`; quando sair o 13, `^11.17.0 || ^12.<última minor> || ^13.<piso>`.
-  - O piso é a minor mais antiga que a matriz testa, e a matriz testa o piso e a mais nova, na última correção de cada minor. O piso só desce com teste, e o canário testa cada minor nova assim que ela sai.
+  - O piso é a minor mais antiga que a matriz testa, e a matriz testa o piso e a mais nova, na última correção de cada minor. O piso só desce com teste, e o canary testa cada minor nova três dias depois de ela sair, pela idade mínima da D-046, escolha do mantenedor na F02-20.
   - Uma major anterior fica enquanto a matriz inteira passar nela. Tirá-la exige uma decisão nova e o aviso de descontinuação publicado numa minor antes, e a última versão compatível continua instalável pelo npm e pela imagem Docker.
   - O que depender de algo novo de uma major mais recente aparece como indisponível nas anteriores, com o motivo. A matriz de capacidades passa a considerar também a versão do Directus.
   - Na CI, o pull request roda a versão mais antiga e a mais nova da faixa, e a noite roda a faixa inteira.
@@ -750,14 +750,14 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 - **Estado:** aceita em 27/09/2026.
 - **Onde:** `docs/padroes/seguranca-e-dependencias.md` · `.github/renovate.json5` · D-037 · D-041 · V-75 · V-139 · V-140.
-- **Contexto:** a F00 deixou a atualização automática como decisão da fase, e os padrões recomendavam o Renovate. As versões ficam no catálogo do pnpm, nas actions fixadas pelo commit, nas imagens da CI e do ambiente de desenvolvimento, e nas imagens do Directus e do PostGIS de `test/combinations.ts`, que alimentam o canário da F02.
+- **Contexto:** a F00 deixou a atualização automática como decisão da fase, e os padrões recomendavam o Renovate. As versões ficam no catálogo do pnpm, nas actions fixadas pelo commit, nas imagens da CI e do ambiente de desenvolvimento, e nas imagens do Directus e do PostGIS de `test/combinations.ts`, que alimentam o canary da F02.
 - **Decisão:**
   - O Renovate, pelo app hospedado da Mend, instalado só neste repositório, com a configuração em `.github/renovate.json5`, que a CI valida. Os pull requests vão para o `develop`, e nenhum entra sozinho: o merge é do mantenedor.
   - A mesma idade mínima do pnpm, 3 dias, conferida sempre que o registro informa a data da versão.
   - Os minor e patch num pull request por semana, na segunda-feira, e cada major à parte. As imagens do Directus chegam a qualquer hora, com o patch separado da minor, porque uma minor nova entra na matriz ao lado do piso (D-037).
   - A correção de um alerta do Dependabot chega na hora, sem os 3 dias, e o Renovate a registra no `minimumReleaseAgeExclude` do pnpm. O Dependabot só alerta: o Dependabot security updates fica desligado.
 - **Alternativas descartadas:**
-  - O Dependabot version updates: já vem no GitHub, mas não tem gerenciador por regex e não enxergaria as imagens do Directus no TypeScript, de que o canário depende.
+  - O Dependabot version updates: já vem no GitHub, mas não tem gerenciador por regex e não enxergaria as imagens do Directus no TypeScript, de que o canary depende.
   - A correção de segurança esperando os 3 dias, como o resto: enquanto a vulnerabilidade existe, o `pnpm audit` da CI reprova todo pull request, e a versão corrigida quase sempre já passou dos 3 dias quando o alerta sai. Chegar na hora é também o padrão do Renovate e do Dependabot.
   - O Renovate por uma action no próprio repositório, com um token ou um app nosso: mais um segredo para guardar e mais um workflow para manter, sem ganho num repositório público.
 - **Consequências:** o Scorecard passa a reconhecer a ferramenta de atualização. Uma versão fixada fora dos gerenciadores do Renovate precisa de uma regra por regex ou de um comentário `# renovate:`, senão ela fica parada sem aviso. Uma minor ou major nova do Directus não se aplica como veio: ela ganha combinações na matriz. A entrada que o Renovate acrescenta no `minimumReleaseAgeExclude` vale só para aquela versão e pode sair quando ela passar dos 3 dias.
