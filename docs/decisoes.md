@@ -1010,3 +1010,28 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - **O retorno:** o `client.request(geoRadius(...))` devolve o `{ data, meta }`, e não a lista, como o `readItems` devolve. A documentação do SDK diz por quê.
   - **Cache e proxy:** um cache no caminho precisa respeitar o `Vary`. Um proxy que entregue o `application/json` ao SDK só tira o `meta`.
   - **O nome é contrato:** o tipo entra no contrato de cada lista, e mudar o nome depois da primeira publicação quebra cliente (D-016).
+
+## D-059 — O SDK na consulta registrada: os comandos pelo `operationId`, o iterador por páginas e a espera do resumo
+
+- **Estado:** aceita em 14/10/2026. Detalha a D-024 e a D-058.
+- **Onde:** §7.8 (SDK) · `docs/padroes/api-e-contrato.md` · D-004, D-022, D-052, D-054, D-056 · V-189, V-192.
+- **Contexto:**
+  - A consulta registrada tem o registro e uma rota para cada parte do resultado (D-022), e a D-024 só dá nome aos comandos das operações, como o `geoRadius()`.
+  - A paginação por cursor (D-054) pede vários pedidos, e um comando do SDK do Directus faz um só.
+  - O resumo traz o total em dois tempos (D-056): acima de 10.000 itens, o primeiro é um piso, e o exato chega num pedido seguinte. Cada pedido refaz a contagem rápida, que lê até 10.001 itens.
+  - Uma página que chega em `application/json` traz só o `data` (V-189), sem dizer se outra vem depois. No ensaio da F02-19, com a rota trocada para esse tipo, o iterador leu 3 dos 8 itens da Maria e acabou sem erro.
+- **Decisão:**
+  - **Os nomes:** o comando de uma rota que não é uma operação leva o prefixo `geo` e o `operationId` da rota no contrato, como o `geoCapabilities()`: `geoRegisterQuery()`, `geoQueryItems()`, `geoQueryShapes()` e `geoQuerySummary()`.
+  - **A consulta:** o registro devolve `{ id }`, que leva só nos tipos a coleção e os campos da pergunta, e os comandos das partes a recebem e tipam o que dão. Um id sozinho, como o de um link, também serve, com os tipos do contrato.
+  - **O iterador,** o `geoPaginate(client, comando)`, serve a toda lista com cursor e entrega uma página inteira por volta, com o `meta`, por escolha do mantenedor, como os _paginators_ do AWS SDK v3 e o `paginate.iterator` do Octokit. Numa página sem o `meta` legível, ele falha, com um erro que nomeia o tipo próprio da extensão, em vez de acabar a lista nela.
+  - **A espera do resumo,** o `geoFinalSummary(client, consulta, { interval, timeout })`, por escolha do mantenedor, como os _waiters_ do AWS SDK v3: pede de novo enquanto o `counting` for verdadeiro e dá o primeiro resumo que não muda mais, ou o último, ainda contando, no tempo máximo. Por padrão, 1 s de intervalo, pelo custo da contagem rápida, e 30 s de tempo máximo, o da contagem exata.
+- **Alternativas descartadas:**
+  - **O iterador por itens,** como a autopaginação do Stripe: mais curto de usar, mas o `meta` de cada página, e com ele o `capped` de uma lista parcial (D-052), não chegaria a quem lê.
+  - **Acabar a lista na página sem o `meta`:** um proxy que troque o tipo da resposta faria o iterador entregar só a primeira página, sem aviso, contra o resultado honesto (§2).
+  - **Um iterador de resumos,** com o rápido e depois cada mudança: um laço só para os dois tempos, mas um iterador que pergunta de novo é menos comum que uma espera, e quem só quer o total final teria de ir até o fim do laço.
+  - **Só o comando do resumo:** cada projeto escreveria a própria espera, e um intervalo curto, como os 200 ms da suíte, refaria a contagem rápida a cada pedido.
+  - **Nomes sem o prefixo,** como `registerQuery()` e `queryItems()`: colidiriam com o código de quem usa, como a D-024 já descarta.
+- **Consequências:**
+  - O `geoPaginate()` precisa da extensão que responde no tipo próprio, a que sai junto com o SDK. Um comando sozinho segue dando o `data` sem o `meta` numa resposta em `application/json` (D-058).
+  - Nem o iterador nem a espera aceitam um `AbortSignal`: quem precisa parar antes sai do `for await`, e a espera vai até o resumo final ou o tempo máximo.
+  - Os nomes, a forma das páginas e a espera entram no contrato do SDK, e mudar depois da primeira publicação quebra cliente (D-016).

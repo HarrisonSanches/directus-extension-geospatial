@@ -24,21 +24,19 @@ describe('contrato', () => {
 		expect(openapi).toMatchObject({ components: { schemas: { Limit: { maximum: limitMaximum } } } });
 	});
 
-	it('a lista de itens, no GET e no SEARCH, também sai no tipo próprio da extensão, com o mesmo corpo (D-058)', async () => {
+	it('toda lista com meta, os itens e as formas, também sai no tipo próprio da extensão, com o mesmo corpo (D-058)', async () => {
 		const openapi: unknown = parse(await readFile(join(contract, 'openapi.yaml'), 'utf8'));
-		const both = {
-			content: {
-				'application/json': { schema: { $ref: '#/components/schemas/Items' } },
-				[wholeBodyType]: { schema: { $ref: '#/components/schemas/Items' } },
-			},
+		const both = (schema: string) => {
+			const body = { schema: { $ref: `#/components/schemas/${schema}` } };
+
+			return { responses: { '200': { content: { 'application/json': body, [wholeBodyType]: body } } } };
 		};
 
 		expect(openapi).toMatchObject({
 			paths: {
-				'/geospatial/items/{collection}': {
-					get: { responses: { '200': both } },
-					additionalOperations: { SEARCH: { responses: { '200': both } } },
-				},
+				'/geospatial/items/{collection}': { get: both('Items'), additionalOperations: { SEARCH: both('Items') } },
+				'/geospatial/queries/{id}/items': { get: both('Items') },
+				'/geospatial/queries/{id}/shapes': { get: both('Shapes') },
 			},
 		});
 	});

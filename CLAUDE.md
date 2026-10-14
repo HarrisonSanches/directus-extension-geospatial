@@ -250,7 +250,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   `application/vnd.directus-geospatial+json`, com o mesmo corpo, a quem a pede assim, e o `geoRadius()` devolve o
   `{ data, meta }` (D-058, V-189). O tsdown faz o build em ESM e em CommonJS, e o `pnpm sdk:check` confere o pacote
   como o npm o receberia, pelo `publint` e pelo `attw` (V-190).
-- Próximo passo: `/implement-issue F02-19`, o SDK na consulta registrada, com o cursor como iterador.
+- F02-19 feita em 14/10/2026: o SDK ganha a consulta registrada. O `geoRegisterQuery()` devolve a consulta, que leva nos
+  tipos a coleção e os campos da pergunta, e o `geoQueryItems()`, o `geoQueryShapes()` e o `geoQuerySummary()` dão cada
+  parte, tipada. O `geoPaginate()` percorre qualquer lista por cursor num `for await`, página a página, com o `meta`, e
+  falha numa página que chegou sem ele, em vez de acabar a lista ali. O `geoFinalSummary()` espera o total exato,
+  pedindo de novo a cada 1 s, até 30 s. Os itens e as formas da consulta registrada respondem também no tipo próprio da
+  extensão (D-058, D-059, V-192).
+- Próximo passo: `/implement-issue F02-20`, a mutação no módulo de permissões, à noite, e o canário (HITL).
 
 ## Documentação
 

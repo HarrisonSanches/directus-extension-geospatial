@@ -550,6 +550,16 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
   - **O Renovate** dá a uma entrada do catálogo o nome da chave, o `depName`, e ao alias `npm:` o nome do pacote de
     verdade, o `packageName`. O `matchPackageNames` compara o `packageName`, então o alias entra no grupo dos pacotes
     do Directus, e só o `matchDepNames` o separa.
+- **V-192** **O `@directus/sdk` e o corpo de um comando, os campos de uma relação e os parâmetros que ele não conhece**
+  (pacotes do `@directus/sdk` 26.0.0 e 27.0.0: `dist/utils/format-fields.js`, `utils/query-to-params.js` e
+  `rest/composable.js`; e ensaio da F02-19, em 14/10/2026, no 11.17.4 e no 12.5.0):
+  - O `request` do `rest()` põe o `Content-Type: application/json` em todo pedido que não o traz, e só o tira no
+    `multipart/form-data`. Um comando que manda o corpo como texto de JSON não precisa do cabeçalho.
+  - O `formatFields`, exportado nas duas versões, com a mesma assinatura, achata os campos de uma relação no caminho
+    com pontos, `{ reporter: ['name'] }` em `reporter.name`, como o `readItems` os manda na URL. O tipo dos campos da
+    `Query` admite chaves numéricas, que o `formatFields` não aceita.
+  - O `queryToParams` formata só os parâmetros do `/items` que conhece. Um parâmetro de fora vai como está quando é
+    texto, como o `cursor`, e em JSON quando não é, como o `geo` (V-171).
 
 ## Pendências
 

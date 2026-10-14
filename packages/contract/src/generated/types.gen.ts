@@ -544,7 +544,7 @@ export type QueryItemsError = QueryItemsErrors[keyof QueryItemsErrors];
 
 export type QueryItemsResponses = {
 	/**
-	 * The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key.
+	 * The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key, also as application/vnd.directus-geospatial+json when the request prefers it, as in /geospatial/items.
 	 */
 	200: Items;
 };
@@ -599,7 +599,7 @@ export type QueryShapesError = QueryShapesErrors[keyof QueryShapesErrors];
 
 export type QueryShapesResponses = {
 	/**
-	 * The shapes.
+	 * The shapes, also as application/vnd.directus-geospatial+json when the request prefers it, as the items, so the SDK of the extension reads the meta.
 	 */
 	200: Shapes;
 };

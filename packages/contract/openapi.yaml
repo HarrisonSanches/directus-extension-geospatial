@@ -361,9 +361,13 @@ paths:
         '200':
           description: >-
             The items, in the natural order of the operation, the distance for the radius, or in the sort of the request,
-            and then by the primary key.
+            and then by the primary key, also as application/vnd.directus-geospatial+json when the request prefers it, as
+            in /geospatial/items.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Items'
+            application/vnd.directus-geospatial+json:
               schema:
                 $ref: '#/components/schemas/Items'
         '400':
@@ -443,9 +447,14 @@ paths:
             $ref: '#/components/schemas/Cursor'
       responses:
         '200':
-          description: The shapes.
+          description: >-
+            The shapes, also as application/vnd.directus-geospatial+json when the request prefers it, as the items, so
+            the SDK of the extension reads the meta.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Shapes'
+            application/vnd.directus-geospatial+json:
               schema:
                 $ref: '#/components/schemas/Shapes'
         '400':
