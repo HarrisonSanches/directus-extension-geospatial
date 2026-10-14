@@ -16,8 +16,8 @@ interface Clock {
 
 // The wait of geoFinalSummary(), on a clock of its own. It asks again, after each interval, while the exact count runs
 // in the background, and gives the first summary whose counting is false, with the exact total or, past the time
-// maximum of the count, without it. A request past the timeout is never sent: at the timeout, it gives the last summary,
-// still counting.
+// maximum of the count, without it. A request past the timeout is never sent: at the timeout, it gives the last
+// summary, still counting.
 export const finalSummaryWith =
 	({ now, sleep }: Clock) =>
 	async <Schema>(
@@ -36,10 +36,10 @@ export const finalSummaryWith =
 		return summary;
 	};
 
-// The summary of a registered query once it changes no more (§7.1). Past 10,000 items, the first summary brings a floor,
-// and the exact count runs in the background; this waits for it, as a waiter of an SDK does. Each request reads the
-// quick count again, so the interval goes by the second, 1 s by default, and the timeout, 30 s by default, is the time
-// maximum of the exact count.
+// The summary of a registered query once it changes no more (§7.1, D-059). Past 10,000 items, the first summary brings
+// a floor, and the exact count runs in the background; this waits for it, as a waiter of an SDK does. Each request
+// reads the quick count again, so the interval goes by the second, 1 s by default, and the timeout, 30 s by default, is
+// the time maximum of the exact count.
 export const geoFinalSummary = finalSummaryWith({
 	now: () => Date.now(),
 	sleep: (ms) =>

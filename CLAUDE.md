@@ -255,7 +255,7 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   parte, tipada. O `geoPaginate()` percorre qualquer lista por cursor num `for await`, página a página, com o `meta`, e
   falha numa página que chegou sem ele, em vez de acabar a lista ali. O `geoFinalSummary()` espera o total exato,
   pedindo de novo a cada 1 s, até 30 s. Os itens e as formas da consulta registrada respondem também no tipo próprio da
-  extensão (D-058, V-192).
+  extensão (D-058, D-059, V-192).
 - Próximo passo: `/implement-issue F02-20`, a mutação no módulo de permissões, à noite, e o canário (HITL).
 
 ## Documentação
