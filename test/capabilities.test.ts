@@ -1,5 +1,6 @@
 import { customEndpoint } from '@directus/sdk';
 import { describe, expect, inject, it } from 'vitest';
+import { combinations } from './combinations.ts';
 import { as, type Role, versions } from './directus.ts';
 import type { Capabilities } from 'directus-geospatial-contract';
 
@@ -9,8 +10,7 @@ const capabilities = (role: Role) =>
 // The extension reports the version of the database as major.minor.
 const majorMinor = (version: string) => version.split('.').slice(0, 2).join('.');
 
-// Each combination starts with the Directus version line, which names its adapter.
-const [adapter] = inject('combination').split('-');
+const { adapter } = combinations[inject('combination')].directus;
 
 describe('GET /geospatial/capabilities num Directus de verdade', () => {
 	it('para o admin, responde com o banco e a extensão espacial da combinação, nas versões que eles informam', async () => {

@@ -113,9 +113,17 @@
 		{
 			matchDatasources: ['docker'],
 			matchPackageNames: ['directus/directus'],
-			matchUpdateTypes: ['minor', 'major'],
+			matchUpdateTypes: ['minor'],
 			prBodyNotes: [
-				'A new minor or major of Directus joins the matrix as the newest version, and the floor stays (D-037): add its combinations to test/combinations.ts instead of replacing the ones there.',
+				'A new minor of Directus takes the place of the newest version of its major, and the floor stays (D-037): the floor has combinations of its own in test/combinations.ts, which this update leaves as they are.',
+			],
+		},
+		{
+			matchDatasources: ['docker'],
+			matchPackageNames: ['directus/directus'],
+			matchUpdateTypes: ['major'],
+			prBodyNotes: [
+				'A new major of Directus joins the matrix with combinations of its own, and the major before stays in its last minor (D-037): add its combinations to test/combinations.ts instead of replacing the ones there.',
 			],
 		},
 		// 11.17 is the last minor of Directus 11 (V-35), which stays in the range while the matrix passes on it (D-037).
@@ -124,6 +132,13 @@
 			matchPackageNames: ['directus/directus'],
 			matchCurrentValue: '/^11\\./',
 			allowedVersions: '/^11\\./',
+		},
+		// 12.4 is the floor of Directus 12, which follows only the patches of its minor (D-037).
+		{
+			matchDatasources: ['docker'],
+			matchPackageNames: ['directus/directus'],
+			matchCurrentValue: '/^12\\.4\\./',
+			allowedVersions: '/^12\\.4\\./',
 		},
 		// @directus/extensions-sdk depends on exact versions of the other packages of Directus, such as @directus/types,
 		// so they come together, majors included.
@@ -134,6 +149,12 @@
 			prBodyNotes: [
 				'@directus/types names exact versions of knex and pino as its peers, and the catalog keeps them at those versions by hand.',
 			],
+		},
+		// The oldest @directus/sdk the peer of the SDK of the extension accepts, which its tests also run against (V-191).
+		// It moves with the peer, by hand.
+		{
+			matchDepNames: ['directus-sdk-oldest'],
+			enabled: false,
 		},
 		// The peers of @directus/types, which follow it and not their latest version.
 		{

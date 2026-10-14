@@ -1,14 +1,23 @@
-// The Directus versions of the range (D-037). Each official image is pinned by the digest of its tag, so the
-// combinations of one version run the same build, which the image with SpatiaLite starts from. Renovate moves the
-// version, the tag and the digest together (.github/renovate.json5).
+// The Directus versions of the range (D-037): the last minor of 11, and the floor of 12 and its newest minor, each in
+// its last patch. Each official image is pinned by the digest of its tag, so the combinations of one version run the
+// same build, which the image with SpatiaLite starts from. Renovate moves the version, the tag and the digest together,
+// the floor only within its minor (.github/renovate.json5). The adapter is the one whose internals the version passes
+// (F02-03), and one serves every minor of 12.
 const directus = {
 	'11.17': {
 		version: '11.17.4',
 		image: 'directus/directus:11.17.4@sha256:eb326f679ae847c0a776f93b972761dc2ebe84980e0b9d274a6bc31cd62809f7',
+		adapter: '11.17',
 	},
-	'12': {
+	'12.4': {
 		version: '12.4.1',
 		image: 'directus/directus:12.4.1@sha256:9cc8ab88e6f1fc98d860416d89d53dd15838860c315a66c6d8ee68cb72f6b3a6',
+		adapter: '12',
+	},
+	'12': {
+		version: '12.5.0',
+		image: 'directus/directus:12.5.0@sha256:7de5d6898b955dab1672619aed590035dcade4f8d7396d913e55543e114d1331',
+		adapter: '12',
 	},
 };
 
@@ -23,13 +32,16 @@ const postgisNewest = { client: 'postgres', image: 'postgis/postgis:18-3.6-alpin
 const sqlite = { client: 'sqlite' } as const;
 
 // The combinations of the integration suite: each Directus version with each database. Each one is a project of
-// Vitest, and every test file runs in all of them. Every pull request runs the first ones, with the minimum PostGIS,
-// and the night adds the newest PostGIS (D-037).
+// Vitest, and every test file runs in all of them. Every pull request runs the oldest and the newest Directus of the
+// range, 11.17 and the newest 12, with the minimum PostGIS and with SQLite, and the night adds the floor of 12 and the
+// newest PostGIS (D-037). The newest 12 keeps the name 12, which the required jobs of the rulesets carry.
 export const combinations = {
 	'11.17-postgis': { directus: directus['11.17'], database: postgis, nightly: false },
 	'11.17-sqlite': { directus: directus['11.17'], database: sqlite, nightly: false },
 	'12-postgis': { directus: directus['12'], database: postgis, nightly: false },
 	'12-sqlite': { directus: directus['12'], database: sqlite, nightly: false },
+	'12.4-postgis': { directus: directus['12.4'], database: postgis, nightly: true },
+	'12.4-sqlite': { directus: directus['12.4'], database: sqlite, nightly: true },
 	'11.17-postgis-newest': { directus: directus['11.17'], database: postgisNewest, nightly: true },
 	'12-postgis-newest': { directus: directus['12'], database: postgisNewest, nightly: true },
 };
