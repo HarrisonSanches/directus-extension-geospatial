@@ -24,9 +24,9 @@ catalog:
   '@fast-check/vitest': 0.5.0
   '@hey-api/openapi-ts': 0.99.0
   # The lint of the contract (D-016), one package with no dependencies of its own.
-  '@redocly/cli': 2.57.0
+  '@redocly/cli': 2.62.1
   '@testcontainers/postgresql': 12.2.0
-  '@types/node': 24.19.1
+  '@types/node': 24.19.2
   # TypeScript runs side by side (V-90): this alias is the TypeScript 7 behind tsc, and the typescript name below
   # serves the 6.0 API that typescript-eslint loads, until typescript-eslint supports TypeScript 7 (P-25).
   '@typescript/native': npm:typescript@7.0.2
@@ -50,18 +50,18 @@ catalog:
   jiti: 2.7.0
   # The exact version Directus uses and @directus/types names as its peer.
   knex: 3.1.0
-  knip: 6.39.0
+  knip: 6.41.0
   # The exact version @directus/types names as its optional peer, for the type of the logger.
   pino: 9.7.0
-  prettier: 3.9.9
+  prettier: 3.9.10
   # Checks the package.json of the published SDK against how Node and the bundlers read it.
   publint: 0.3.25
   testcontainers: 12.2.0
   # The build of the SDK, as in the packages of Directus (V-59).
-  tsdown: 0.23.0
+  tsdown: 0.23.1
   typescript: npm:@typescript/typescript6@6.0.2
-  typescript-eslint: 8.71.0
-  vite: 8.3.2
+  typescript-eslint: 8.71.1
+  vite: 8.3.4
   vitest: 5.0.3
   yaml: 2.9.1
 
@@ -94,7 +94,7 @@ allowBuilds:
 # The extensions SDK of Directus 18.0.5 ships Vite 8 with @vitejs/plugin-vue 6.0.1, which accepts Vite only up to 7.
 # The plugin declares Vite 8 from 6.0.5 on, in the same 6.0 line.
 overrides:
-  '@directus/extensions-sdk>@vitejs/plugin-vue': 6.0.9
+  '@directus/extensions-sdk>@vitejs/plugin-vue': 6.0.10
   # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj and GHSA-2883-xcg3-v3hh: the generator of the contract types and the
   # utils of Directus pin versions of js-yaml that a crafted YAML drives to quadratic CPU use, fixed in the same line.
   'js-yaml@>=4.0.0 <4.3.2': 4.3.2
