@@ -34,11 +34,16 @@ entre dialetos, que é exatamente onde o risco mora.
 **O SDK nos unitários** roda pelo cliente de verdade do `@directus/sdk`, com o `fetch` trocado por respostas fixas
 (`packages/sdk/src/fake-fetch.ts`), o que prova a forma do pedido e o caminho da resposta pelo `request` do SDK. O
 Directus de verdade fica com a integração, que chama cada comando nas quatro combinações e compara com a rota.
+O par do SDK aceita mais de uma major do `@directus/sdk`, e os unitários e os tipos do SDK rodam também na mais
+antiga, que o catálogo guarda por um alias com outro nome, `directus-sdk-oldest`: o projeto `unit:sdk-oldest` do
+Vitest troca o `@directus/sdk` por ele, e o `packages/sdk/tsconfig.oldest.json` aponta os tipos para a declaração
+dele. A integração roda na mais nova (V-191).
 
 **Cada teste de integração roda em todas as combinações** de versão do Directus e banco (`test/combinations.ts`),
 um projeto do Vitest por combinação. O `pnpm test:integration` roda as do pull request, com o PostGIS mínimo, e a
-variável `INTEGRATION` escolhe outras, como as `-postgis-newest`, que a noite acrescenta. O que difere entre as versões fica
-no ajudante (`test/directus.ts`): o teste pergunta ao ajudante o que o Directus aceita, e nunca a versão. O
+variável `INTEGRATION` escolhe outras, como as do piso do 12, `12.4-`, e as `-postgis-newest`, que a noite
+acrescenta. O que difere entre as versões fica no ajudante (`test/directus.ts`): o teste pergunta ao ajudante o que
+o Directus aceita, e nunca a versão. O
 Directus 12 roda com a chave do Open Innovation Grant, ativada sempre no mesmo projeto (D-044), e, sem ela, no tier
 Core, que recusa as regras próprias de permissão (V-114). Um teste que depende delas, como os da Maria, roda com
 `it.runIf(hasCustomPermissionRules())` e aparece como pulado no Core. O SQLite roda dentro do Directus, numa imagem
@@ -214,11 +219,11 @@ fora do lugar (`test/moved-module/`), e sobem um ambiente próprio, pelo `startE
 
 ## Quando cada teste roda
 
-| Quando                              | O que roda                                                                                                                                                                                                            |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A cada push e pull request          | Unitários; integração, paridade e contrato no PostGIS (a versão mínima) e no SQLite, na versão mais antiga e na mais nova da faixa do Directus (hoje, 11.17 e 12.4, D-037); contrato da API; cobertura do código novo |
-| Pull request que mexe num adaptador | Mais o contrato daquele banco                                                                                                                                                                                         |
-| Pull request que mexe na interface  | Mais o ponta a ponta curto, que bloqueia o merge: o mapa abre no layout, um tile chega, o clique abre o drawer e o axe passa (§7.4)                                                                                   |
-| Toda noite                          | A faixa inteira do Directus; o PostGIS na versão mais nova; a partir da F15, a matriz inteira de bancos, a mínima e a mais nova de cada; o ponta a ponta completo; a mutação                                          |
-| Antes de cada release               | Tudo o que roda à noite, mais o teste manual com leitor de tela (NVDA e VoiceOver)                                                                                                                                    |
-| Canário                             | A suíte de integração contra cada versão nova do Directus, assim que ela sai                                                                                                                                          |
+| Quando                              | O que roda                                                                                                                                                                                                             |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A cada push e pull request          | Unitários; integração, paridade e contrato no PostGIS (a versão mínima) e no SQLite, na versão mais antiga e na mais nova da faixa do Directus (hoje, 11.17 e 12.5, D-037); contrato da API; cobertura do código novo  |
+| Pull request que mexe num adaptador | Mais o contrato daquele banco                                                                                                                                                                                          |
+| Pull request que mexe na interface  | Mais o ponta a ponta curto, que bloqueia o merge: o mapa abre no layout, um tile chega, o clique abre o drawer e o axe passa (§7.4)                                                                                    |
+| Toda noite                          | A faixa inteira do Directus (hoje, 11.17, o piso do 12, 12.4, e 12.5); o PostGIS na versão mais nova; a partir da F15, a matriz inteira de bancos, a mínima e a mais nova de cada; o ponta a ponta completo; a mutação |
+| Antes de cada release               | Tudo o que roda à noite, mais o teste manual com leitor de tela (NVDA e VoiceOver)                                                                                                                                     |
+| Canário                             | A suíte de integração contra cada versão nova do Directus, assim que ela sai                                                                                                                                           |

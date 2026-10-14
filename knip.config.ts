@@ -19,6 +19,9 @@ export default {
 			// connects.
 			ignoreDependencies: ['@directus/api', 'sqlite3'],
 		},
+		// The oldest @directus/sdk its peer accepts comes in only by name, through an alias of Vitest and a path of
+		// tsconfig.oldest.json, which Knip does not read as imports (V-191).
+		'packages/sdk': { ignoreDependencies: ['directus-sdk-oldest'] },
 		'test/hook': { entry: entriesOf(testHook) },
 		'test/measure/observer': { entry: entriesOf(observer) },
 	},

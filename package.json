@@ -14,11 +14,11 @@
 		"measure": "pnpm --filter directus-extension-geospatial build && pnpm --filter directus-extension-geospatial-test-observer build && vitest run --project \"measure:*\" --no-file-parallelism",
 		"prepare": "husky",
 		"sdk:check": "pnpm --filter directus-geospatial-sdk build && pnpm --filter directus-geospatial-sdk pack --out packages/sdk/directus-geospatial-sdk.tgz && publint --strict packages/sdk/directus-geospatial-sdk.tgz && attw packages/sdk/directus-geospatial-sdk.tgz",
-		"test": "vitest run --project unit",
+		"test": "vitest run --project \"unit*\"",
 		"test:bind-license": "node test/bind-license.ts",
-		"test:coverage": "vitest run --project unit --coverage && pnpm test:integration && node test/coverage.ts && node test/ratchet.ts",
+		"test:coverage": "vitest run --project \"unit*\" --coverage && pnpm test:integration && node test/coverage.ts && node test/ratchet.ts",
 		"test:integration": "pnpm --filter directus-extension-geospatial build --no-minify --sourcemap && pnpm --filter directus-extension-geospatial-test-hook build && pnpm --filter directus-extension-geospatial-test-observer build && vitest run --project \"integration:*\"",
-		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension && tsc -p packages/sdk && tsc -p test/hook && tsc -p test/measure/observer"
+		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension && tsc -p packages/sdk && tsc -p packages/sdk/tsconfig.oldest.json && tsc -p test/hook && tsc -p test/measure/observer"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",

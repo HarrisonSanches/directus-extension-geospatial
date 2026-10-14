@@ -1,0 +1,8 @@
+{
+	// The types of the SDK again, against the oldest @directus/sdk its peer accepts, which the catalog keeps under a name
+	// of its own (V-191).
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"paths": { "@directus/sdk": ["./node_modules/directus-sdk-oldest/dist/index.d.ts"] }
+	}
+}

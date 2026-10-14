@@ -99,9 +99,9 @@ jobs:
       - run: pnpm test:integration
         env:
           INTEGRATION: ${{ matrix.combination }}
-          # Only the Directus 12 with PostGIS takes the key, under the project of the tests (D-044). A pull request from
-          # a fork gets no secrets, so its Directus 12 runs on the Core tier (D-043).
-          DIRECTUS_LICENSE_KEY: ${{ startsWith(matrix.combination, '12-postgis') && secrets.DIRECTUS_LICENSE_KEY || '' }}
+          # Only the Directus 12 with PostGIS takes the key, the newest and the floor, under the project of the tests
+          # (D-044). A pull request from a fork gets no secrets, so its Directus 12 runs on the Core tier (D-043).
+          DIRECTUS_LICENSE_KEY: ${{ startsWith(matrix.combination, '12') && contains(matrix.combination, '-postgis') && secrets.DIRECTUS_LICENSE_KEY || '' }}
       # The coverage recorded inside the Directus of the combination, for the coverage job.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

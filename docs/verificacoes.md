@@ -523,6 +523,33 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
   - **O `pnpm pack`** troca no `package.json` do tarball os campos do `publishConfig`, como o `exports`, o `main` e o `types`. Ele troca também o `workspace:*` pela versão do pacote, e falha quando o pacote do workspace não tem versão. O `--out` parte da pasta onde o comando roda.
   - **O `attw`** lê um tarball. Sem o `main` e o `types`, ele reprova a resolução `node10`, a do `moduleResolution: node` do TypeScript.
   - **O `publint`** também lê um tarball, e o `--strict` reprova os avisos.
+- **V-191** **O Directus 12.5.0, os pacotes dele e duas majors do `@directus/sdk` lado a lado** (npm: `directus` 12.5.0 e
+  12.4.1, `@directus/api` 40.0.0 e 39.2.1, `@directus/extensions-sdk` 18.0.6, `@directus/composables` 11.6.4,
+  `@directus/utils` 14.0.0, `@hey-api/json-schema-ref-parser` 1.4.4 e os pacotes do `@directus/sdk` 26.0.0 e 27.0.0;
+  código-fonte do Renovate, `lib/modules/manager/npm/extract/common/dependency.ts`, `common/catalogs.ts` e
+  `lib/util/package-rules/package-names.ts`; e ensaio com o pnpm 12.11.2, o TypeScript 7.0.2 e o Vitest 5.0.3, em
+  14/10/2026):
+  - **As versões:** o Directus 12.5.0 traz o `@directus/api` 40.0.0, com o `@directus/errors` 3.0.0, e o 12.4.1, o
+    39.2.1, com o 2.5.2. O `@directus/sdk` 27.0.0 e o `@directus/types` 18.0.0 saíram em 07/10/2026, com o 12.5.
+  - **O que o 12.5 prende:** o `@directus/extensions-sdk` 18.0.6 prende o `vue` 3.5.43, o `@directus/types` 18.0.0 e
+    ainda o `@vitejs/plugin-vue` 6.0.1; o `@directus/composables` 11.6.4, o `axios` 1.20.0; e o `@directus/utils`
+    14.0.0, o `joi` 18.2.9 e o `js-yaml` 4.3.2. Os overrides de segurança do `vue`, do `axios`, do `joi` e do
+    `source-map-js` deixam de mudar alguma coisa, e o `pnpm audit` passa sem eles. O gerador dos tipos do contrato
+    ainda prende o `js-yaml` 4.2.0, pelo `@hey-api/json-schema-ref-parser`, e o override dele fica.
+  - **Do `@directus/sdk` 26 para o 27** mudam só os tipos de coleções do sistema (extensão, campo, permissão,
+    atividade, notificação, revisão e configurações), o código de alguns comandos delas e o `@directus/system-data`,
+    do 4.7.0 para o 4.8.0. O `request`, o `rest`, o `staticToken`, o `queryToParams`, o `isDirectusError` e os tipos
+    `RestCommand`, `DirectusError` e `DirectusApiError`, que o SDK da extensão usa (V-189), não mudam.
+  - **Duas majors lado a lado:** o catálogo do pnpm guarda a mais antiga por um alias, `npm:@directus/sdk@26.0.0`, com
+    outro nome. O `resolve.alias` de um projeto do Vitest troca o `@directus/sdk` por ele no código que o Vite
+    transforma, e o ensaio conferiu pelo código de um comando que difere: o projeto carrega o 26, e o outro, o 27. No
+    `tsc`, o `paths` vale apontando para o arquivo `dist/index.d.ts`. Apontado para a pasta, que não tem o campo
+    `types` no `package.json`, a resolução `nodenext` não o usa e lê o 27 do `node_modules`, sem erro: o
+    `--listFiles` mostrou 187 arquivos do 26 e nenhum do 27 só com o arquivo.
+  - **O Knip** não lê o alias do Vitest nem o `paths` como import e acusa o alias como dependência sem uso.
+  - **O Renovate** dá a uma entrada do catálogo o nome da chave, o `depName`, e ao alias `npm:` o nome do pacote de
+    verdade, o `packageName`. O `matchPackageNames` compara o `packageName`, então o alias entra no grupo dos pacotes
+    do Directus, e só o `matchDepNames` o separa.
 
 ## Pendências
 

@@ -19,6 +19,12 @@ export default defineConfig({
 		teardownTimeout: 120_000,
 		projects: [
 			{ test: { name: 'unit', exclude: [...configDefaults.exclude, 'test/**'] } },
+			// The unit tests of the SDK of the extension again, on the oldest @directus/sdk its peer accepts, which the
+			// catalog keeps under a name of its own (V-191).
+			{
+				resolve: { alias: { '@directus/sdk': 'directus-sdk-oldest' } },
+				test: { name: 'unit:sdk-oldest', include: ['packages/sdk/src/**/*.test.ts'] },
+			},
 			// A project for each combination of the integration suite, and INTEGRATION picks some of them.
 			...selectCombinations(process.env.INTEGRATION).map((combination) => ({
 				test: {
