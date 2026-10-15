@@ -589,6 +589,58 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
     `--no-file-parallelism`, os 130 mutantes do `now.ts` levaram 280 s, e com o `fsModuleCache` do Vitest 5, 366 s.
   - **As dependências:** o núcleo traz o `typed-rest-client`, do relatório que o Stryker mandaria ao painel dele, e ele
     fixa o `qs` 6.15.1, que três alertas moderados alcançam, corrigidos na 6.16.0, da mesma major.
+- **V-194** **A referência da API no OpenAPI 3.2, e o que o Scalar faz por padrão** (código dos pacotes:
+  `starlight-openapi` 0.27.0, `libs/operation.ts`; `vitepress-openapi` 0.2.5, `src/index.ts`;
+  `docusaurus-plugin-openapi-docs` 5.2.0, `lib/openapi/openapi.js`; o `build-docs` do Redocly CLI 2.62.1, que usa o Redoc
+  2.5.4; `@scalar/api-reference` 1.74.0, o `CHANGELOG.md` e o `dist`, e `@scalar/types` 0.23.2,
+  `api-reference-configuration.js`; e ensaio da F02-21, em 15/10/2026, com o contrato do repositório no Chrome headless):
+  - **Os geradores do Starlight, do VitePress e do Docusaurus e o Redoc 2** percorrem uma lista fixa de métodos, do `get`
+    ao `trace`, e nunca leem o `additionalOperations` do OpenAPI 3.2. O `SEARCH` do raio fica de fora, sem aviso, e o
+    documento 3.2 é aceito sem erro. O do VitePress e o do Docusaurus também não leem um parâmetro com `content` em vez
+    de `schema`, como o `geo`: o primeiro o tira da página, e o segundo o mostra como `any`.
+  - **O Scalar lê o `additionalOperations`** desde a 1.72.0 (pull request #10186 do `scalar`), na navegação, na
+    documentação e nos exemplos, com o nome do método como está no documento. Ele monta a referência no navegador, e o
+    HTML da página não traz o texto dela.
+  - **A âncora de cada operação** é `<slug do documento>/<slug da operação>`, com o `api-1` como slug do primeiro
+    documento. O `slug` e o `generateOperationSlug` a fixam, como `#geospatial/items`.
+  - **Por padrão, a página fala com o Scalar:** baixa as fontes do `fonts.scalar.com` (`withDefaultFonts`), liga o chat
+    de IA, que fala com o `api.scalar.com`, quando a página roda num endereço local (`agent`), mostra a entrada do MCP
+    (`mcp`), manda os pedidos de teste pelo `proxy.scalar.com` quando o `proxyUrl` não é dado, e o botão do cliente
+    abre o `client.scalar.com` com o endereço da página (`hideClientButton`). A telemetria, pelo PostHog, só existe com
+    o plugin próprio, que o site não carrega. Com as seis opções desligadas, a página não pediu nada fora do site.
+  - **Os exemplos de pedido:** o `curl` de um parâmetro com `content` sai sem ele, a menos que o media type tenha um
+    `example`. O corpo de um pedido sai dos `examples` do schema, e sem eles, de valores vazios, como `"field": ""`, que
+    o próprio contrato recusa. O lint do Redocly, no `recommended-strict`, confere os dois tipos de exemplo contra o
+    schema, pelas regras `no-invalid-media-type-examples` e `no-invalid-schema-examples`.
+- **V-195** **O Starlight 0.42 sobre o Astro 7** (código dos pacotes: `astro` 7.3.8, `@astrojs/telemetry` 3.3.3,
+  `dist/index.js`; `@astrojs/starlight` 0.42.6, `dist/index.js`, `dist/utils/translations.js` e
+  `dist/utils/routing/data.js`; `starlight-links-validator` 0.27.0, `dist/libs/config.d.ts`; e ensaio da F02-21, em
+  15/10/2026):
+  - **A telemetria do Astro** fica ligada por padrão e manda os eventos também na CI, com o nome dela no lugar do id
+    anônimo; na CI só o aviso deixa de aparecer. Ela desliga pela variável `ASTRO_TELEMETRY_DISABLED`, ou pela
+    `TELEMETRY_DISABLED`, ou pelo `astro telemetry disable`, que grava na configuração do usuário, e não pela
+    configuração do projeto.
+  - **O Starlight sempre acrescenta o `@astrojs/sitemap`,** que avisa a cada build enquanto o `site` não tem endereço.
+  - **Sem a coleção `i18n` com algum arquivo,** o build avisa que ela não existe ou está vazia: o Starlight cala o
+    `console.warn` enquanto a lê, mas o Astro avisa pelo logger dele. Uma `404.md` em `src/content/docs` é renderizada
+    duas vezes, pela rota `/404` do Starlight e pela das páginas, e o build avisa do conflito, a menos que o
+    `disable404Route` desligue a primeira. Sem a `404.md`, o build avisa que ela falta.
+  - **O validador de links** conhece uma página de `src/pages`, como a da referência, mas recusa o link para ela como
+    `invalid link to custom page`, e não vê as âncoras que o navegador monta. A opção `exclude` aceita uma função, que
+    recebe o arquivo, o link e o slug.
+  - **O tsconfig que o Astro publica** resolve os módulos como um bundler e não confere as declarações de terceiros
+    (`skipLibCheck`): com o `nodenext`, as declarações do Astro, do Starlight e do Scalar dão mais de cem erros. O
+    `astro/client` declara o `astro:content`, sem o `astro sync`.
+- **V-196** **As outras duas opções do site** (ensaio da F02-21, em 15/10/2026, fora do repositório, com o pnpm 12.11.2
+  e os 3 dias da idade mínima):
+  - **O VitePress 1.6.4,** o `latest` do npm, depende do Vite 5.4.21 e do esbuild 0.21.5, que quatro alertas alcançam,
+    corrigidos só no Vite 6.4.3 e no esbuild 0.25. O 2.0 está no alpha 20. A versão por release não existe: o pedido
+    está aberto desde 2020 (`vuejs/vitepress` #109), e o próprio VitePress mantém um site por ramo. O
+    `vitepress preview --host 127.0.0.1` escutou em todas as interfaces.
+  - **O Docusaurus 3.10.2,** com o `docusaurus-plugin-openapi-docs` 5.2.0, instalou 1.315 pacotes, com 11 alertas, 2
+    deles críticos, e levou 29 s para gerar e montar o site, contra 5 s do Starlight. Sem o `browserslist` que o
+    instalador do Docusaurus escreve no `package.json`, o Babel compila para ES5, e o tema do plugin quebra no build ou
+    no navegador.
 
 ## Pendências
 

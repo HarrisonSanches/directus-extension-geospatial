@@ -176,6 +176,7 @@ GitHub Actions desde a F00, crescendo com as fases:
 | As camadas do motor no lint (zonas do `import-x`)                                                     | F02              | A cada push                                                                     |
 | Build sem código do `@directus/api`, e o aviso de licenças de terceiros gerado                        | F02              | A cada push                                                                     |
 | Mutação no caminho da regra de ouro; canary                                                           | F02              | Toda noite; três dias depois de cada versão nova do Directus                    |
+| O build do site de documentação, que reprova com link quebrado (D-060)                                | F02              | A cada push, no job da verificação                                              |
 | Peso do arquivo inicial de extensões (`size-limit`)                                                   | F04              | A cada push                                                                     |
 | Ponta a ponta curto: o mapa abre, o tile chega, o drawer abre, o axe passa                            | F04              | Em pull request que toca a interface, bloqueando o merge                        |
 | Ponta a ponta completo, com Playwright e axe                                                          | F04              | Toda noite e antes da release                                                   |

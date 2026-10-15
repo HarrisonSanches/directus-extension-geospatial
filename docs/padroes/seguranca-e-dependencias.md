@@ -46,7 +46,11 @@ confiança se constrói no repositório.
     dela no GitHub é dispensado com o mesmo motivo, senão o Renovate tenta a correção que não existe (V-140);
   - o Dependabot alerts ligado, para a vulnerabilidade nova aparecer mesmo sem push (V-75, V-140). O Dependabot
     security updates fica desligado, porque a correção vem pelo Renovate;
-  - os workflows do GitHub Actions passam pelo zizmor (V-74).
+  - os workflows do GitHub Actions passam pelo zizmor (V-74);
+  - ferramenta que manda telemetria fica com ela desligada pelo próprio repositório, e não pela máquina de quem roda:
+    o Redocly CLI pelo `redocly.yaml` (V-169), e o Astro pela variável em cada script do site (V-195). O site também
+    não fala com ninguém de fora, e o Scalar, da referência da API, fica sem as fontes, o chat de IA e o proxy dele
+    (D-060, V-194).
 - **Atualizações pelo Renovate** (D-046), com a configuração em `.github/renovate.json5`, que a CI valida:
   - os minor e patch num pull request por semana, na segunda-feira, e cada major à parte. Nenhum entra sozinho, e
     a integração contínua é o filtro. A descrição, que vira o commit do `develop`, leva a tabela das versões, com o
