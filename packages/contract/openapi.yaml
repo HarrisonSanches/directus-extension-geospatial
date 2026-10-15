@@ -69,6 +69,7 @@ paths:
           description: The collection, by its name in Directus.
           schema:
             type: string
+          example: occurrences
         - name: geo
           in: query
           required: true
@@ -77,6 +78,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Geo'
+              example:
+                operation: radius
+                field: location
+                center: [-46.6333, -23.5505]
+                distance: 1500
         - name: fields
           in: query
           description: >-
@@ -199,6 +205,7 @@ paths:
             description: The collection, by its name in Directus.
             schema:
               type: string
+            example: occurrences
         requestBody:
           required: true
           content:
@@ -730,6 +737,11 @@ components:
       type: object
       required: [operation, center, distance]
       additionalProperties: false
+      examples:
+        - operation: radius
+          field: location
+          center: [-46.6333, -23.5505]
+          distance: 1500
       properties:
         operation:
           type: string
@@ -798,6 +810,15 @@ components:
       type: object
       required: [geo]
       additionalProperties: false
+      examples:
+        - geo:
+            operation: radius
+            field: location
+            center: [-46.6333, -23.5505]
+            distance: 1500
+          query:
+            fields: [id, category]
+            limit: 2
       properties:
         geo:
           $ref: '#/components/schemas/Geo'
@@ -819,6 +840,18 @@ components:
       type: object
       required: [collection, geo]
       additionalProperties: false
+      examples:
+        - collection: occurrences
+          geo:
+            operation: radius
+            field: location
+            center: [-46.6333, -23.5505]
+            distance: 1500
+          query:
+            filter:
+              status:
+                _eq: open
+            fields: [id, category]
       properties:
         collection:
           description: The collection, by its name in Directus.
