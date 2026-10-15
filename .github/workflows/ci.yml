@@ -49,6 +49,8 @@ jobs:
       - run: pnpm knip
       # The SDK as npm would receive it, read by publint and attw.
       - run: pnpm sdk:check
+      # The docs site, with the reference of the API from the contract, which fails on a broken link (D-060).
+      - run: pnpm docs:build
       # The coverage job sums the unit coverage with the one of the integration suite.
       - run: pnpm test --coverage
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

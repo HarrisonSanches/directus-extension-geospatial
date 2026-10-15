@@ -1,0 +1,19 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		// The virtual modules of Astro, such as astro:content, and the imports Vite resolves, such as a stylesheet.
+		"types": ["astro/client"],
+		// Vite resolves the imports of the site, as the tsconfig Astro publishes says, and the config of Astro imports
+		// src/reference.ts by its name on disk.
+		"module": "preserve",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"noEmit": true,
+		// The declarations of Astro and Starlight import packages that are optional for them, and some are written for a
+		// bundler. Like the tsconfig Astro publishes and the one of the extension, this package does not check inside
+		// third-party declarations; its own code is still checked against them, and the strict lint refuses any type
+		// from them that does not resolve.
+		"skipLibCheck": true
+	},
+	"include": ["*.ts", "src"]
+}

@@ -85,9 +85,16 @@ export const engineLayers = (root: string) =>
 export default defineConfig(
 	// The generated types follow the style of their generator, and a test keeps them in step with openapi.yaml. The
 	// sandbox of the mutation testing is a copy of the repository, which a run that fails leaves behind, and its report
-	// is written by Stryker.
+	// is written by Stryker. Astro writes the types of the content of the docs site in .astro.
 	{
-		ignores: ['**/dist/', '**/coverage/', 'packages/contract/src/generated/', '.stryker-tmp/', 'reports/'],
+		ignores: [
+			'**/dist/',
+			'**/coverage/',
+			'packages/contract/src/generated/',
+			'.stryker-tmp/',
+			'reports/',
+			'packages/docs/.astro/',
+		],
 	},
 
 	// A comment that turns a rule off hides the problem instead of fixing it. ESLint ignores every inline

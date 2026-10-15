@@ -3,6 +3,8 @@ node_modules/
 
 # Build and test output
 dist/
+# The types Astro writes for the content of the docs site.
+.astro/
 coverage/
 reports/
 .stryker-tmp/

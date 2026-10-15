@@ -3,10 +3,12 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm sdk:check && pnpm test:coverage",
+		"check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm sdk:check && pnpm docs:build && pnpm test:coverage",
 		"dev": "node dev/env.ts && pnpm --filter directus-extension-geospatial build && docker compose --file dev/compose.yaml up --detach --wait && pnpm --filter directus-extension-geospatial dev",
 		"dev:down": "docker compose --file dev/compose.yaml down",
 		"dev:logs": "docker compose --file dev/compose.yaml logs --follow",
+		"docs:build": "pnpm --filter directus-geospatial-docs build",
+		"docs:dev": "pnpm --filter directus-geospatial-docs dev",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"knip": "knip",
@@ -19,7 +21,7 @@
 		"test:bind-license": "node test/bind-license.ts",
 		"test:coverage": "vitest run --project \"unit*\" --coverage && pnpm test:integration && node test/coverage.ts && node test/ratchet.ts",
 		"test:integration": "pnpm --filter directus-extension-geospatial build --no-minify --sourcemap && pnpm --filter directus-extension-geospatial-test-hook build && pnpm --filter directus-extension-geospatial-test-observer build && vitest run --project \"integration:*\"",
-		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension && tsc -p packages/sdk && tsc -p packages/sdk/tsconfig.oldest.json && tsc -p test/hook && tsc -p test/measure/observer"
+		"typecheck": "tsc && tsc -p packages/contract && tsc -p packages/extension && tsc -p packages/sdk && tsc -p packages/sdk/tsconfig.oldest.json && tsc -p packages/docs && tsc -p test/hook && tsc -p test/measure/observer"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
@@ -51,6 +53,7 @@
 		"jiti": "catalog:",
 		"knip": "catalog:",
 		"prettier": "catalog:",
+		"prettier-plugin-astro": "catalog:",
 		"publint": "catalog:",
 		"testcontainers": "catalog:",
 		"typescript": "catalog:",

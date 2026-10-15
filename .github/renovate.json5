@@ -187,6 +187,14 @@
 			matchUpdateTypes: ['major'],
 			groupName: 'Terra Draw',
 		},
+		// The docs site (D-060): Starlight names the major of Astro it takes as its peer, and Starlight and its check of the
+		// links are below 1.0.0, where a minor breaks as a major does. So they come together, apart from the weekly group,
+		// and the CI of the pull request builds the site.
+		{
+			matchPackageNames: ['astro', '@astrojs/**', 'starlight-links-validator'],
+			groupName: 'Docs site',
+			separateMajorMinor: false,
+		},
 		// The tools run on the Node of .node-version, the 24 (V-79), and the code of the extension on the Node of the
 		// Directus images, the 22 (V-80). Each catalog stays on its line, and a new line is a decision.
 		{
