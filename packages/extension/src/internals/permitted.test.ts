@@ -26,7 +26,7 @@ const maria: Accountability = {
 };
 
 const logged: unknown[] = [];
-const logger = { error: (error: unknown) => logged.push(error) };
+const logger = { error: (...entry: unknown[]) => logged.push(entry) };
 
 const permittedWith = (internals: Internals, modules: FakeModules) =>
 	permittedQueryWith(() => Promise.resolve(internals), logger, loaderOf(modules));
@@ -62,7 +62,10 @@ describe('a query permitida pelo adaptador que a checagem aceitou', () => {
 			permittedWith({ status: 'accepted', adapter: '11.17' }, modules)(request, context),
 		).rejects.toMatchObject({ code: 'GEOSPATIAL_INTERNALS_UNSUPPORTED' });
 		expect(logged).toEqual([
-			expect.objectContaining({ message: 'getDBQuery returned something other than a query builder.' }),
+			[
+				expect.objectContaining({ message: 'getDBQuery returned something other than a query builder.' }),
+				'The internals of Directus changed shape, so the geospatial operations are off',
+			],
 		]);
 	});
 
@@ -128,6 +131,31 @@ describe('os hooks de items.query de outras extensões (V-144)', () => {
 			]);
 		},
 	);
+
+	it('sem o que fazer da página, a cadeia monta a que os hooks devolveram', async () => {
+		const received = nothingReceived();
+		const page = { fields: ['*'], limit: 10 };
+
+		await permittedWith({ status: 'accepted', adapter: '11.17' }, directus11(received, openOnly()))(
+			{ collection: 'occurrences', query: page, accountability },
+			context,
+		);
+
+		expect(received.getAstFromQuery).toEqual([
+			{ collection: 'occurrences', query: { ...page, filter: { status: { _eq: 'open' } } }, accountability },
+		]);
+	});
+
+	it('no 12, a coleção é conferida para a ação read de quem pede, antes dos hooks', async () => {
+		const received = nothingReceived();
+
+		await permittedWith({ status: 'accepted', adapter: '12' }, directus12(received))(
+			{ collection: 'occurrences', query: {}, accountability },
+			context,
+		);
+
+		expect(received.assertCollectionActive).toEqual([{ accountability, collection: 'occurrences', action: 'read' }]);
+	});
 
 	it('no 12, uma coleção inativa é recusada antes dos hooks, como no readByQuery (V-142)', async () => {
 		const emitter = openOnly();

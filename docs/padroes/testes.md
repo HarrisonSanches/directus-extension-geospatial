@@ -14,7 +14,7 @@ sem um teste que a quebraria se ela deixasse de ser verdade. A primeira dessas p
 | **Contrato da API**       | Rota respondendo fora do OpenAPI                                       | O `fetch` da suíte, com o Ajv, valida cada resposta contra o documento                                                     | A cada push                                                                                               |
 | **Tipos**                 | Tipo público do SDK que aceita o que não devia ou dá o que não deve    | O `expectTypeOf` do Vitest, que o `tsc` confere. O que não compila se prova pelo `.not.toExtend`, sem o `@ts-expect-error` | A cada mudança, no `pnpm typecheck`                                                                       |
 | **Ponta a ponta**         | O Studio montado: o mapa abre, os tiles chegam, o clique abre o drawer | Playwright com `@axe-core/playwright`                                                                                      | O curto, em pull request que toca a interface, bloqueando o merge; o completo, à noite e antes da release |
-| **Mutação**               | Teste que executa o código sem testar nada                             | StrykerJS com o executor do Vitest, no módulo de permissões                                                                | Toda noite                                                                                                |
+| **Mutação**               | Teste que executa o código sem testar nada                             | StrykerJS, sobre os unitários da extensão, no caminho da regra de ouro                                                     | Toda noite                                                                                                |
 | **Medição**               | Regressão de desempenho                                                | k6 nos tiles, `EXPLAIN ANALYZE` no SQL, `bench` do Vitest no que é JavaScript                                              | Sob demanda, pelo `pnpm measure`; os números vão para `verificacoes.md` e para o histórico                |
 
 Quanto mais baixa a camada, mais testes: muitos unitários, bons de integração, poucos e valiosos de ponta a
@@ -173,7 +173,8 @@ com o rastro do Playwright guardado para investigar.
   que mexe num adaptador roda também o contrato daquele banco.
 - **Interface:** a lógica (composables, stores, cálculos, estado das ferramentas) fica em módulos testáveis, com
   90%. A camada fina que desenha no WebGL fica com o ponta a ponta, sem meta de linhas.
-- **Mutação:** 90% no módulo de permissões, toda noite. É o que mede se os testes testam, e não só executam.
+- **Mutação:** 90% no caminho da regra de ouro, toda noite (a seção seguinte). É o que mede se os testes testam, e não
+  só executam.
 - Cobertura vinda de teste escrito só para bater a meta não conta.
 - O provedor de cobertura é o V8, pelo Vitest.
 - **O código que roda dentro do Directus** (a rota, o endpoint e o hook) só é medido pela integração: o Directus do
@@ -184,6 +185,60 @@ com o rastro do Playwright guardado para investigar.
   só, coberto se um dos lados passou por ele (A-065). Sem isso, a ramificação que os unitários cobrem e que a
   integração só percorre numa corrida de tempo mudava a catraca de uma rodada para outra. O trecho que começa em outro
   lugar segue contado à parte, então a soma é um piso, e o critério de 90% se lê em linhas.
+
+## A mutação
+
+O teste de mutação muda o código de propósito, um mutante de cada vez (um `<` que vira `<=`, um `if` que vira
+`if (false)`, um texto que vira vazio), e roda os testes. O mutante que faz um teste falhar morreu; o que passa em todos
+sobreviveu, e mostra um comportamento que nenhum teste confere, mesmo que a linha conte como coberta.
+
+- **O escopo** é o caminho da regra de ouro, por escolha do mantenedor (F02-20): o código em que um erro vazaria dado
+  ou deixaria de falhar fechado. A lista é o `mutate` do `stryker.config.ts`.
+  - Os internos: a cadeia até o `getDBQuery`, a checagem ao subir e a query permitida (`internals/`).
+  - O envelope de cada banco em volta da query permitida, com as condições que só descartam, a guarda do nulo e a
+    página por cursor (`db/postgis.ts`, `db/spatialite.ts`, `db/keyset.ts`, `db/fail-closed.ts`, D-049).
+  - Os campos que cada item leva e a entrada que a extensão recusa (`operations/radius/items.ts`,
+    `operations/request.ts`, V-183).
+  - A consulta registrada: o `$NOW`, o id canônico, o cursor selado à lista e a chave do total guardado para as mesmas
+    permissões (`query/`, `operations/radius/summary.ts`, D-006).
+  - Ficam de fora as rotas e o endpoint, que só a integração executa; a geometria (o círculo, a caixa, a ordem no
+    Node), cujo erro dá um resultado errado sem vazar dado; o registro em memória e no Redis; e as capacidades.
+- **Só os unitários:** na integração, cada mutante pediria um build e um Directus novos. O mutante que só a integração
+  mataria é um caso que falta nos unitários.
+- **O executor de comando:** o executor do Vitest do Stryker 10 não roda nenhum teste contra os mutantes no Vitest 5
+  (V-193). O Stryker roda então, para cada mutante, o `vitest run` dos unitários da extensão
+  (`vitest.mutation.config.ts`), com o mutante ligado por uma variável de ambiente, e o primeiro teste que falha
+  encerra a rodada. Como cada mutante roda a suíte inteira, a rodada passa de uma hora; quando o executor do Vitest
+  voltar a funcionar, ele roda só os testes que cobrem cada mutante.
+- **A meta:** 90% dos mutantes mortos. Abaixo disso, o `pnpm mutation` e o job da noite falham, e o relatório, em HTML
+  e em JSON, fica como o artefato `mutation-report` da noite, por 30 dias. Na máquina, ele fica em `reports/mutation/`,
+  e o `pnpm mutation --mutate <arquivo>` mede um arquivo só.
+- **O sobrevivente** é um caso que falta, e o teste o ganha, no comportamento que se vê de fora: a ação que a cadeia
+  pede ao Directus, a forma que ela recusa, o SQL que só o banco rodaria, num Knex que responde como ele. Um mutante
+  equivalente, que não muda nada que se possa observar, como uma guarda que o passo seguinte repete ou um valor que o
+  Knex omite, fica como sobrevivente: a meta de 90% dá a margem para ele, e nenhum comentário desliga o Stryker.
+
+## O canary
+
+O canary roda a suíte de integração contra cada versão nova do Directus (§5, proteção 4), pelo caminho do Renovate
+(D-046):
+
+1. O Directus publica uma tag da imagem `directus/directus` no Docker Hub.
+2. Três dias depois, pela idade mínima, o Renovate abre um pull request para o `develop` que troca a versão, a tag e o
+   digest em `test/combinations.ts`, e a tag no `dev/compose.yaml`. Os 3 dias são escolha do mantenedor (F02-20): a
+   imagem nova roda na CI com a chave da licença, e a espera protege contra uma tag comprometida ou retirada, como no
+   resto das dependências.
+   - Um patch troca a versão da combinação dele, também a do piso, que só anda nos patches da minor dele.
+   - Uma minor nova toma o lugar da mais nova da major, o `12`, e o piso fica.
+   - Uma major nova vem com a nota de acrescentar combinações próprias, em vez de trocar as que existem.
+3. A CI do pull request roda a suíte nas combinações dele, o 11.17 e o `12` mais novo, com o PostGIS mínimo e o
+   SQLite. Cada Directus passa pela checagem dos internos ao subir (§5, proteção 2), que a suíte confere no
+   `capabilities`, e cada teste compara com o `/items` do mesmo papel.
+4. Um patch só do piso não roda na CI do pull request, que não tem as combinações do piso. Antes do merge, a noite roda
+   no ramo do pull request pela aba Actions, ou pelo `gh workflow run nightly.yml --ref <ramo>`; depois do merge, ela
+   roda toda noite.
+5. Com a CI verde, o mantenedor faz o merge. Vermelha, a versão nova mudou algo de que a extensão depende, e o pull
+   request espera a correção, no adaptador da versão (§5, proteção 1).
 
 ## A medição
 
@@ -226,4 +281,4 @@ fora do lugar (`test/moved-module/`), e sobem um ambiente próprio, pelo `startE
 | Pull request que mexe na interface  | Mais o ponta a ponta curto, que bloqueia o merge: o mapa abre no layout, um tile chega, o clique abre o drawer e o axe passa (§7.4)                                                                                    |
 | Toda noite                          | A faixa inteira do Directus (hoje, 11.17, o piso do 12, 12.4, e 12.5); o PostGIS na versão mais nova; a partir da F15, a matriz inteira de bancos, a mínima e a mais nova de cada; o ponta a ponta completo; a mutação |
 | Antes de cada release               | Tudo o que roda à noite, mais o teste manual com leitor de tela (NVDA e VoiceOver)                                                                                                                                     |
-| Canário                             | A suíte de integração contra cada versão nova do Directus, assim que ela sai                                                                                                                                           |
+| Canary                              | A suíte de integração contra cada versão nova do Directus, três dias depois do lançamento, no pull request do Renovate (a seção do canary)                                                                             |

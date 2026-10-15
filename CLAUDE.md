@@ -256,7 +256,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   falha numa página que chegou sem ele, em vez de acabar a lista ali. O `geoFinalSummary()` espera o total exato,
   pedindo de novo a cada 1 s, até 30 s. Os itens e as formas da consulta registrada respondem também no tipo próprio da
   extensão (D-058, D-059, V-192).
-- Próximo passo: `/implement-issue F02-20`, a mutação no módulo de permissões, à noite, e o canário (HITL).
+- F02-20 feita em 14/10/2026: o StrykerJS mede toda noite a mutação do caminho da regra de ouro, escolha do mantenedor:
+  os internos, o envelope de cada banco, os campos de cada item, a entrada recusada e a consulta registrada, só pelos
+  unitários. O executor do Vitest do Stryker 10 não roda teste nenhum contra os mutantes no Vitest 5, e a mutação usa o
+  executor de comando, que roda os unitários da extensão para cada mutante (V-193, A-070). A primeira rodada deu 89,5%,
+  e os mutantes mostraram casos que faltavam, como a ação `read` que a cadeia pede ao Directus; com eles, 95,6%. O
+  canary espera os 3 dias da idade mínima, escolha do mantenedor, e o caminho dele está em `docs/padroes/testes.md`.
+- Próximo passo: `/implement-issue F02-21`, a documentação pública, com a referência da API (HITL).
 
 ## Documentação
 

@@ -26,6 +26,9 @@ catalog:
   '@hey-api/openapi-ts': 0.99.0
   # The lint of the contract (D-016), one package with no dependencies of its own.
   '@redocly/cli': 2.62.1
+  # The mutation testing of the golden rule (docs/padroes/testes.md), and the types of its options, of one version.
+  '@stryker-mutator/api': 10.0.0
+  '@stryker-mutator/core': 10.0.0
   '@testcontainers/postgresql': 12.2.0
   '@types/node': 24.19.2
   # TypeScript runs side by side (V-90): this alias is the TypeScript 7 behind tsc, and the typescript name below
@@ -102,6 +105,9 @@ overrides:
   # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj and GHSA-2883-xcg3-v3hh: the generator of the contract types pins a
   # version of js-yaml that a crafted YAML drives to quadratic CPU use, fixed in the same line.
   'js-yaml@>=4.0.0 <4.3.2': 4.3.2
+  # GHSA-q8mj-m7cp-5q26, GHSA-x5fp-wj9c-mxmx and GHSA-4mjr-xmp4-gh2g: the client of the dashboard of Stryker pins a
+  # version of qs these advisories reach, fixed in the same major. The mutation testing never sends its report there.
+  'qs@>=2.2.5 <6.16.0': 6.16.0
 
 # Dependencies that these packages use in their type declarations and do not declare. pnpm then resolves them from
 # its hidden hoisting folder, where typescript is the TypeScript 7 package, which has no API, and type-fest is missing.
@@ -109,6 +115,10 @@ packageExtensions:
   '@typescript-eslint/types':
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
+  # Its sandbox reads the tsconfig through the API of TypeScript, which it imports without declaring (V-193).
+  '@stryker-mutator/core':
+    peerDependencies:
+      typescript: '>=3.6'
   eslint-import-context:
     dependencies:
       type-fest: ^4.41.0

@@ -91,7 +91,7 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
 - **V-146** **Directus, o que uma checagem dos internos consegue ver** (código-fonte das tags `v11.17.4` e `v12.4.1`, levantamento dos módulos da cadeia importados dentro das duas imagens, e ensaio da F01-06 no 11.17.4 e no 12.4.1 licenciado, com o PostGIS 3.2, em 27/09/2026):
   - entre o 11.17 e o 12, os módulos da cadeia (`database/run-ast`, `database/get-ast-from-query`, `permissions/lib`, `permissions/utils`, `process-ast`, `services/items`, `emitter` e `get-schema`) exportam o mesmo, com a mesma aridade: 96 exportações no 11.17, e o 12 soma dois utilitários do `get-ast-from-query`. A diferença que pesa é um módulo novo do 12, o `permissions/modules/assert-collection-active`, que o `readByQuery` chama antes do hook `items.query` e o 11.17 não tem;
   - a checagem vê, por import dinâmico, se o módulo existe (`ERR_MODULE_NOT_FOUND` quando falta), se ele exporta a função e quantos parâmetros ela declara (`Function.length`). Montando a cadeia sobre a `directus_collections`, como admin, o que não lê o banco, ela vê também a forma do que cada passo devolve, até o builder, que nunca roda. O adaptador de uma versão também declara o que a versão dele não tem: o do 11.17 recusa um Directus com o `assert-collection-active`, porque rodaria o hook antes da recusa da coleção inativa. No ensaio, cada adaptador forçado na outra versão foi recusado, e o raio respondeu `GEOSPATIAL_INTERNALS_UNSUPPORTED`, com o status 503, sem nenhuma query nas ocorrências. Sem a checagem, o adaptador errado montou e rodou a query;
-  - ela não vê os campos de um objeto de opções: todas as funções da cadeia recebem `(opções, contexto)` e declaram 2 parâmetros, e uma opção renomeada, como o `permissions` do `getDBQuery`, passaria calada e poderia tirar a regra da query. Também não vê a aridade de uma função embrulhada, como o `fetchPolicies`, que o `withCache` deixa com 0, nem o comportamento, como a regra que o `processAst` injeta, nem o que uma versão nova acrescenta sem tirar nada do que o adaptador usa. Isso fica com a paridade com o `/items` e com o canário (§5, proteções 3 e 4);
+  - ela não vê os campos de um objeto de opções: todas as funções da cadeia recebem `(opções, contexto)` e declaram 2 parâmetros, e uma opção renomeada, como o `permissions` do `getDBQuery`, passaria calada e poderia tirar a regra da query. Também não vê a aridade de uma função embrulhada, como o `fetchPolicies`, que o `withCache` deixa com 0, nem o comportamento, como a regra que o `processAst` injeta, nem o que uma versão nova acrescenta sem tirar nada do que o adaptador usa. Isso fica com a paridade com o `/items` e com o canary (§5, proteções 3 e 4);
   - um import estático do que a versão não tem derruba a extensão inteira ao carregar, antes de qualquer checagem. No ensaio, com o `assert-collection-active` importado assim, o Directus 11.17 não respondeu ao `/server/ping` em 180 s, porque o `EXTENSIONS_MUST_LOAD` dos testes o faz sair quando uma extensão falha ao carregar. A cadeia entra por import dinâmico, no adaptador.
 - **V-147** **SpatiaLite, a distância em metros e o índice no banco do Directus** (sondas na imagem de teste do 12.4.1, com a SpatiaLite 5.1.0, a mesma do 11.17.4 (V-121), o GEOS 3.14.1 e o PROJ 9.8.1; código-fonte das tags `v11.17.4` e `v12.4.1`; e ensaio da F01-07 no 11.17.4 e no 12.4.1 com o SQLite, em 28/09/2026):
   - o Directus nunca inicializa os metadados espaciais: depois do bootstrap no SQLite, o banco não tem a `spatial_ref_sys` nem a `geometry_columns`, e o código não chama o `InitSpatialMetaData`, o `RecoverGeometryColumn` nem o `CreateSpatialIndex`. A coluna nasce do `specificType`, com o subtipo (`Point`), fora da `geometry_columns` (`api/src/database/helpers/geometry/`);
@@ -560,6 +560,35 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
     `Query` admite chaves numéricas, que o `formatFields` não aceita.
   - O `queryToParams` formata só os parâmetros do `/items` que conhece. Um parâmetro de fora vai como está quando é
     texto, como o `cursor`, e em JSON quando não é, como o `geo` (V-171).
+- **V-193** **O StrykerJS 10 num workspace do pnpm, com o Vitest 5** (pacotes `@stryker-mutator/core`, `api` e
+  `vitest-runner` 10.0.0: `config/config-file-formats.js`, `config/config-reader.js`, `di/plugin-loader.js`,
+  `sandbox/ts-config-preprocessor.js` e `test-runner/command-test-runner.js` do núcleo, e o `vitest-test-runner.js` e o
+  `stryker-setup.js` do executor; issues #6210 e #6213 e pull request #6214 do `stryker-js`; e ensaio da F02-20, em
+  14/10/2026, com o Vitest 5.0.3, o pnpm 12.11.2 e o Node 24.21.0):
+  - **A configuração:** o Stryker procura o `stryker.conf` ou o `stryker.config`, com ou sem um ponto na frente, em
+    `json`, `js`, `mjs` ou `cjs`, e lê o JSON pelo `JSON.parse`, sem comentários. O arquivo passado pelo caminho, de
+    outra extensão, ele importa, e o Node 24 importa um `.ts` tirando os tipos.
+  - **Os plugins:** o padrão, `@stryker-mutator/*`, é procurado na pasta do escopo ao lado do pacote do núcleo, que no
+    pnpm fica dentro do `.pnpm`, sem os plugins. O Stryker então avisa que a opção do executor é desconhecida e não o
+    acha. Um caminho absoluto ou uma URL de arquivo, como a do `import.meta.resolve`, carrega o plugin.
+  - **O `typescript`:** a sandbox reescreve o `tsconfig.json` pela API do TypeScript, que o núcleo importa sem declarar.
+    No pnpm, o nome cai na pasta oculta, onde está o TypeScript 7, sem API, e a rodada quebra com o
+    `ts.parseConfigFileTextToJson is not a function`. Declarado como par pelo `packageExtensions`, ele recebe o 6 do
+    catálogo.
+  - **O executor do Vitest no Vitest 5** não roda nenhum teste contra os mutantes, e cada mutante coberto sai como
+    sobrevivente: no escopo da F02-20, 8,5%, com 134 de 1.576 mortos. Com o `perTest`, o filtro junta os nomes com um
+    espaço, e o Vitest 5 casa o `testNamePattern` com a cadeia unida por `' > '` (#6210). Com o `off` e o `all`, também
+    nenhum teste rodou contra os mutantes do `fail-closed.ts`, que tem um teste próprio. O `related`, ligado por padrão,
+    achou na rodada inicial 64 dos 452 testes da extensão. A correção do separador está no #6214, aberto desde
+    05/09/2026, e a #6213 aponta o `maxWorkers` do executor, que só chega à configuração raiz.
+  - **O executor de comando** roda o comando para cada mutante, com o mutante ligado pela variável
+    `__STRYKER_ACTIVE_MUTANT__`, e conta como morto o mutante cujo comando sai com um código diferente de zero. Ele
+    funciona no Vitest 5: no ensaio, o `fail-closed.ts` e o `permitted.ts` com 100%, e o `key.ts` com 92%. Com muitas
+    rodadas ao mesmo tempo, cada uma passou do tempo limite que o Stryker calcula pela rodada inicial, feita sozinha, e
+    o mutante saiu como `Timeout`, que conta como detectado. Com 4 rodadas ao mesmo tempo e o
+    `--no-file-parallelism`, os 130 mutantes do `now.ts` levaram 280 s, e com o `fsModuleCache` do Vitest 5, 366 s.
+  - **As dependências:** o núcleo traz o `typed-rest-client`, do relatório que o Stryker mandaria ao painel dele, e ele
+    fixa o `qs` 6.15.1, que três alertas moderados alcançam, corrigidos na 6.16.0, da mesma major.
 
 ## Pendências
 

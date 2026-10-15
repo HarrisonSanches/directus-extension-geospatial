@@ -62,14 +62,24 @@ export class FakeEmitter {
 	}
 }
 
-// What the chain handed to getAstFromQuery and to getDBQuery, and whose policies it read.
+// What the chain handed to each step of Directus, and whose policies it read.
 export interface Received {
 	getAstFromQuery: unknown[];
+	processAst: unknown[];
 	getDBQuery: unknown[];
 	fetchPolicies: unknown[];
+	fetchPermissions: unknown[];
+	assertCollectionActive: unknown[];
 }
 
-export const nothingReceived = (): Received => ({ getAstFromQuery: [], getDBQuery: [], fetchPolicies: [] });
+export const nothingReceived = (): Received => ({
+	getAstFromQuery: [],
+	processAst: [],
+	getDBQuery: [],
+	fetchPolicies: [],
+	fetchPermissions: [],
+	assertCollectionActive: [],
+});
 
 // The modules of the chain as Directus 11.17 has them (V-146): each function with the arity of its source, and each
 // step returning the shape Directus returns. getDBQuery builds the query of the table it gets.
@@ -89,7 +99,11 @@ export const directus11 = (received: Received = nothingReceived(), emitter = new
 		}),
 	},
 	'permissions/modules/process-ast/process-ast': {
-		processAst: withArity(2, (options: { ast: unknown }) => Promise.resolve(options.ast)),
+		processAst: withArity(2, (options: { ast: unknown }) => {
+			received.processAst.push(options);
+
+			return Promise.resolve(options.ast);
+		}),
 	},
 	'database/run-ast/lib/parse-current-level': {
 		parseCurrentLevel: withArity(4, (_schema: unknown, _collection: unknown, children: unknown[]) =>
@@ -104,7 +118,11 @@ export const directus11 = (received: Received = nothingReceived(), emitter = new
 		}),
 	},
 	'permissions/lib/fetch-permissions': {
-		fetchPermissions: withArity(2, () => Promise.resolve([permission])),
+		fetchPermissions: withArity(2, (options: unknown) => {
+			received.fetchPermissions.push(options);
+
+			return Promise.resolve([permission]);
+		}),
 	},
 	'database/run-ast/lib/get-db-query': {
 		getDBQuery: withArity(2, (options: { table: string }) => {
@@ -125,10 +143,14 @@ export const directus11 = (received: Received = nothingReceived(), emitter = new
 });
 
 // Directus 12 adds the module that refuses an inactive collection (V-146).
-export const directus12 = (received?: Received, emitter?: FakeEmitter): FakeModules => ({
+export const directus12 = (received: Received = nothingReceived(), emitter?: FakeEmitter): FakeModules => ({
 	...directus11(received, emitter),
 	'permissions/modules/assert-collection-active/assert-collection-active': {
-		assertCollectionActive: withArity(2, () => Promise.resolve()),
+		assertCollectionActive: withArity(2, (options: unknown) => {
+			received.assertCollectionActive.push(options);
+
+			return Promise.resolve();
+		}),
 	},
 });
 
