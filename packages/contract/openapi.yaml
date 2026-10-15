@@ -576,7 +576,7 @@ paths:
       operationId: openapi
       summary: This document, in JSON
       description: >-
-        The contract of the API, as OpenAPI 3.1: the same document the types of the SDK and the validation of the input
+        The contract of the API, as OpenAPI 3.2: the same document the types of the SDK and the validation of the input
         come from. Anonymous requests are refused, since it carries the version of the API.
       security:
         - bearer: []
