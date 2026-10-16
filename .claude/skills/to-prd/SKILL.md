@@ -5,7 +5,7 @@ description: Transforma o contexto da conversa numa especificação de funcional
 
 Transforme o contexto da conversa numa especificação e salve no repositório. Use só quando a fase for complexa demais para ir direto do arquivo da fase para as issues. Na maioria das fases, o arquivo da fase já basta.
 
-Não entreviste o usuário: sintetize o que você já sabe. O commit e o push da especificação, no repositório do plano, seguem as regras do `CLAUDE.md`.
+Não entreviste o mantenedor: sintetize o que você já sabe. O commit e o push da especificação vão direto no `main` do repositório do plano, sem coautoria, pelas regras do `CLAUDE.md`.
 
 ## Processo
 
@@ -16,6 +16,7 @@ Entenda o estado atual do repositório, se ainda não o fez.
 - Use o vocabulário do `CONTEXT.md` em toda a especificação.
 - Respeite as decisões de `docs/decisoes.md`: as portas de mão única do topo não mudam sem uma decisão nova.
 - Parta do desenho em `docs/arquitetura.md` e dos fatos em `docs/verificacoes.md`.
+- Siga os padrões de código e de testes de `docs/padroes/`.
 
 ### 2. Esboce os módulos
 
@@ -25,7 +26,7 @@ Identifique os módulos principais que precisarão ser construídos ou modificad
 
 Candidatos naturais neste projeto: o módulo que monta a query permitida (o único que toca nos internos do Directus, D-001), cada adaptador de banco (D-002), o montador de tiles, o registro de consultas e o gerador de PDF.
 
-Confirme com o usuário se esses módulos batem com o que ele espera, e pergunte para quais deles ele quer testes.
+Confirme com o mantenedor se esses módulos batem com o que ele espera, e pergunte para quais deles ele quer testes.
 
 ### 3. Escreva o PRD e salve no repositório
 
@@ -79,6 +80,7 @@ As decisões de teste tomadas, incluindo:
 - o que é um bom teste: só comportamento externo, nunca detalhe de implementação;
 - quais módulos serão testados, e em quais bancos da matriz (D-017);
 - os testes de paridade de permissão com o `/items`, quando a funcionalidade devolve dados;
+- as métricas e os limites que valem como critério, com número e unidade (o tile em ms no p95, o arquivo inicial em KB com gzip);
 - testes parecidos que já existem no repositório e servem de referência.
 
 ### Fora de escopo
