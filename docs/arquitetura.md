@@ -112,8 +112,8 @@ A alternativa era usar só a API pública, ou seja, traduzir cada operação em 
 
 ### Perdas aceitas
 
-- Os hooks `items.read` de outras extensões não rodam sobre tiles e agregações. O `items.query` é respeitado.
-- Os valores saem crus do banco, sem a formatação do `PayloadService`.
+- Os hooks `items.read` de outras extensões rodam nas listas de itens, como no `/items`, e não sobre tiles e agregações, que não devolvem itens. O `items.query` é respeitado em todas.
+- Nos tiles e nas agregações, os valores saem crus do banco, sem a formatação do `PayloadService`. As listas de itens passam por ele, como no `/items` (V-173).
 
 ### O que esta opção resolveu do handoff
 
