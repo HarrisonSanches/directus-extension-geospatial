@@ -9,7 +9,7 @@ Faça as perguntas uma de cada vez e espere a resposta de cada uma antes de cont
 
 Se uma pergunta puder ser respondida explorando o repositório, explore em vez de perguntar. Se ela depender de como uma ferramenta de terceiros funciona (Directus, PostGIS, MapLibre, os bancos), confira no código-fonte ou na documentação oficial. O clone do Directus pode ser feito numa pasta temporária.
 
-**O commit e o push das mudanças nos docs seguem as regras do `CLAUDE.md`.**
+**O commit e o push das mudanças seguem as regras do `CLAUDE.md`:** os docs deste repositório vão num ramo `chore/`, com pull request para o `develop`, e o plano vai direto no `main` dele, sem coautoria.
 
 ---
 
@@ -41,7 +41,7 @@ Uma porta de mão única só muda com uma decisão nova e registrada.
 
 ### Desafie contra o glossário
 
-Quando o usuário usar um termo que conflita com a linguagem do `CONTEXT.md`, aponte imediatamente:
+Quando o mantenedor usar um termo que conflita com a linguagem do `CONTEXT.md`, aponte imediatamente:
 
 > "O glossário define 'grupo' como o círculo de contagem na tela, mas você parece estar falando de um foco da análise. Qual dos dois?"
 
@@ -49,7 +49,7 @@ Resolva também os termos listados em "Termos em aberto" no fim do `CONTEXT.md`.
 
 ### Afine linguagem vaga
 
-Quando o usuário usar termos vagos ou sobrecarregados, proponha um termo canônico preciso:
+Quando o mantenedor usar termos vagos ou sobrecarregados, proponha um termo canônico preciso:
 
 > "Você disse 'resultado'. Está falando dos itens, das formas ou dos resumos? A cadeia trata cada um de um jeito."
 
@@ -65,7 +65,7 @@ Teste as relações do domínio com cenários específicos. Invente casos extrem
 
 ### Confira com o código e com os fatos
 
-Quando o usuário afirmar como algo funciona, confira se o código (o do projeto ou o do Directus) e `docs/verificacoes.md` concordam. Se encontrar contradição, traga à superfície:
+Quando o mantenedor afirmar como algo funciona, confira se o código (o do projeto ou o do Directus) e `docs/verificacoes.md` concordam. Se encontrar contradição, traga à superfície:
 
 > "A V-16 diz que o WebSocket do Directus vem desligado por padrão, mas o plano conta com ele ligado. Qual está certo?"
 

@@ -10,7 +10,7 @@ Fase pedida: **$ARGUMENTS**. Se nada vier, use a fase marcada como "em andamento
 
 O plano fica num repositório privado, clonado ao lado deste em `../directus-extension-geospatial-plan/`. Se a pasta não existir, pare e avise o mantenedor.
 
-**Não publique em rastreador de issues nenhum.** Gere os arquivos e, depois da aprovação, faça o commit e o push no repositório do plano, pelas regras do `CLAUDE.md`.
+**Não publique em rastreador de issues nenhum.** Gere os arquivos e, depois da aprovação, faça o commit e o push no `main` do repositório do plano, sem coautoria, pelas regras do `CLAUDE.md`.
 
 ## 1. Ler, nesta ordem
 
@@ -74,7 +74,7 @@ O comportamento de ponta a ponta que passa a existir, em poucas linhas. Não é 
 
 ### Critérios de aceite
 
-- [ ] Verificável por comando ou teste, sem interpretação.
+- [ ] Verificável por comando ou teste, sem interpretação. Métricas com número e unidade (o tile em ms no p95, o arquivo inicial em KB com gzip, o volume em itens).
 - [ ] ...
 
 ### Testes
@@ -94,7 +94,7 @@ Os conceitos que a explicação na conversa, na entrega, precisa cobrir.
 Comandos no ambiente que exigem confirmação do mantenedor, ou "nada".
 ```
 
-Por fim, a seção "Passos" do arquivo da fase ganha uma linha apontando para o arquivo de issues. Os passos em si não são copiados. Depois, faça o commit e o push no repositório do plano, sem coautoria.
+Por fim, a seção "Passos" do arquivo da fase ganha uma linha apontando para o arquivo de issues. Os passos em si não são copiados. Depois, faça o commit e o push no `main` do repositório do plano, sem coautoria.
 
 ## 5. Se o mantenedor quiser as issues no GitHub
 

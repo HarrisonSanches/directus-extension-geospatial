@@ -54,7 +54,7 @@ Ao entregar, explique passo a passo, de forma didática e breve:
 - por que foi feito assim, com as decisões que isso segue;
 - **veja você mesmo:** como ver funcionando e como quebrar de propósito para o teste falhar.
 
-Não existe guia didático em arquivo. A documentação pública (README, site) só muda quando a issue muda algo que o usuário vê.
+O que a explicação ensinou vai também para o guia técnico da fase, pelo passo "Registrar". A documentação pública (README, site) só muda quando a issue muda algo que o usuário vê.
 
 ## Conferir
 
@@ -71,6 +71,7 @@ Não existe guia didático em arquivo. A documentação pública (README, site) 
 - **Toda sugestão do relatório fica anotada no plano**, para não se perder com a conversa, sempre a decidir pelo mantenedor. A nota diz o que mudaria, por quê, com o número ou o fato que a sustenta, e onde se aplica, e não muda o escopo de nada:
   - na issue que ela afeta, se a issue já existe, numa linha "**Sugestão da Fxx-yy** (a fonte), a decidir aqui: …";
   - senão, num achado aberto em `../directus-extension-geospatial-plan/achados.md`, com a recomendação na consequência.
+- **Para o guia da fase** (A-076, no plano): os conceitos explicados na entrega, com os exemplos, as contas e os números, vão para a seção "Para a documentação de fim de fase" do arquivo da fase, criada no fim dele se ainda não existir, em poucas linhas por conceito e com a issue de origem. A conversa se perde num compact, e a seção fica; a skill `fechar-fase` monta o guia a partir dela.
 - Não mexa em `historico.md`: ele é atualizado no fechamento da fase (skill `fechar-fase`).
 
 ## Reportar no fim
@@ -81,6 +82,6 @@ Não existe guia didático em arquivo. A documentação pública (README, site) 
 4. **O que aprender aqui:** os conceitos novos em três ou quatro linhas.
 5. **Decisões tomadas fora da issue**, se houve, e por quê.
 6. **Sugestões** para a issue, a fase ou os padrões, sem editar por conta própria, cada uma com o lugar do plano onde ficou anotada.
-7. **O versionamento feito:** os commits no ramo, no padrão de `docs/padroes/git-e-entrega.md` e sem a linha de coautoria; o push, depois de ler o diff inteiro; e o pull request para o `develop`, com o título no mesmo padrão e a descrição terminando nos rodapés `Refs: <issue>` e `Co-Authored-By:`. Confira pelo `viewerMergeBodyText` da API do GitHub que a caixa do squash termina nesses dois rodapés, com uma linha só de coautoria. Dê o link dele. Se o plano mudou (o estado da issue, um achado, uma sugestão anotada), também o commit e o push no repositório do plano, sem coautoria.
+7. **O versionamento feito:** os commits no ramo, no padrão de `docs/padroes/git-e-entrega.md` e sem a linha de coautoria; o push, depois de ler o diff inteiro; e o pull request para o `develop`, com o título no mesmo padrão e a descrição terminando nos rodapés `Refs: <issue>` e `Co-Authored-By:`. Confira pelo `viewerMergeBodyText` da API do GitHub que a caixa do squash termina nesses dois rodapés, com uma linha só de coautoria. Dê o link dele. Se o plano mudou (o estado da issue, um achado, uma sugestão anotada), também o commit e o push no `main` do repositório do plano, sem coautoria.
 
 **Não avance para a próxima issue nem faça o merge.** Espere o mantenedor revisar e pedir.

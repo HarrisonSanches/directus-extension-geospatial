@@ -273,14 +273,14 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 
 ## Documentação
 
-| Arquivo                                      | Papel                                                                                               |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [CONTEXT.md](CONTEXT.md)                     | Glossário do domínio, com o termo em português e o canônico em inglês                               |
-| [docs/arquitetura.md](docs/arquitetura.md)   | O desenho: o que a extensão faz e como                                                              |
-| [docs/decisoes.md](docs/decisoes.md)         | As decisões D-0xx; as portas de mão única ficam no topo. Não existe `docs/adr/`                     |
-| [docs/verificacoes.md](docs/verificacoes.md) | Fatos verificados em ferramentas de terceiros (V-xx) e pendências (P-xx)                            |
-| `../directus-extension-geospatial-plan/`     | Plano por fases, issues, especificações, achados e histórico, num repositório privado do mantenedor |
-| [docs/padroes/](docs/padroes/README.md)      | Padrões de código e de testes, e o que "Pronto quer dizer"                                          |
+| Arquivo                                      | Papel                                                                                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| [CONTEXT.md](CONTEXT.md)                     | Glossário do domínio, com o termo em português e o canônico em inglês                                                          |
+| [docs/arquitetura.md](docs/arquitetura.md)   | O desenho: o que a extensão faz e como                                                                                         |
+| [docs/decisoes.md](docs/decisoes.md)         | As decisões D-0xx; as portas de mão única ficam no topo. Não existe `docs/adr/`                                                |
+| [docs/verificacoes.md](docs/verificacoes.md) | Fatos verificados em ferramentas de terceiros (V-xx) e pendências (P-xx)                                                       |
+| `../directus-extension-geospatial-plan/`     | Plano por fases, issues, especificações, achados, histórico e a fonte dos guias de fase, num repositório privado do mantenedor |
+| [docs/padroes/](docs/padroes/README.md)      | Padrões de código e de testes, e o que "Pronto quer dizer"                                                                     |
 
 ## Idioma
 
@@ -293,7 +293,7 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - Preferências pessoais de quem trabalha no projeto ficam no `CLAUDE.local.md`, que não vai para o Git.
 - **O plano** mora num repositório privado, clonado ao lado deste, na mesma pasta. O Claude Code chega nele pelo `permissions.additionalDirectories` do `.claude/settings.local.json`, e as mudanças no plano viram commits lá, separados dos do produto.
 - Um passo de cada vez, uma decisão por vez, sempre com uma recomendação.
-- Explicações didáticas e passo a passo na conversa, ao entregar algo novo ou quando o mantenedor pedir. Não existe guia didático em arquivo.
+- Explicações didáticas e passo a passo na conversa, ao entregar algo novo ou quando o mantenedor pedir. O que elas ensinam vai para a seção "Para a documentação de fim de fase" do arquivo da fase, que no fechamento vira o guia técnico da fase: um artefato privado, com a fonte no plano (A-076, no plano).
 - O desenho é sempre o da extensão completa, sem recortes de "primeira versão". A ordem só aparece no plano de implementação.
 - Cada proposta traz a prática consagrada do mercado, pelo nome e com o porquê.
 - Pesquisas curtas e focadas: poucas perguntas por agente, com resposta em minutos. Uma afirmação sobre ferramenta de terceiros se confere no código-fonte ou na documentação oficial e vai para `docs/verificacoes.md`.
