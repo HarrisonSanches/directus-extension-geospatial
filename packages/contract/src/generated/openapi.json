@@ -58,14 +58,25 @@
 						"in": "path",
 						"required": true,
 						"description": "The collection, by its name in Directus.",
-						"schema": { "type": "string" }
+						"schema": { "type": "string" },
+						"example": "occurrences"
 					},
 					{
 						"name": "geo",
 						"in": "query",
 						"required": true,
 						"description": "The spatial operation, as JSON, the way Directus takes the filter.",
-						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Geo" } } }
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/Geo" },
+								"example": {
+									"operation": "radius",
+									"field": "location",
+									"center": [-46.6333, -23.5505],
+									"distance": 1500
+								}
+							}
+						}
 					},
 					{
 						"name": "fields",
@@ -149,7 +160,8 @@
 							"in": "path",
 							"required": true,
 							"description": "The collection, by its name in Directus.",
-							"schema": { "type": "string" }
+							"schema": { "type": "string" },
+							"example": "occurrences"
 						}
 					],
 					"requestBody": {
@@ -402,7 +414,7 @@
 			"get": {
 				"operationId": "openapi",
 				"summary": "This document, in JSON",
-				"description": "The contract of the API, as OpenAPI 3.1: the same document the types of the SDK and the validation of the input come from. Anonymous requests are refused, since it carries the version of the API.",
+				"description": "The contract of the API, as OpenAPI 3.2: the same document the types of the SDK and the validation of the input come from. Anonymous requests are refused, since it carries the version of the API.",
 				"security": [{ "bearer": [] }],
 				"responses": {
 					"200": {
@@ -541,6 +553,7 @@
 				"type": "object",
 				"required": ["operation", "center", "distance"],
 				"additionalProperties": false,
+				"examples": [{ "operation": "radius", "field": "location", "center": [-46.6333, -23.5505], "distance": 1500 }],
 				"properties": {
 					"operation": { "type": "string", "const": "radius" },
 					"field": {
@@ -595,6 +608,12 @@
 				"type": "object",
 				"required": ["geo"],
 				"additionalProperties": false,
+				"examples": [
+					{
+						"geo": { "operation": "radius", "field": "location", "center": [-46.6333, -23.5505], "distance": 1500 },
+						"query": { "fields": ["id", "category"], "limit": 2 }
+					}
+				],
 				"properties": {
 					"geo": { "$ref": "#/components/schemas/Geo" },
 					"query": {
@@ -612,6 +631,13 @@
 				"type": "object",
 				"required": ["collection", "geo"],
 				"additionalProperties": false,
+				"examples": [
+					{
+						"collection": "occurrences",
+						"geo": { "operation": "radius", "field": "location", "center": [-46.6333, -23.5505], "distance": 1500 },
+						"query": { "filter": { "status": { "_eq": "open" } }, "fields": ["id", "category"] }
+					}
+				],
 				"properties": {
 					"collection": { "description": "The collection, by its name in Directus.", "type": "string", "minLength": 1 },
 					"geo": { "$ref": "#/components/schemas/Geo" },

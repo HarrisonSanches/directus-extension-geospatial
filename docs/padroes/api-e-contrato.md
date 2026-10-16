@@ -13,7 +13,12 @@
     `pnpm --filter directus-geospatial-contract generate`, e nunca editados à mão: um teste gera de novo e reprova
     quando o arquivo fica para trás do documento. São usados pelo motor e pelo SDK;
   - a validação da entrada (Ajv, pelo JSON Schema do próprio documento), feita antes de tocar o banco;
-  - a referência da API no site de documentação.
+  - a referência da API no site de documentação, em `packages/docs`, que o Scalar monta no navegador a partir do
+    documento, com o `SEARCH` do `additionalOperations` (D-060, V-194). Um link do site para uma operação vai pela
+    âncora do `operationId`, como `/api/#geospatial/items`, e o build reprova com uma que o contrato não tem.
+- Um parâmetro com `content`, como o `geo`, e cada corpo de pedido levam um exemplo, porque é dele que a referência
+  monta o pedido de exemplo: sem ele, o `curl` sai sem o parâmetro, ou com valores vazios que o contrato recusa. O
+  lint confere cada exemplo contra o schema (V-194).
 - O documento passa pelo lint do Redocly CLI, com o `recommended-strict`, em que cada aviso é um erro, e nenhuma regra
   desligada. O `pnpm lint` o roda, e com ele o `pnpm check` e a CI. O `redocly.yaml` desliga a telemetria, que o
   Redocly CLI manda a cada comando (V-169).

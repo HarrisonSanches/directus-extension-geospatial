@@ -729,7 +729,7 @@ Uma extensão fora do sandbox tem acesso total ao banco. Para quem instala poder
 
 - **Idiomas:** inglês como principal (o Marketplace é global) e o guia do usuário também em pt-BR.
 - **README:** vira a página no Marketplace, com o que a extensão faz, GIFs, os três caminhos de instalação e um início rápido.
-- **Site de documentação**, com uma versão por release:
+- **Site de documentação**, no Starlight, com a referência da API pelo Scalar (D-060), e uma versão por release:
   - guia do usuário;
   - guia do admin (instalação, índices, permissões, Redis, CSP, provedores, variáveis de ambiente, tudo o que a extensão acessa, os dados pessoais (7.10) e o roteiro de desinstalação (7.8));
   - referências da API (gerada do OpenAPI) e do SDK (gerada dos tipos);

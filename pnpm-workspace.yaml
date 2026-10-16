@@ -8,6 +8,8 @@ packages:
 catalog:
   # Checks the types of the published SDK against each way a project resolves it (CommonJS, ESM, bundlers).
   '@arethetypeswrong/cli': 0.18.5
+  # The docs site (D-060), on Astro.
+  '@astrojs/starlight': 0.42.6
   '@commitlint/cli': 21.2.3
   '@commitlint/config-conventional': 21.2.3
   '@commitlint/lint': 21.2.3
@@ -26,6 +28,8 @@ catalog:
   '@hey-api/openapi-ts': 0.99.0
   # The lint of the contract (D-016), one package with no dependencies of its own.
   '@redocly/cli': 2.62.1
+  # The reference of the API in the docs site, the one renderer that reads the SEARCH of OpenAPI 3.2 (D-060, V-194).
+  '@scalar/api-reference': 1.74.0
   # The mutation testing of the golden rule (docs/padroes/testes.md), and the types of its options, of one version.
   '@stryker-mutator/api': 10.0.0
   '@stryker-mutator/core': 10.0.0
@@ -42,6 +46,7 @@ catalog:
   # The validation by the JSON Schema of the contract, in the dialect of OpenAPI 3.1 (D-016).
   ajv: 8.20.0
   ast-v8-to-istanbul: 1.0.7
+  astro: 7.3.8
   # The version Directus 11.17 and 12 use, whose functions move a $NOW of the registered query as the adjustDate of
   # Directus does (V-182).
   date-fns: 4.4.0
@@ -61,8 +66,12 @@ catalog:
   # The exact version @directus/types names as its optional peer, for the type of the logger.
   pino: 9.7.0
   prettier: 3.9.10
+  # The format of the .astro pages of the docs site.
+  prettier-plugin-astro: 1.1.1
   # Checks the package.json of the published SDK against how Node and the bundlers read it.
   publint: 0.3.25
+  # Fails the build of the docs site on a broken link.
+  starlight-links-validator: 0.27.0
   testcontainers: 12.2.0
   # The build of the SDK, as in the packages of Directus (V-59).
   tsdown: 0.23.1
@@ -108,6 +117,13 @@ overrides:
   # GHSA-q8mj-m7cp-5q26, GHSA-x5fp-wj9c-mxmx and GHSA-4mjr-xmp4-gh2g: the client of the dashboard of Stryker pins a
   # version of qs these advisories reach, fixed in the same major. The mutation testing never sends its report there.
   'qs@>=2.2.5 <6.16.0': 6.16.0
+  # GHSA-866g-f22w-33x8: the AI chat of Scalar, which the docs site turns off (D-060), pins a version of the
+  # provider-utils of the AI SDK this advisory reaches, fixed in the same line.
+  '@ai-sdk/provider-utils@>=4.0.0-beta.10 <4.0.33': 4.0.57
+  # GHSA-rj75-hqrm-r3gf: the code blocks of Starlight nest their CSS at build time with postcss-nested 6, whose
+  # postcss-selector-parser 6 this advisory reaches, fixed only in the 7. The postcss-nested 7 moved to it, and the CSS
+  # of the docs site comes out the same.
+  '@expressive-code/core>postcss-nested': 7.0.2
 
 # Dependencies that these packages use in their type declarations and do not declare. pnpm then resolves them from
 # its hidden hoisting folder, where typescript is the TypeScript 7 package, which has no API, and type-fest is missing.

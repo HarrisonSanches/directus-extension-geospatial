@@ -262,7 +262,14 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   executor de comando, que roda os unitários da extensão para cada mutante (V-193, A-070). A primeira rodada deu 89,5%,
   e os mutantes mostraram casos que faltavam, como a ação `read` que a cadeia pede ao Directus; com eles, 95,6%. O
   canary espera os 3 dias da idade mínima, escolha do mantenedor, e o caminho dele está em `docs/padroes/testes.md`.
-- Próximo passo: `/implement-issue F02-21`, a documentação pública, com a referência da API (HITL).
+- F02-21 feita em 15/10/2026: a documentação pública nasce, em inglês, no Starlight, em `packages/docs`, com a página do
+  raio pela API e pelo SDK e a referência da API, que o Scalar monta no navegador a partir do contrato, escolha do
+  mantenedor depois de ver três sites rodando (D-060). Os geradores do Starlight, do VitePress e do Docusaurus e o Redoc
+  deixam o `SEARCH` do OpenAPI 3.2 de fora sem aviso, e o Scalar o lê desde a 1.72. O build reprova com link quebrado,
+  também para uma operação que o contrato não tem, e roda no `pnpm check` e na CI; o site vai ao ar na F16. Nem o site
+  nem o Scalar falam com alguém de fora: a telemetria do Astro, que manda dados também na CI, desliga por variável, e o
+  Scalar, por seis opções (V-194 a V-196). O contrato ganhou exemplos, de que a referência monta os pedidos.
+- Próximo passo: `/fechar-fase F02`, o fechamento da fase.
 
 ## Documentação
 

@@ -1035,3 +1035,28 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - O `geoPaginate()` precisa da extensão que responde no tipo próprio, a que sai junto com o SDK. Um comando sozinho segue dando o `data` sem o `meta` numa resposta em `application/json` (D-058).
   - Nem o iterador nem a espera aceitam um `AbortSignal`: quem precisa parar antes sai do `for await`, e a espera vai até o resumo final ou o tempo máximo.
   - Os nomes, a forma das páginas e a espera entram no contrato do SDK, e mudar depois da primeira publicação quebra cliente (D-016).
+
+## D-060 — O site de documentação no Starlight, com a referência da API pelo Scalar
+
+- **Estado:** aceita em 15/10/2026.
+- **Onde:** §7.5 (documentação) · `docs/padroes/api-e-contrato.md` · `packages/docs/` · D-016 · V-194 a V-196.
+- **Contexto:**
+  - A documentação pública nasce na F02-21, com a referência da API gerada do `openapi.yaml` (D-016), e vai ao ar na F16, com uma versão por release e o guia do usuário também em pt-BR (§7.5).
+  - O contrato é OpenAPI 3.2 desde a F02-12, e o `SEARCH` do raio fica no `additionalOperations` da rota (V-181).
+  - Na F02-21, três sites montaram o mesmo contrato e a mesma página do raio, fora do repositório, com os 3 dias da idade mínima. Os geradores nativos de cada um, o `starlight-openapi`, o `vitepress-openapi` e o `docusaurus-plugin-openapi-docs`, e o Redoc 2 do Redocly CLI deixam o `SEARCH` de fora sem aviso: percorrem uma lista fixa de métodos. O Scalar o mostra desde a 1.72 (V-194, V-196).
+- **Decisão:**
+  - **O site é Starlight,** sobre o Astro, no pacote `packages/docs`, por escolha do mantenedor, depois de ver as três opções rodando. É o padrão que mais cresce na documentação de projetos abertos, como a do Astro, da Cloudflare, do Biome e do Tauri, e usa o Vite 8, o mesmo do repositório.
+  - **A referência da API é o Scalar,** numa página do site, montada no navegador a partir do contrato que o build embute, e não de uma URL de fora. As âncoras levam o `operationId`, como `/api/#geospatial/items`.
+  - **Nem o site nem o Scalar falam com alguém de fora:** a telemetria do Astro fica desligada em cada comando do site (V-195), e as fontes do Scalar, o chat de IA, o MCP, a telemetria, o proxy de pedidos e o botão do cliente dele também (V-194).
+  - **O build reprova com link quebrado,** pelo `starlight-links-validator`. Um link para a referência só passa quando o `operationId` da âncora existe no contrato.
+  - **Ainda não vai ao ar:** o build roda no `pnpm check` e na CI, e a publicação fica para a F16.
+- **Alternativas descartadas:**
+  - **VitePress,** do ecossistema Vue, como o Studio: a versão estável, a 1.6, prende o Vite 5 e o esbuild 0.21, com 4 alertas que só se resolvem no Vite 6.4.3 e no esbuild 0.25 (V-196), e o `pnpm audit` da CI reprovaria até o VitePress 2 sair do alpha. Não tem versão por release.
+  - **Docusaurus,** o mais maduro, com versão por release e pt-BR nativos: 1.315 pacotes, contra 538 do Starlight com o Scalar, 11 alertas, 2 deles críticos, e 29 s de build, contra 5 s. A referência nativa perde o `SEARCH` e mostra o `geo` como `any`.
+  - **Uma referência estática gerada no build,** como a do `starlight-openapi`: o HTML traria o texto da referência, que a busca do site indexaria, mas sem o `SEARCH`.
+- **Consequências:**
+  - O HTML da página da API não traz o texto da referência, então a busca do site não a encontra. A página pesa uns 460 KB com gzip, só ela.
+  - A versão por release vem de um plugin, o `starlight-versions`, e entra na F16, com a publicação.
+  - Os exemplos de pedido da referência saem dos exemplos do contrato, que o lint do Redocly confere contra os schemas (V-194).
+  - O build avisa do sitemap até a F16 dar o endereço do site (V-195).
+  - Um gerador que passar a ler o `additionalOperations` pode substituir o Scalar sem mudar o contrato.

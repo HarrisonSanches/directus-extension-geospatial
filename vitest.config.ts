@@ -6,8 +6,14 @@ export default defineConfig({
 		coverage: {
 			provider: 'v8',
 			include: ['packages/*/src/**/*.ts', 'dev/*.ts'],
-			// The generated types have no runtime code, and the declarations only describe what Directus attaches.
-			exclude: ['**/*.test.ts', 'packages/contract/src/generated/**', 'packages/*/src/**/*.d.ts'],
+			// The generated types have no runtime code, the declarations only describe what Directus attaches, and the
+			// collections of the docs site are a config that only Astro loads, when it builds the site.
+			exclude: [
+				'**/*.test.ts',
+				'packages/contract/src/generated/**',
+				'packages/*/src/**/*.d.ts',
+				'packages/docs/src/content.config.ts',
+			],
 			// test/coverage.ts sums this report with the coverage recorded inside Directus by the integration suite.
 			reportsDirectory: 'coverage/unit',
 		},
