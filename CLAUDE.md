@@ -269,7 +269,13 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   também para uma operação que o contrato não tem, e roda no `pnpm check` e na CI; o site vai ao ar na F16. Nem o site
   nem o Scalar falam com alguém de fora: a telemetria do Astro, que manda dados também na CI, desliga por variável, e o
   Scalar, por seis opções (V-194 a V-196). O contrato ganhou exemplos, de que a referência monta os pedidos.
-- Próximo passo: `/fechar-fase F02`, o fechamento da fase.
+- F02 concluída em 16/10/2026: o critério de saída foi conferido de novo, com o `pnpm check` e as quatro combinações, e
+  a mutação deu 95,6% no caminho da regra de ouro. O motor tem 99,8% das linhas e 98,3% das ramificações cobertas, na
+  soma. Com 1 milhão de pontos e o GiST, a primeira página do raio da Maria leva de 68 a 84 ms de mediana na máquina de
+  referência. A Maria no 12 com SQLite não roda, porque ali o Directus fica no Core. O §5 da arquitetura passou a dizer
+  que o `items.read` roda nas listas de itens, o que uma issue da F03 entrega, e o guia técnico da fase fica no plano
+  (A-076).
+- Próximo passo: a promoção da F02 para o `main`, com a tag `f02-done`, que é do mantenedor, e depois `/to-prd F03`.
 
 ## Documentação
 
