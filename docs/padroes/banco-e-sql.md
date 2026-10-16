@@ -26,8 +26,8 @@
     (D-050, V-178).
   - No estágio que o índice responde, converte-se o que entra, nunca a coluna. A caixa vai com a borda cortada em
     trechos curtos, e só onde o PROJ a traz de volta ao mesmo lugar.
-  - Um SRID que vai como parâmetro leva `::integer`: sem o tipo, o Postgres escolhe a sobrecarga de texto do
-    `ST_Transform`, que o lê como um texto do PROJ (V-178).
+  - Um SRID que vai como parâmetro ao `ST_Transform` leva `::integer`: sem o tipo, o Postgres escolhe a sobrecarga de
+    texto dele, que o lê como um texto do PROJ (V-178).
 - Nas datas, converter o parâmetro, nunca a coluna (D-031), para o banco continuar usando o índice.
 - A operação que promete índice tem teste com `EXPLAIN` ([`testes.md`](testes.md)).
 
