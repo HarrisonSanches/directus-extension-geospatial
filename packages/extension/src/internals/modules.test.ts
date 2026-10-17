@@ -39,9 +39,12 @@ describe('os módulos do Directus em execução', () => {
 
 		expect(result.status).toBe('refused');
 
+		// Each module once, also the emitter, which two functions share.
 		for (const { name, uses } of adapters) {
 			expect(problems[name]).toEqual(
-				uses.map((used) => `@directus/api/${functions[used].module} could not be imported (ERR_MODULE_NOT_FOUND)`),
+				[...new Set(uses.map((used) => functions[used].module))].map(
+					(path) => `@directus/api/${path} could not be imported (ERR_MODULE_NOT_FOUND)`,
+				),
 			);
 		}
 	});

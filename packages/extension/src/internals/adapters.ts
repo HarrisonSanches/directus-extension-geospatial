@@ -14,9 +14,11 @@ export interface Adapter {
 	beforeHooks: (take: Take, request: Request, context: Context) => Promise<void>;
 }
 
-// The steps of the readByQuery the same in 11.17 and in 12: the hooks of items.query, and the chain up to getDBQuery.
+// The steps of the readByQuery the same in 11.17 and in 12: the hooks of items.query, the chain up to getDBQuery, and
+// the hooks of items.read, as a filter and as an action, on the items read (V-174).
 const readFunctions = [
 	'emitFilter',
+	'emitAction',
 	'getAstFromQuery',
 	'processAst',
 	'parseCurrentLevel',

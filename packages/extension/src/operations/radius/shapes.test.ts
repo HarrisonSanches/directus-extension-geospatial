@@ -58,6 +58,8 @@ const engineWith = (overrides: Partial<Checking> = {}) => {
 				builder: database.select('id', 'geometry').from('occurrences'),
 				query: request.query,
 				fields: ['id', 'geometry', 'region'],
+				// The shapes and the summary hand no items over, so the hooks of items.read never run on them (A-045).
+				read: () => Promise.reject(new Error('Only a list of items calls the hooks of items.read.')),
 			});
 		},
 		defaultLimit: 100,

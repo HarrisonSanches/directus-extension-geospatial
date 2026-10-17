@@ -20,3 +20,22 @@ export const record = (call: Call): void => {
 
 // The calls since the last take, in the order they came, forgotten once handed over.
 export const take = (): Call[] => calls.splice(0);
+
+// What a hook of this extension received on one items.read event: the filter, with the items as they came, before it
+// hides the region, and the action, with what the filters returned.
+export interface Read {
+	kind: 'filter' | 'action';
+	event: string;
+	collection: string;
+	query: Query;
+	accountability: Accountability | null;
+	payload: unknown;
+}
+
+const reads: Read[] = [];
+
+export const recordRead = (read: Read): void => {
+	reads.push(structuredClone(read));
+};
+
+export const takeReads = (): Read[] => reads.splice(0);
