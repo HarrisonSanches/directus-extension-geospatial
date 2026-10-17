@@ -28,7 +28,7 @@ jobs:
 
   mutation:
     name: Mutation testing of the golden rule (StrykerJS)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # Each mutant runs the unit tests of the extension, so the run takes over an hour (V-193).
     timeout-minutes: 240
     steps:
