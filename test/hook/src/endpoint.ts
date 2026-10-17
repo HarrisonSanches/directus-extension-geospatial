@@ -1,6 +1,6 @@
 import { ForbiddenError } from '@directus/errors';
 import { defineEndpoint } from '@directus/extensions-sdk';
-import { take } from './calls.js';
+import { take, takeReads } from './calls.js';
 
 export default defineEndpoint({
 	id: 'geospatial-test-hook',
@@ -15,6 +15,17 @@ export default defineEndpoint({
 			}
 
 			res.json({ data: take() });
+		});
+
+		// What the hooks of items.read received since the last read, also only for the admin.
+		router.get('/reads', (req, res, next) => {
+			if (req.accountability?.admin !== true) {
+				next(new ForbiddenError());
+
+				return;
+			}
+
+			res.json({ data: takeReads() });
 		});
 	},
 });

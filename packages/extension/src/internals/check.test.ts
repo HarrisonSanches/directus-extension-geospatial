@@ -201,7 +201,7 @@ describe('a checagem recusa o que não é o que o adaptador espera', () => {
 	});
 });
 
-describe('o emissor dos eventos do núcleo, que os hooks de items.query ouvem (V-144)', () => {
+describe('o emissor dos eventos do núcleo, que os hooks de items.query e de items.read ouvem (V-144)', () => {
 	const emitter = '@directus/api/emitter';
 
 	it('sem o emissor, nenhum adaptador serve', async () => {
@@ -215,22 +215,31 @@ describe('o emissor dos eventos do núcleo, que os hooks de items.query ouvem (V
 		});
 	});
 
+	const emitFilter = withArity(3, () => null);
+	const emitAction = withArity(2, () => undefined);
+
 	it.each([
-		['sem o emitFilter', { default: {} }, `${emitter} has no function emitFilter`],
+		['sem o emitFilter', { default: { emitAction } }, [`${emitter} has no function emitFilter`]],
+		['sem o emitAction', { default: { emitFilter } }, [`${emitter} has no function emitAction`]],
 		[
-			'com o emitFilter fora do objeto padrão',
-			{ emitFilter: withArity(3, () => null) },
-			`${emitter} has no function emitFilter`,
+			'com os dois fora do objeto padrão',
+			{ emitFilter, emitAction },
+			[`${emitter} has no function emitFilter`, `${emitter} has no function emitAction`],
 		],
 		[
 			'com o emitFilter de outra aridade',
-			{ default: { emitFilter: withArity(4, () => null) } },
-			`${emitter}: emitFilter declares 4 parameters, and the adapter expects 3`,
+			{ default: { emitFilter: withArity(4, () => null), emitAction } },
+			[`${emitter}: emitFilter declares 4 parameters, and the adapter expects 3`],
 		],
-	])('%s, o adaptador recusa o Directus', async (_, module, problem) => {
+		[
+			'com o emitAction de outra aridade',
+			{ default: { emitFilter, emitAction: withArity(3, () => undefined) } },
+			[`${emitter}: emitAction declares 3 parameters, and the adapter expects 2`],
+		],
+	])('%s, o adaptador recusa o Directus', async (_, module, problems) => {
 		expect(await check({ ...directus12(), emitter: module }, '12')).toEqual({
 			status: 'refused',
-			problems: { '12': [problem] },
+			problems: { '12': problems },
 		});
 	});
 

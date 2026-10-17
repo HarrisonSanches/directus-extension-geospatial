@@ -118,7 +118,8 @@ declare module '@directus/api/permissions/modules/assert-collection-active/asser
 
 // The emitter of the core events, where the filter of each hook of every extension registers (api/src/emitter.ts,
 // V-144). The emitter in the context of an extension is another one, only for the events between extensions (A-024).
-// Its emitFilter calls the filters of each event in order, each one with what the one before returned.
+// Its emitFilter calls the filters of each event in order, each one with what the one before returned. Its emitAction
+// calls the actions of each event without waiting for them, and logs what one of them throws.
 declare module '@directus/api/emitter' {
 	import type { EventContext } from '@directus/types';
 
@@ -129,6 +130,7 @@ declare module '@directus/api/emitter' {
 			meta: Record<string, unknown>,
 			context?: EventContext | null,
 		): Promise<T>;
+		emitAction(event: string | string[], meta: Record<string, unknown>, context?: EventContext | null): void;
 	};
 
 	export default emitter;

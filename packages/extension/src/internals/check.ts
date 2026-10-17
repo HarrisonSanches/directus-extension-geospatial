@@ -58,6 +58,8 @@ const problemsOf = async (
 ): Promise<string[]> => {
 	const problems: string[] = [];
 	const modules = new Map<ModulePath, Record<string, unknown>>();
+	// A module that two functions share, as the emitter of emitFilter and emitAction, is said to fail once.
+	const unimported = new Set<ModulePath>();
 
 	for (const name of adapter.uses) {
 		const { module: path, arity } = functions[name];
@@ -65,7 +67,11 @@ const problemsOf = async (
 		const found = await loaded(path);
 
 		if ('reason' in found) {
-			problems.push(`${specifier} could not be imported (${found.reason})`);
+			if (!unimported.has(path)) {
+				unimported.add(path);
+				problems.push(`${specifier} could not be imported (${found.reason})`);
+			}
+
 			continue;
 		}
 

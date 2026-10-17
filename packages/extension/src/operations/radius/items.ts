@@ -306,7 +306,15 @@ export const radiusItems = async ({ cursor, ...request }: RadiusRequest, engine:
 	const list = listOf(collection, geo, page);
 	const after = afterIn(cursor, page, cursorKey, list);
 
-	const { builder: permitted, query, fields, declared, primary, geometry } = await permittedRadius(request, engine);
+	const {
+		builder: permitted,
+		query,
+		fields,
+		read,
+		declared,
+		primary,
+		geometry,
+	} = await permittedRadius(request, engine);
 
 	const order = sortOf(query);
 
@@ -336,10 +344,15 @@ export const radiusItems = async ({ cursor, ...request }: RadiusRequest, engine:
 	// reads for itself, which a policy may not let the user read (V-183), and without what the radius asked only for its
 	// own use.
 	const unasked = unaskedOf(query, geometry);
-	const data = itemsOf(
-		values,
-		distances.slice(0, shown),
-		fields.filter((field) => !unasked.includes(field)),
+	// The hooks of items.read of other extensions get the items as the response sends them, with the $geo, and the list is
+	// what they return, as /items is (A-045). The cursor comes from the rows of the database, so a hook that leaves an item
+	// out does not move the list.
+	const data = await read(
+		itemsOf(
+			values,
+			distances.slice(0, shown),
+			fields.filter((field) => !unasked.includes(field)),
+		),
 	);
 	const next = nextOf(keys, shown, (last) => cursorOf(cursorKey, list, last));
 	const meta = { ...(capped && { capped: { limit: limits.server } }), ...(next !== undefined && { next }) };
