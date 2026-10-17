@@ -67,17 +67,27 @@ jobs:
     outputs:
       names: ${{ steps.list.outputs.names }}
     steps:
+      # The merge commit of a pull request and its first parent, the tip of the base, so the job sees what the pull
+      # request changes.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 2
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-      # test/combinations.ts lists them, so a new combination gets its job without a change here.
+      # test/combinations.ts lists them, so a new combination gets its job without a change here. A pull request that
+      # changes the combinations, as the one of Renovate for a new Directus does, runs the ones of the night too, so a
+      # new patch of the floor of 12 is tested before the merge (A-071).
       - id: list
         env:
           COMBINATIONS: ${{ inputs.combinations || 'pull-request' }}
-        run: echo "names=$(node test/combinations.ts "$COMBINATIONS")" >> "$GITHUB_OUTPUT"
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = pull_request ] && ! git diff --quiet HEAD^1 HEAD -- test/combinations.ts; then
+            COMBINATIONS=nightly
+          fi
+          echo "names=$(node test/combinations.ts "$COMBINATIONS")" >> "$GITHUB_OUTPUT"
 
   integration:
     name: Integration (${{ matrix.combination }})
@@ -112,6 +122,23 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The one check of the integration suite that the rulesets require, whatever combinations the run has. A job skipped
+  # because a job it needs failed may count as passed for a required check, and a combination of the night runs only in
+  # some pull requests (V-198).
+  integration-result:
+    name: Integration (every combination)
+    needs: [combinations, integration]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - env:
+          COMBINATIONS: ${{ needs.combinations.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+        run: |
+          echo "The combinations: $COMBINATIONS. The integration suite: $INTEGRATION."
+          [ "$COMBINATIONS" = success ] && [ "$INTEGRATION" = success ]
+
   coverage:
     name: Coverage (ratchet, Codecov and SonarQube Cloud)
     needs: [check, integration]
@@ -141,27 +168,37 @@ jobs:
         with:
           pattern: coverage-integration-*
           path: coverage/integration
-      # Sums the coverage and writes the reports.
-      - run: node test/coverage.ts
+      # Sums the coverage and writes the reports. Each step after it depends only on the sum, and not on the step
+      # before, so the failure of one never hides the result of another, and any of them fails the job (A-063).
+      - id: sum
+        run: node test/coverage.ts
+      # A pull request from a fork gets no secrets, so SonarQube Cloud cannot analyze it here, and the maintainer
+      # brings it into a branch of the repository, as CONTRIBUTING.md says.
+      - if: >-
+          ${{ !cancelled() && steps.sum.outcome == 'success' && (github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       # One upload for each push and pull request. The night runs on a commit that its push already sent.
-      - if: github.event_name == 'push' || github.event_name == 'pull_request'
+      - if: >-
+          ${{ !cancelled() && steps.sum.outcome == 'success' &&
+          (github.event_name == 'push' || github.event_name == 'pull_request') }}
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: coverage/all/lcov.info
           disable_search: true
           fail_ci_if_error: true
           use_oidc: true
-      # A pull request from a fork gets no secrets, so SonarQube Cloud cannot analyze it here, and the maintainer
-      # brings it into a branch of the repository, as CONTRIBUTING.md says.
+      # Codecov drops in silence the uploads to a repository it shows as deactivated, so the job fails with the cause.
       - if: >-
-          github.event_name == 'push' ||
-          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          ${{ !cancelled() && steps.sum.outcome == 'success' &&
+          (github.event_name == 'push' || github.event_name == 'pull_request') }}
+        run: node test/codecov.ts
       # Holds the sum against test/coverage-thresholds.json. It comes last, so a pull request that lowers the coverage
       # still reaches Codecov and SonarQube Cloud, which show the lines no test runs.
-      - run: node test/ratchet.ts
+      - if: ${{ !cancelled() && steps.sum.outcome == 'success' }}
+        run: node test/ratchet.ts
 
   secrets:
     name: Secrets in the history (gitleaks)

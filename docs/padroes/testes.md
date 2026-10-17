@@ -172,6 +172,10 @@ com o rastro do Playwright guardado para investigar.
 - **Somada entre os bancos:** o job de cobertura da CI soma os relatórios dos unitários e de cada combinação, e eles
   vão ao Codecov num envio só por push e por pull request; a noite confere a catraca e não envia. Um pull request
   que mexe num adaptador roda também o contrato daquele banco.
+- **Um passo não esconde o outro:** depois da soma, o SonarQube Cloud, o envio ao Codecov, a conferência do Codecov e a
+  catraca dependem só dela, e cada um roda mesmo com a falha do anterior. A conferência lê na API pública do Codecov se
+  ele mostra o repositório ativado, porque o repositório desativado recebe o envio e o descarta em silêncio, e o
+  `codecov/patch` nunca chega (A-063, V-197).
 - **Interface:** a lógica (composables, stores, cálculos, estado das ferramentas) fica em módulos testáveis, com
   90%. A camada fina que desenha no WebGL fica com o ponta a ponta, sem meta de linhas.
 - **Mutação:** 90% no caminho da regra de ouro, toda noite (a seção seguinte). É o que mede se os testes testam, e não
@@ -232,12 +236,11 @@ O canary roda a suíte de integração contra cada versão nova do Directus (§5
    - Um patch troca a versão da combinação dele, também a do piso, que só anda nos patches da minor dele.
    - Uma minor nova toma o lugar da mais nova da major, o `12`, e o piso fica.
    - Uma major nova vem com a nota de acrescentar combinações próprias, em vez de trocar as que existem.
-3. A CI do pull request roda a suíte nas combinações dele, o 11.17 e o `12` mais novo, com o PostGIS mínimo e o
-   SQLite. Cada Directus passa pela checagem dos internos ao subir (§5, proteção 2), que a suíte confere no
-   `capabilities`, e cada teste compara com o `/items` do mesmo papel.
-4. Um patch só do piso não roda na CI do pull request, que não tem as combinações do piso. Antes do merge, a noite roda
-   no ramo do pull request pela aba Actions, ou pelo `gh workflow run nightly.yml --ref <ramo>`; depois do merge, ela
-   roda toda noite.
+3. Como o pull request muda o `test/combinations.ts`, a CI dele roda a suíte em todas as combinações, as de todo pull
+   request e as da noite, então também o patch só do piso é testado antes do merge (A-071). Cada Directus passa pela
+   checagem dos internos ao subir (§5, proteção 2), que a suíte confere no `capabilities`, e cada teste compara com o
+   `/items` do mesmo papel.
+4. O ruleset exige o `Integration (every combination)`, que falha se alguma combinação falhou, também uma da noite.
 5. Com a CI verde, o mantenedor faz o merge. Vermelha, a versão nova mudou algo de que a extensão depende, e o pull
    request espera a correção, no adaptador da versão (§5, proteção 1).
 
@@ -279,6 +282,7 @@ fora do lugar (`test/moved-module/`), e sobem um ambiente próprio, pelo `startE
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A cada push e pull request          | Unitários; integração, paridade e contrato no PostGIS (a versão mínima) e no SQLite, na versão mais antiga e na mais nova da faixa do Directus (hoje, 11.17 e 12.5, D-037); contrato da API; cobertura do código novo  |
 | Pull request que mexe num adaptador | Mais o contrato daquele banco                                                                                                                                                                                          |
+| Pull request que muda a matriz      | Mais as combinações da noite, quando muda o `test/combinations.ts`, como no pull request do Renovate de um Directus novo (o canary)                                                                                    |
 | Pull request que mexe na interface  | Mais o ponta a ponta curto, que bloqueia o merge: o mapa abre no layout, um tile chega, o clique abre o drawer e o axe passa (§7.4)                                                                                    |
 | Toda noite                          | A faixa inteira do Directus (hoje, 11.17, o piso do 12, 12.4, e 12.5); o PostGIS na versão mais nova; a partir da F15, a matriz inteira de bancos, a mínima e a mais nova de cada; o ponta a ponta completo; a mutação |
 | Antes de cada release               | Tudo o que roda à noite, mais o teste manual com leitor de tela (NVDA e VoiceOver)                                                                                                                                     |

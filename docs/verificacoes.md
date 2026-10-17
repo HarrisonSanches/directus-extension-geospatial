@@ -641,6 +641,17 @@ Conferidos em 23/09/2026 no código do Directus 12.4.1 (branch main) e na docume
     deles críticos, e levou 29 s para gerar e montar o site, contra 5 s do Starlight. Sem o `browserslist` que o
     instalador do Docusaurus escreve no `package.json`, o Babel compila para ES5, e o tema do plugin quebra no build ou
     no navegador.
+- **V-197** **Codecov, o repositório ativado na API pública** (a API v2 do Codecov, conferida em 17/10/2026, e o achado
+  da F02-16): `GET https://api.codecov.io/api/v2/github/<dono>/repos/<repositório>/` responde sem token num
+  repositório público, com o `activated` e o `active`, os dois `true` no deste repositório na conferência, e com 404
+  para um repositório que o Codecov não conhece. Com o `activated` falso, o Codecov aceita o envio da action com o
+  "queued" e o descarta, sem commit e sem o `codecov/patch` (A-063, no plano), então só a leitura da API mostra a causa.
+- **V-198** **GitHub Actions, o job pulado num check obrigatório** (documentação, "Troubleshooting required status
+  checks", conferida em 17/10/2026): um job pulado por uma condição informa "Success", e os estados que contam como
+  aprovados são `success`, `skipped` e `neutral`; um workflow pulado por um filtro de caminho, de ramo ou de mensagem
+  deixa o check pendente e trava o merge; e um job pulado porque um job do `needs` dele falhou "may not block merging".
+  A própria documentação manda usar o `always()` com o `needs` no check obrigatório que depende de outros jobs
+  ([checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks)).
 
 ## Pendências
 
