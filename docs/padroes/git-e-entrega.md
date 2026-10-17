@@ -152,8 +152,11 @@ Nasce na primeira issue da F00, para todo commit de código já nascer no padrã
     ele vem para um ramo do repositório, com os commits de quem o escreveu.
   - No `develop`, o ramo do pull request precisa estar atualizado com ele antes do merge. No `main`, não, porque o
     merge commit da fase fica só nele, e o `develop` nunca estaria atualizado.
-  - Um job novo na CI, ou uma combinação nova da suíte, entra na lista de checks dos dois arquivos. Uma mudança
-    no ruleset se faz no arquivo e se aplica pela API, para o arquivo e o GitHub não divergirem.
+  - Um job novo na CI entra na lista de checks dos dois arquivos. As combinações da suíte entram por um check só, o
+    `Integration (every combination)`, que falha se alguma combinação falhou: um job pulado porque um job de que ele
+    depende falhou pode contar como aprovado num check obrigatório, e as combinações da noite rodam só em alguns pull
+    requests (V-198). Uma combinação nova não muda o ruleset. Uma mudança no ruleset se faz no arquivo e se aplica pela
+    API, para o arquivo e o GitHub não divergirem.
 - **Nenhum dos dois recebe push forçado.** No GitHub, o histórico reescrito continua visível pelo hash e na página
   Activity (V-78); o que entrou se corrige com um commit novo, ou com `revert`.
 
@@ -190,9 +193,11 @@ os runners padrão são grátis, e a divisão entre pull request e noite fica pe
 Os workflows ficam em `.github/workflows/`:
 
 - **`ci.yml`**, a cada push e pull request do `develop` e do `main`: a verificação do `pnpm check`, sem a integração;
-  a integração, com um job por combinação, na lista que o `node test/combinations.ts` imprime; o `gitleaks` sobre o
-  histórico inteiro; o `pnpm audit` e o OSV-Scanner; o zizmor; e o validador da configuração do Renovate. Um push
-  novo num pull request cancela a rodada anterior.
+  a integração, com um job por combinação, na lista que o `node test/combinations.ts` imprime, e o check que junta
+  todas; a cobertura, com o SonarQube Cloud, o Codecov, a conferência do Codecov e a catraca; o `gitleaks` sobre o
+  histórico inteiro; o `pnpm audit` e o OSV-Scanner; o zizmor; e o validador da configuração do Renovate. O pull
+  request que muda o `test/combinations.ts` recebe também as combinações da noite (A-071). Um push novo num pull
+  request cancela a rodada anterior.
 - **`pr-title.yml`**, em pull request: o título pelo commitlint, de novo a cada edição, sem rodar o resto.
 - **`nightly.yml`**, às 03:00 de São Paulo e à mão (`workflow_dispatch`): chama o `ci.yml` com as combinações da
   noite, que acrescentam o PostGIS mais novo.

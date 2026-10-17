@@ -34,7 +34,9 @@ const sqlite = { client: 'sqlite' } as const;
 // The combinations of the integration suite: each Directus version with each database. Each one is a project of
 // Vitest, and every test file runs in all of them. Every pull request runs the oldest and the newest Directus of the
 // range, 11.17 and the newest 12, with the minimum PostGIS and with SQLite, and the night adds the floor of 12 and the
-// newest PostGIS (D-037). The newest 12 keeps the name 12, which the required jobs of the rulesets carry.
+// newest PostGIS (D-037). A pull request that changes this file runs the ones of the night too, so a new Directus is
+// tested in every combination before the merge (A-071). The newest 12 keeps the name 12, so a new minor changes its
+// version and not the name of its job.
 export const combinations = {
 	'11.17-postgis': { directus: directus['11.17'], database: postgis, nightly: false },
 	'11.17-sqlite': { directus: directus['11.17'], database: sqlite, nightly: false },

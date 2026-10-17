@@ -42,19 +42,7 @@
 						"integration_id": 15368
 					},
 					{
-						"context": "Integration (11.17-postgis)",
-						"integration_id": 15368
-					},
-					{
-						"context": "Integration (11.17-sqlite)",
-						"integration_id": 15368
-					},
-					{
-						"context": "Integration (12-postgis)",
-						"integration_id": 15368
-					},
-					{
-						"context": "Integration (12-sqlite)",
+						"context": "Integration (every combination)",
 						"integration_id": 15368
 					},
 					{
