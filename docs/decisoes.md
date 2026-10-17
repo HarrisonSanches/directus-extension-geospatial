@@ -800,7 +800,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Decisão:**
   - Os dois estágios do filtro, a caixa `&&` e o `ST_DWithin` em `geography`, leem a coluna e entram como mais condições do `WHERE` da query permitida. Os `CASE WHEN` e o `WHERE` das políticas ficam como o Directus os escreveu.
   - Em volta, a guarda: só sai o item cujo valor exposto pela query permitida não é nulo. Onde uma política esconde a geometria, o `CASE WHEN` a deixa nula, e o item fica fora, mesmo com a posição dentro do círculo.
-  - A caixa sai do raio e da latitude e sempre contém o círculo: duas caixas onde ele cruza o antimeridiano, uma faixa de todas as longitudes onde ele chega a um polo, e nenhuma onde ele cobre o mundo.
+  - A caixa sai do raio e da latitude e sempre contém o círculo: duas caixas onde ele cruza o antimeridiano, uma faixa de todas as longitudes onde ele chega a um polo ou é largo demais para as longitudes, e nenhuma onde ele cobre o mundo.
   - O mesmo desenho vale nos outros bancos: o teste exato na coluna e a guarda do nulo em volta (F02-11 no SQLite, F15 nos outros).
 - **Alternativas descartadas:**
   - A caixa na coluna e o teste exato sobre o texto exposto (A-023): devolve os mesmos itens, mas converte o texto de cada candidato, e fica de 20% a 30% mais lenta (V-177). O texto também perde o SRID, que a F02-09 precisa, e no SQLite tem só 6 casas (A-026).
