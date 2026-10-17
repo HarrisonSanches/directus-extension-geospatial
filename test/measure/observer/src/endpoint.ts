@@ -1,6 +1,6 @@
 import { ForbiddenError } from '@directus/errors';
 import { defineEndpoint } from '@directus/extensions-sdk';
-import { measured, takeCount, takeLag, takeLast } from './reads.js';
+import { callsOn, measured, takeCount, takeLag, takeLast } from './reads.js';
 
 export default defineEndpoint({
 	id: 'geospatial-test-observer',
@@ -50,6 +50,20 @@ export default defineEndpoint({
 					statements?.map(({ sql, bindings }) => database.raw(sql.replaceAll(/\$\d+/g, '?'), bindings).toQuery()) ??
 					null,
 			});
+		});
+
+		// How many statements Directus ran whose text holds a piece, such as the name of a table between quotes. Only the
+		// admin reads it.
+		router.get('/calls', (req, res, next) => {
+			const { piece } = req.query;
+
+			if (req.accountability?.admin !== true || typeof piece !== 'string') {
+				next(new ForbiddenError());
+
+				return;
+			}
+
+			res.json({ data: callsOn(piece) });
 		});
 
 		// The longest the event loop of Directus ran late since the last read. Only the admin reads it.

@@ -2,25 +2,9 @@ import { InternalServerError } from '@directus/errors';
 import type { Accountability, ApiExtensionContext } from '@directus/types';
 import { apiVersion, type Capabilities, type Internals } from 'directus-geospatial-contract';
 import packageJson from '../../package.json' with { type: 'json' };
-import { databaseClientOf, detectCapabilities } from '../capabilities/detect.js';
+import { detectCapabilities, type Detected } from '../capabilities/detect.js';
 import { viewerOf, visibleTo } from '../capabilities/visible.js';
-import { knexClassOf } from '../db/client.js';
 import { failClosed } from '../db/fail-closed.js';
-import { type Query, readVersions } from '../db/versions.js';
-
-type Knex = ApiExtensionContext['database'];
-
-const isRow = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
-
-// knex.raw returns the rows as an array in SQLite, and inside rows in Postgres.
-const queryOf =
-	(database: Knex): Query =>
-	async (sql) => {
-		const result: unknown = await database.raw(sql);
-		const rows = isRow(result) && 'rows' in result ? result.rows : result;
-
-		return Array.isArray(rows) ? rows.filter(isRow) : [];
-	};
 
 // The version Directus itself reports in /server/info, which any user with a session can read.
 const directusVersionOf = async (context: ApiExtensionContext, accountability: Accountability | undefined) => {
@@ -34,10 +18,16 @@ const directusVersionOf = async (context: ApiExtensionContext, accountability: A
 	return info.version;
 };
 
+// What the extension found once for the process: the database it detected, and the internals it checked.
+interface Startup {
+	detected: () => Promise<Detected>;
+	internals: () => Promise<Internals>;
+}
+
 export const readCapabilities = async (
 	context: ApiExtensionContext,
 	accountability: Accountability | undefined,
-	internals: () => Promise<Internals>,
+	{ detected, internals }: Startup,
 ): Promise<Capabilities | 'forbidden'> => {
 	const viewer = viewerOf(accountability);
 
@@ -45,23 +35,15 @@ export const readCapabilities = async (
 		return 'forbidden';
 	}
 
-	const client = databaseClientOf(knexClassOf(context.database));
-
-	// Each one reads the database: the versions, Directus its settings, and the check of the internals the schema, once
-	// for the process.
-	const [versions, directusVersion, checked] = await failClosed(
-		() =>
-			Promise.all([
-				readVersions(client, queryOf(context.database)),
-				directusVersionOf(context, accountability),
-				internals(),
-			]),
+	// Each one reads the database: Directus its settings at each request, and the detection and the check of the internals
+	// once for the process, again after a failure.
+	const [found, directusVersion, checked] = await failClosed(
+		() => Promise.all([detected(), directusVersionOf(context, accountability), internals()]),
 		context.logger.child({ extension: 'geospatial' }),
 	);
 
 	const capabilities = detectCapabilities({
-		client,
-		...versions,
+		...found,
 		directusVersion,
 		extensionVersion: packageJson.version,
 		apiVersion,

@@ -113,6 +113,18 @@ export const takeCount = (collection: string): Statement[] | undefined => {
 	return statements.slice(0, statements.findIndex(countsAll(collection)) + 1);
 };
 
+// How many times the connection ran each text of a statement, the values apart, as pg_stat_statements counts the calls of
+// Postgres, so a test reads whether a request reached a table in any database, SQLite included.
+const calls = new Map<string, number>();
+
+export const called = (sql: string): void => {
+	calls.set(sql, (calls.get(sql) ?? 0) + 1);
+};
+
+// How many statements held a piece of text, such as the name of a table between quotes.
+export const callsOn = (piece: string): number =>
+	[...calls].reduce((sum, [sql, count]) => (sql.includes(piece) ? sum + count : sum), 0);
+
 // How late the event loop of Directus ran, sampled every 10 ms, which its pressure limiter reads to answer 503 past
 // 500 ms (V-181).
 const lag = monitorEventLoopDelay({ resolution: 10 });

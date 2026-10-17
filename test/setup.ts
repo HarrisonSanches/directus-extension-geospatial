@@ -6,16 +6,13 @@ import type { TestProject } from 'vitest/node';
 import { type Combination, combinations } from './combinations.ts';
 import { collectCoverage } from './coverage.ts';
 import { connect, type Directus } from './directus.ts';
-import { extension, log, newSecret, openCoverage, seconds, startEnvironment } from './environment.ts';
+import { extension, log, newSecret, observer, openCoverage, seconds, startEnvironment } from './environment.ts';
 import { readLicenseKey } from './license.ts';
 import { seed } from './seed.ts';
 
 // The other extension of the suite, whose hooks on items.query the radius respects as /items does (V-144). It loads in
 // every run, and the coverage, which reads only the bundle of the extension, leaves its code out (test/coverage.ts).
 const testHook = 'test/hook';
-// The extension that hands over the statement of the radius with its values, which the measurements time and the suite
-// reads the plan of (test/measure/observer/).
-const observer = 'test/measure/observer';
 
 interface Started {
 	combination: Combination;

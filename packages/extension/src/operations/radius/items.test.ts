@@ -1,8 +1,9 @@
 import type { Accountability, Query, SchemaOverview } from '@directus/types';
-import type { Internals, Item, Radius } from 'directus-geospatial-contract';
+import type { Database, Internals, Item, Radius } from 'directus-geospatial-contract';
 import geographiclib from 'geographiclib-geodesic';
 import type { Knex } from 'knex';
 import { describe, expect, it } from 'vitest';
+import { matrixOf } from '../../capabilities/matrix.js';
 import type { MeasuringAdapter, RadiusEnvelope, SelectingAdapter } from '../../db/adapter.js';
 import { postgis } from '../../db/postgis.js';
 import { spatialite } from '../../db/spatialite.js';
@@ -48,6 +49,13 @@ const geo: Radius = { operation: 'radius', center: [-46.7, -23.65], distance: 10
 
 const cursorKey = keyOf('a secret of Directus', 'cursor');
 
+// The database the extension detected on startup (capabilities/startup.ts), with a spatial extension unless a test says
+// otherwise.
+const detectedOn =
+	(client: Database['client'], spatialVersion: string | null = '3.6.4') =>
+	() =>
+		Promise.resolve({ client, databaseVersion: null, spatialVersion });
+
 // The list of the requests of the tests, in the natural order, which their cursors belong to.
 const natural: List = { collection: 'occurrences', geo, sort: [] };
 
@@ -61,7 +69,7 @@ const engineWith = (overrides: Partial<Engine> = {}) => {
 	const engine: Engine = {
 		knex: database,
 		schema,
-		client: 'postgres',
+		detected: detectedOn('postgres'),
 		internals: () => Promise.resolve({ status: 'accepted', adapter: '12' }),
 		// With no hook of items.query, the chain gets what the radius asks of the page as it came, and the * of the tree
 		// holds every field of the collection, as the admin reads it.
@@ -107,7 +115,13 @@ describe('o raio, antes do banco', () => {
 		['um parâmetro que o raio ainda não trata', { page: { fields: ['*'], group: ['region'] } }, {}, 'INVALID_QUERY'],
 		['o limit acima do máximo do contrato', { page: { fields: ['*'], limit: 1001 } }, {}, 'INVALID_QUERY'],
 		['os internos recusados', {}, { internals: () => Promise.resolve(refused) }, 'GEOSPATIAL_INTERNALS_UNSUPPORTED'],
-		['um banco onde o raio não roda', {}, { client: 'mysql' as const }, 'GEOSPATIAL_OPERATION_UNAVAILABLE'],
+		['um banco onde o raio não roda', {}, { detected: detectedOn('mysql') }, 'GEOSPATIAL_OPERATION_UNAVAILABLE'],
+		[
+			'um banco sem a extensão espacial',
+			{},
+			{ detected: detectedOn('postgres', null) },
+			'GEOSPATIAL_OPERATION_UNAVAILABLE',
+		],
 		['uma coleção que o esquema não tem', { collection: 'nowhere' }, {}, 'FORBIDDEN'],
 		['uma coleção do sistema, mesmo com uma geometria', { collection: 'directus_users' }, {}, 'FORBIDDEN'],
 	])('%s volta com o erro, sem montar a query permitida', async (_, request, overrides, code) => {
@@ -134,13 +148,30 @@ describe('o raio, antes do banco', () => {
 	});
 
 	it('onde o raio não roda, o erro diz a operação e o motivo', async () => {
-		const { engine } = engineWith({ client: 'mysql' });
+		const { engine } = engineWith({ detected: detectedOn('mysql') });
 
 		await expect(radiusWith({}, engine)).rejects.toMatchObject({
 			status: 501,
 			extensions: { operation: 'radius', reason: 'It does not run on the database in use yet.' },
 		});
 	});
+
+	// The official image of Directus with SQLite has no SpatiaLite (V-104), and a Postgres may have no PostGIS.
+	it.each(['postgres', 'sqlite'] as const)(
+		'no %s sem a extensão espacial, o raio é indisponível com o motivo do capabilities, sem montar a query permitida (A-050)',
+		async (client) => {
+			const { engine, built } = engineWith({ detected: detectedOn(client, null) });
+			const { radius } = matrixOf({ client, spatial: null, internals: { status: 'accepted', adapter: '12' } });
+
+			await expect(radiusWith({}, engine)).rejects.toMatchObject({
+				code: 'GEOSPATIAL_OPERATION_UNAVAILABLE',
+				status: 501,
+				extensions: { operation: 'radius', reason: 'reason' in radius ? radius.reason : undefined },
+			});
+			expect(radius.level).toBe('unavailable');
+			expect(built).toEqual([]);
+		},
+	);
 
 	it('um campo que não é de geometria passa primeiro pela cadeia, que recusa quem não lê a coleção', async () => {
 		const { engine, built } = engineWith();
@@ -265,7 +296,10 @@ const selecting = (result: unknown, measures = true, keys: string[] = []) => {
 };
 
 const onSqlite = (adapter: SelectingAdapter) =>
-	engineWith({ client: 'sqlite', levels: { ...radiusLevels, sqlite: { level: 'capped', adapter } } });
+	engineWith({
+		detected: detectedOn('sqlite', '5.1.0'),
+		levels: { ...radiusLevels, sqlite: { level: 'capped', adapter } },
+	});
 
 describe('o raio onde o servidor mede (D-052)', () => {
 	it('na ordem natural, o banco entrega pela chave, e o servidor ordena pela distância, com a janela da página', async () => {

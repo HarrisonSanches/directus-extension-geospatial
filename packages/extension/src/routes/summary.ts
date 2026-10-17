@@ -1,7 +1,6 @@
 import type { Accountability, ApiExtensionContext, Query, SchemaOverview } from '@directus/types';
 import type { Internals, QuerySummaryResponse } from 'directus-geospatial-contract';
-import { databaseClientOf } from '../capabilities/detect.js';
-import { knexClassOf } from '../db/client.js';
+import type { Detected } from '../capabilities/detect.js';
 import type { PageQuery } from '../internals/page.js';
 import type { PermittedQuery } from '../internals/permitted.js';
 import { radiusLevels } from '../operations/radius/levels.js';
@@ -21,6 +20,8 @@ interface Incoming {
 }
 
 interface Engines {
+	// The database the extension detected on startup (capabilities/startup.ts).
+	detected: () => Promise<Detected>;
 	internals: () => Promise<Internals>;
 	permittedQuery: PermittedQuery;
 	pageQuery: PageQuery;
@@ -33,7 +34,7 @@ interface Engines {
 export const querySummary = async (
 	context: ApiExtensionContext,
 	incoming: Incoming,
-	{ internals, permittedQuery, pageQuery, registry, counts }: Engines,
+	{ detected, internals, permittedQuery, pageQuery, registry, counts }: Engines,
 ): Promise<QuerySummaryResponse> => {
 	const question = await questionOf(registry, queryIdOf(String(incoming.params.id)));
 	const page = await pageOfPart(
@@ -53,7 +54,7 @@ export const querySummary = async (
 		{
 			knex: context.database,
 			schema: incoming.schema,
-			client: databaseClientOf(knexClassOf(context.database)),
+			detected,
 			internals,
 			permittedQuery,
 			logger: context.logger.child({ extension: 'geospatial' }),

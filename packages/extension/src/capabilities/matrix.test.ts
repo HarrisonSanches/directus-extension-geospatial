@@ -1,7 +1,7 @@
 import { type Internals, openapi } from 'directus-geospatial-contract';
 import { describe, expect, it } from 'vitest';
 import { radiusLevels } from '../operations/radius/levels.js';
-import { capabilityOf, matrixOf } from './matrix.js';
+import { capabilityOf, levelOn, matrixOf } from './matrix.js';
 
 const accepted: Internals = { status: 'accepted', adapter: '12' };
 const refused: Internals = { status: 'refused', problems: { '12': ['missing'], '11.17': ['missing'] } };
@@ -55,15 +55,23 @@ describe('a matriz de capacidades', () => {
 		});
 	});
 
-	it('sem a extensão espacial no banco, nenhuma operação roda', () => {
-		expect(matrixOf({ client: 'postgres', spatial: null, internals: accepted })).toEqual({
+	it.each(['postgres', 'sqlite'] as const)('sem a extensão espacial no banco %s, nenhuma operação roda', (client) => {
+		expect(matrixOf({ client, spatial: null, internals: accepted })).toEqual({
 			radius: { level: 'unavailable', reason: 'The database in use has no spatial extension.' },
 		});
 	});
 
-	it('a rota lê o nível pelo banco e pelos internos, sem a extensão espacial', () => {
-		expect(capabilityOf('radius', { client: 'postgres', internals: accepted })).toEqual({ level: 'indexed' });
-		expect(capabilityOf('radius', { client: 'postgres', internals: refused }).level).toBe('unavailable');
+	it('onde a operação ainda não roda, o motivo é o dela, com ou sem a extensão espacial', () => {
+		expect(matrixOf({ client: 'mysql', spatial: null, internals: accepted })).toEqual({
+			radius: { level: 'unavailable', reason: 'It does not run on the database in use yet.' },
+		});
+	});
+
+	it('a operação lê o nível como a matriz, com o adaptador dela (A-050)', () => {
+		expect(levelOn(radiusLevels, { client: 'postgres', spatial: postgis })).toBe(radiusLevels.postgres);
+		expect(levelOn(radiusLevels, { client: 'postgres', spatial: null })).toEqual(
+			capabilityOf('radius', { client: 'postgres', spatial: null, internals: accepted }),
+		);
 	});
 
 	it('o raio declara um nível para cada banco que o contrato lista, e só para eles', () => {
