@@ -1,0 +1,20 @@
+import { limitMaximum } from 'directus-geospatial-contract';
+
+// The limits of the extension, in one place, with the defaults of §7.8. The admin configures them with the collections
+// of the extension, in F06.
+export const limits = {
+	// The bytes of the body of a request, below the 1 MB Directus takes (V-10).
+	body: 256 * 1024,
+	// The items of a page, the maximum of the contract (D-051).
+	page: limitMaximum,
+	// The items of a circle the server measures and orders, where the database does not (D-052).
+	server: 50_000,
+	// The registered queries, in memory or in Redis: each one kept for 24 hours since it was last used, and the least
+	// recently used ones out first past the bytes of their questions, in JSON (D-053). The memory sweeps the expired ones
+	// every minute, and a command of Redis that takes over a second sends the request to the memory (D-057).
+	registry: { retention: 24 * 60 * 60 * 1000, bytes: 32 * 1024 * 1024, sweep: 60 * 1000, answer: 1000 },
+	// The summary, in two times (§7.1): the quick count reads up to 10,000 items, and past them the exact one runs in the
+	// background, for up to 30 seconds and 2 at a time, and its total is kept for 5 minutes, for at most 10,000 keys
+	// (D-056).
+	summary: { quick: 10_000, timeout: 30_000, concurrency: 2, retention: 5 * 60 * 1000, entries: 10_000 },
+} as const;

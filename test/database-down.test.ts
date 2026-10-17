@@ -1,8 +1,9 @@
-import { setTimeout } from 'node:timers/promises';
 import { login } from '@directus/sdk';
-import { getContainerRuntimeClient, type StartedTestContainer } from 'testcontainers';
+import type { StartedTestContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { combinations } from './combinations.ts';
+import { bringBack as bringBackContainer, takeDown } from './containers.ts';
+import { checkedFetch } from './contract.ts';
 import { connect } from './directus.ts';
 import { type Environment, startEnvironment } from './environment.ts';
 
@@ -22,32 +23,8 @@ const processOf = async (directus: StartedTestContainer) => {
 	);
 };
 
-// Stopping the container of the database without a timeout kills it, the way a database goes down.
-const takeDown = async (database: StartedTestContainer) => {
-	const runtime = await getContainerRuntimeClient();
-
-	await runtime.container.stop(runtime.container.getById(database.getId()));
-};
-
-const bringBack = async (database: StartedTestContainer) => {
-	const runtime = await getContainerRuntimeClient();
-
-	await runtime.container.start(runtime.container.getById(database.getId()));
-
-	const deadline = Date.now() + 60_000;
-
-	while (Date.now() < deadline) {
-		const { exitCode } = await database.exec(['pg_isready', '--host', '127.0.0.1', '--username', 'directus']);
-
-		if (exitCode === 0) {
-			return;
-		}
-
-		await setTimeout(500);
-	}
-
-	throw new Error('The database did not come back within 60 s.');
-};
+const bringBack = (database: StartedTestContainer) =>
+	bringBackContainer(database, ['pg_isready', '--host', '127.0.0.1', '--username', 'directus']);
 
 // Only a database that runs in a container of its own can go down while Directus stays up. The test starts its own,
 // so the other tests of the combination keep theirs.
@@ -65,11 +42,12 @@ describe.runIf(combinations[combination].database.client === 'postgres')('o capa
 		return { ...environment, database };
 	};
 
+	// Each answer, the 503 included, goes through the contract (test/contract.ts).
 	const capabilities = () =>
-		fetch(`${started().url}/geospatial/capabilities`, { headers: { Authorization: `Bearer ${session}` } });
+		checkedFetch(`${started().url}/geospatial/capabilities`, { headers: { Authorization: `Bearer ${session}` } });
 
 	beforeAll(async () => {
-		environment = await startEnvironment(combination, inject('coverage'), `${combination}-database-down`);
+		environment = await startEnvironment(combination, inject('coverage'), { name: `${combination}-database-down` });
 
 		// Directus looks a static token up in the database before any route, so with the database down it answers with
 		// an error of its own (V-124). A session token only needs the roles and the access Directus keeps in memory,

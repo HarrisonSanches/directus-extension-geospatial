@@ -1,0 +1,854 @@
+{
+	"openapi": "3.2.0",
+	"info": {
+		"title": "Geospatial",
+		"version": "0.1.0",
+		"summary": "The API of the Geospatial extension for Directus.",
+		"license": { "name": "MIT", "identifier": "MIT" }
+	},
+	"servers": [
+		{
+			"url": "{publicUrl}",
+			"description": "The Directus the extension runs in.",
+			"variables": {
+				"publicUrl": { "default": "http://localhost:8055", "description": "The PUBLIC_URL of that Directus." }
+			}
+		}
+	],
+	"paths": {
+		"/geospatial/capabilities": {
+			"get": {
+				"operationId": "capabilities",
+				"summary": "What the extension can do in this environment",
+				"description": "The versions of the API, the extension and Directus, and the capability matrix: the level of each operation in the database in use. Only admins see the database and its spatial extension. Anonymous requests are refused.",
+				"security": [{ "bearer": [] }],
+				"responses": {
+					"200": {
+						"description": "The capabilities.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["data"],
+									"properties": { "data": { "$ref": "#/components/schemas/Capabilities" } }
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The request has no authenticated user (code FORBIDDEN).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"503": {
+						"description": "The database did not answer, so the extension cannot tell what it can do (code GEOSPATIAL_DATABASE_UNAVAILABLE). The route answers again as soon as the database is back.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			}
+		},
+		"/geospatial/items/{collection}": {
+			"get": {
+				"operationId": "items",
+				"summary": "The items of a collection that a spatial operation selects",
+				"description": "The format of /items of Directus, with the parameter geo for the spatial operation. The items come out of the query Directus builds of what the user can read, with the filter and the search of the request, so a user only ever receives the items /items would give them. The values come as /items gives them, converted by Directus: the geometry in GeoJSON, a concealed field hidden, and the booleans, the JSON, the CSV and the dates in their format.",
+				"security": [{ "bearer": [] }, {}],
+				"parameters": [
+					{
+						"name": "collection",
+						"in": "path",
+						"required": true,
+						"description": "The collection, by its name in Directus.",
+						"schema": { "type": "string" },
+						"example": "occurrences"
+					},
+					{
+						"name": "geo",
+						"in": "query",
+						"required": true,
+						"description": "The spatial operation, as JSON, the way Directus takes the filter.",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/Geo" },
+								"example": {
+									"operation": "radius",
+									"field": "location",
+									"center": [-46.6333, -23.5505],
+									"distance": 1500
+								}
+							}
+						}
+					},
+					{
+						"name": "fields",
+						"in": "query",
+						"description": "The fields of each item, as in /items, separated by commas. Fields of a relation are refused for now. The geometry the operation reads is always read by its name, so a user who cannot read it gets the error of /items.",
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "filter",
+						"in": "query",
+						"description": "The filter of /items, as JSON.",
+						"content": { "application/json": { "schema": { "type": "object" } } }
+					},
+					{ "name": "search", "in": "query", "description": "The search of /items.", "schema": { "type": "string" } },
+					{
+						"name": "sort",
+						"in": "query",
+						"description": "The sort of /items, by fields separated by commas, with a minus for descending. It orders by the values the user can read, and an item whose field a policy holds back sorts as an empty one. Fields of a relation are refused for now. Without it, the items come in the natural order of the operation.",
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"description": "How many items, as in /items. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT. The items beyond the maximum come by the next pages.",
+						"schema": { "$ref": "#/components/schemas/Limit" }
+					},
+					{
+						"name": "offset",
+						"in": "query",
+						"description": "How many items to skip, in the order of the list.",
+						"schema": { "type": "integer", "minimum": 0 }
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"description": "The page, as in /items, starting at 1.",
+						"schema": { "type": "integer", "minimum": 1 }
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"description": "Where the page starts: right after the last item of the page before, by the cursor its meta.next brings. It belongs to the list it came from, with the same collection, geo and sort, and does not go with offset or page.",
+						"schema": { "$ref": "#/components/schemas/Cursor" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key. A request that prefers application/vnd.directus-geospatial+json in its Accept gets the same body as that type, which is how the SDK of the extension reads the meta: the request of the Directus SDK hands over only the data of an application/json response.",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Items" } },
+							"application/vnd.directus-geospatial+json": { "schema": { "$ref": "#/components/schemas/Items" } }
+						}
+					},
+					"400": {
+						"description": "The geo or the cursor is off the contract, the cursor is not one of this list, or the field the geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). A parameter of /items is off, such as the limit, the cursor goes with the offset or the page, or the operation does not take a parameter yet (code INVALID_QUERY of Directus).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"403": {
+						"description": "The user cannot read the collection, a field the request asks for or the geometry, or the collection is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read it (code COLLECTION_INACTIVE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"501": {
+						"description": "The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"503": {
+						"description": "The internals of the running Directus are not the ones the extension expects, so its operations are off (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			},
+			"additionalOperations": {
+				"SEARCH": {
+					"operationId": "searchItems",
+					"summary": "The same, with the query in the body",
+					"description": "The same as the GET, with the spatial operation and the query of /items in the body, as Directus takes its own SEARCH, for a query too long for a URL. The query in the body takes the place of the one in the URL.",
+					"security": [{ "bearer": [] }, {}],
+					"parameters": [
+						{
+							"name": "collection",
+							"in": "path",
+							"required": true,
+							"description": "The collection, by its name in Directus.",
+							"schema": { "type": "string" },
+							"example": "occurrences"
+						}
+					],
+					"requestBody": {
+						"required": true,
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/ItemsSearch" } } }
+					},
+					"responses": {
+						"200": {
+							"description": "The items, as the GET gives them, also as application/vnd.directus-geospatial+json when the request prefers it.",
+							"content": {
+								"application/json": { "schema": { "$ref": "#/components/schemas/Items" } },
+								"application/vnd.directus-geospatial+json": { "schema": { "$ref": "#/components/schemas/Items" } }
+							}
+						},
+						"400": {
+							"description": "The body is off the contract, its cursor is not one of this list, or the field the geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The query is off, such as the limit, the cursor goes with the offset or the page, or the operation does not take a parameter of it yet (code INVALID_QUERY of Directus).",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+						},
+						"403": {
+							"description": "The user cannot read the collection, a field the query asks for or the geometry, as in /items (code FORBIDDEN).",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+						},
+						"413": {
+							"description": "The body is larger than the extension takes, 256 KB (code GEOSPATIAL_LIMIT_EXCEEDED), with the limit in the extensions of the error.",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+						},
+						"501": {
+							"description": "The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE).",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+						},
+						"503": {
+							"description": "The internals of the running Directus are not the ones the extension expects (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).",
+							"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+						}
+					}
+				}
+			}
+		},
+		"/geospatial/queries": {
+			"post": {
+				"operationId": "registerQuery",
+				"summary": "Registers a query, and returns its id",
+				"description": "Registers the whole question once, and returns a short id, which the parts of the result are read by. The id is a keyed hash of the question in a canonical form, so the same question gets the same id, with its keys in any order, and only this installation of Directus tells the id of a question. Each part applies the permissions of whoever asks it, so handing the id to someone else gives them only what they can read. A $NOW in the filter is resolved here, to the minute of the registration. The registration is kept for 24 hours without use, and a Directus that restarts forgets it: the parts then answer with the code GEOSPATIAL_UNKNOWN_QUERY, and the client registers the question again, under the same id.",
+				"security": [{ "bearer": [] }, {}],
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisteredQuery" } } }
+				},
+				"responses": {
+					"200": {
+						"description": "The id of the query.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["data"],
+									"properties": {
+										"data": {
+											"type": "object",
+											"required": ["id"],
+											"additionalProperties": false,
+											"properties": { "id": { "$ref": "#/components/schemas/QueryId" } }
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The body is off the contract (code GEOSPATIAL_INVALID_INPUT), or its query of /items is off, as Directus reads it (code INVALID_QUERY of Directus).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"413": {
+						"description": "The body is larger than the extension takes, 256 KB (code GEOSPATIAL_LIMIT_EXCEEDED), with the limit in the extensions of the error.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"503": {
+						"description": "The internals of the running Directus are not the ones the extension expects, so its operations are off (code GEOSPATIAL_INTERNALS_UNSUPPORTED).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			}
+		},
+		"/geospatial/queries/{id}/items": {
+			"get": {
+				"operationId": "queryItems",
+				"summary": "The items of a registered query",
+				"description": "The items of the registered query, as /geospatial/items gives them for the same question, out of the query Directus builds of what the user who asks can read. The page goes in the URL, with the limit and the sort, and the rest of the query of /items is the one of the registration.",
+				"security": [{ "bearer": [] }, {}],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The id the registration returned.",
+						"schema": { "$ref": "#/components/schemas/QueryId" }
+					},
+					{
+						"name": "sort",
+						"in": "query",
+						"description": "The sort of /items, by fields separated by commas, with a minus for descending, as in /geospatial/items. Without it, the items come in the natural order of the operation.",
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"description": "How many items, as in /items. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT.",
+						"schema": { "$ref": "#/components/schemas/Limit" }
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"description": "Where the page starts: right after the last item of the page before, by the cursor its meta.next brings. It belongs to the list it came from, with the same collection, geo and sort.",
+						"schema": { "$ref": "#/components/schemas/Cursor" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The items, in the natural order of the operation, the distance for the radius, or in the sort of the request, and then by the primary key, also as application/vnd.directus-geospatial+json when the request prefers it, as in /geospatial/items.",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Items" } },
+							"application/vnd.directus-geospatial+json": { "schema": { "$ref": "#/components/schemas/Items" } }
+						}
+					},
+					"400": {
+						"description": "The id or the cursor is off the contract, the cursor is not one of this list, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The limit or the sort is off, the URL brings another parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"403": {
+						"description": "The user who asks cannot read the collection, a field the query asks for or the geometry, or the collection is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read it (code COLLECTION_INACTIVE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"404": {
+						"description": "This Directus does not know the id, because the registration expired or Directus restarted since (code GEOSPATIAL_UNKNOWN_QUERY). The client registers the question again, under the same id.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"501": {
+						"description": "The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"503": {
+						"description": "The internals of the running Directus are not the ones the extension expects (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			}
+		},
+		"/geospatial/queries/{id}/shapes": {
+			"get": {
+				"operationId": "queryShapes",
+				"summary": "The shapes of a registered query",
+				"description": "The shapes the operation of the registered query produces, in GeoJSON: for the radius, the circle, with the center and the distance in its properties. The shapes read no item, but the user who asks gets them only where they can read what the items of the same query read, and otherwise the error /items gives them. The page goes in the URL, with the limit, and the next one by the cursor.",
+				"security": [{ "bearer": [] }, {}],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The id the registration returned.",
+						"schema": { "$ref": "#/components/schemas/QueryId" }
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"description": "How many shapes. Without it, the default page of Directus, the QUERY_LIMIT_DEFAULT.",
+						"schema": { "$ref": "#/components/schemas/Limit" }
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"description": "Where the page starts: right after the last shape of the page before, by the cursor its meta.next brings. The radius gives a single shape, so its list never brings one.",
+						"schema": { "$ref": "#/components/schemas/Cursor" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The shapes, also as application/vnd.directus-geospatial+json when the request prefers it, as the items, so the SDK of the extension reads the meta.",
+						"content": {
+							"application/json": { "schema": { "$ref": "#/components/schemas/Shapes" } },
+							"application/vnd.directus-geospatial+json": { "schema": { "$ref": "#/components/schemas/Shapes" } }
+						}
+					},
+					"400": {
+						"description": "The id or the cursor is off the contract, the cursor is not one of this list, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The limit is off, the URL brings another parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"403": {
+						"description": "The user who asks cannot read the collection, a field the query asks for or the geometry, or the collection is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read it (code COLLECTION_INACTIVE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"404": {
+						"description": "This Directus does not know the id, because the registration expired or Directus restarted since (code GEOSPATIAL_UNKNOWN_QUERY). The client registers the question again, under the same id.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"501": {
+						"description": "The operation does not run on the database in use (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"503": {
+						"description": "The internals of the running Directus are not the ones the extension expects (code GEOSPATIAL_INTERNALS_UNSUPPORTED).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			}
+		},
+		"/geospatial/queries/{id}/summary": {
+			"get": {
+				"operationId": "querySummary",
+				"summary": "The summary of a registered query",
+				"description": "The total of the items of the registered query, in two times. A quick count reads at most 10,001 items, and up to 10,000 the total comes exact at once. Past that, the response says the total goes past 10,000, and the exact count runs in the background, with a time maximum, so a request after this one brings it. The total comes out of the query Directus builds of what the user who asks can read, and an exact total is kept only for whoever has the same permissions, so it never reaches someone whose permissions give another. Where the database in use cannot bound a statement in time, the summary keeps the quick count.",
+				"security": [{ "bearer": [] }, {}],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The id the registration returned.",
+						"schema": { "$ref": "#/components/schemas/QueryId" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The summary.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Summary" } } }
+					},
+					"400": {
+						"description": "The id is off the contract, or the field the registered geo names is not a geometry (code GEOSPATIAL_INVALID_INPUT). The URL brings a parameter of /items, which goes in the registration, or the operation does not take a parameter of the query yet (code INVALID_QUERY of Directus).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"403": {
+						"description": "The user who asks cannot read the collection, a field the query asks for or the geometry, or the collection is one of the system, as in /items (code FORBIDDEN). On Directus 12, an inactive collection, to a user who can read it (code COLLECTION_INACTIVE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"404": {
+						"description": "This Directus does not know the id, because the registration expired or Directus restarted since (code GEOSPATIAL_UNKNOWN_QUERY). The client registers the question again, under the same id.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"501": {
+						"description": "The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					},
+					"503": {
+						"description": "The internals of the running Directus are not the ones the extension expects (code GEOSPATIAL_INTERNALS_UNSUPPORTED), or the database did not answer (code GEOSPATIAL_DATABASE_UNAVAILABLE).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			}
+		},
+		"/geospatial/openapi.json": {
+			"get": {
+				"operationId": "openapi",
+				"summary": "This document, in JSON",
+				"description": "The contract of the API, as OpenAPI 3.2: the same document the types of the SDK and the validation of the input come from. Anonymous requests are refused, since it carries the version of the API.",
+				"security": [{ "bearer": [] }],
+				"responses": {
+					"200": {
+						"description": "The OpenAPI document.",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/OpenApiDocument" } } }
+					},
+					"403": {
+						"description": "The request has no authenticated user (code FORBIDDEN).",
+						"content": { "application/json": { "schema": { "$ref": "#/components/schemas/Errors" } } }
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"securitySchemes": {
+			"bearer": {
+				"type": "http",
+				"scheme": "bearer",
+				"description": "A Directus access token. The session cookie of the Studio also works."
+			}
+		},
+		"schemas": {
+			"Capabilities": {
+				"type": "object",
+				"required": ["api", "extension", "directus", "operations"],
+				"properties": {
+					"api": { "$ref": "#/components/schemas/Version" },
+					"extension": { "$ref": "#/components/schemas/Version" },
+					"directus": { "$ref": "#/components/schemas/Version" },
+					"database": { "$ref": "#/components/schemas/Database" },
+					"spatial": {
+						"description": "Only for admins. Null when the database has no spatial extension.",
+						"oneOf": [{ "$ref": "#/components/schemas/Spatial" }, { "type": "null" }]
+					},
+					"operations": {
+						"description": "The level of each operation, by its id. Empty until the first operation exists.",
+						"type": "object",
+						"additionalProperties": { "$ref": "#/components/schemas/OperationCapability" }
+					},
+					"internals": { "$ref": "#/components/schemas/Internals" }
+				}
+			},
+			"Internals": {
+				"description": "Only for admins. Whether the internals of the running Directus, which the operations build the permitted query with, are the ones an adapter of the extension expects, as the check found them when the extension started. When no adapter passes, the operations are off.",
+				"oneOf": [
+					{ "$ref": "#/components/schemas/InternalsAccepted" },
+					{ "$ref": "#/components/schemas/InternalsRefused" }
+				]
+			},
+			"InternalsAccepted": {
+				"type": "object",
+				"required": ["status", "adapter"],
+				"properties": {
+					"status": { "type": "string", "const": "accepted" },
+					"adapter": {
+						"description": "The adapter that the running Directus passed, named after the Directus version it was written for.",
+						"type": "string",
+						"enum": ["11.17", "12"]
+					}
+				}
+			},
+			"InternalsRefused": {
+				"type": "object",
+				"required": ["status", "problems"],
+				"properties": {
+					"status": { "type": "string", "const": "refused" },
+					"problems": {
+						"description": "What the running Directus lacks, or has besides, of what each adapter expects, by adapter.",
+						"type": "object",
+						"additionalProperties": { "type": "array", "items": { "type": "string" } }
+					}
+				}
+			},
+			"OpenApiDocument": {
+				"description": "An OpenAPI 3.2 document, as the OpenAPI Specification describes it.",
+				"type": "object",
+				"required": ["openapi", "info", "paths"],
+				"properties": {
+					"openapi": { "type": "string", "pattern": "^3\\.2\\.\\d+$" },
+					"info": {
+						"type": "object",
+						"required": ["title", "version"],
+						"properties": { "title": { "type": "string" }, "version": { "type": "string" } }
+					},
+					"paths": { "type": "object" }
+				}
+			},
+			"Version": { "type": "object", "required": ["version"], "properties": { "version": { "type": "string" } } },
+			"Database": {
+				"description": "Only for admins.",
+				"type": "object",
+				"required": ["client", "version"],
+				"properties": {
+					"client": {
+						"description": "The database client, with the names Directus uses, or unknown when the extension does not recognize it.",
+						"type": "string",
+						"enum": ["mysql", "postgres", "cockroachdb", "sqlite", "oracle", "mssql", "redshift", "unknown"]
+					},
+					"version": {
+						"description": "The version as major.minor, or null when the extension cannot read it for this client yet.",
+						"type": ["string", "null"]
+					}
+				}
+			},
+			"Spatial": {
+				"type": "object",
+				"required": ["name", "version"],
+				"properties": {
+					"name": { "type": "string", "enum": ["postgis", "spatialite"] },
+					"version": { "type": "string" }
+				}
+			},
+			"OperationCapability": {
+				"type": "object",
+				"required": ["level"],
+				"properties": {
+					"level": {
+						"description": "indexed and unindexed run in the database, with or without a spatial index; capped runs in the server of the extension, on a maximum volume; unavailable does not run.",
+						"type": "string",
+						"enum": ["indexed", "unindexed", "capped", "unavailable"]
+					},
+					"reason": {
+						"description": "Why the operation is unavailable, without naming the database.",
+						"type": "string"
+					}
+				}
+			},
+			"Geo": {
+				"description": "The spatial operation of a request, by its id, the canonical term of the glossary in camelCase.",
+				"oneOf": [{ "$ref": "#/components/schemas/Radius" }],
+				"discriminator": { "propertyName": "operation", "mapping": { "radius": "#/components/schemas/Radius" } }
+			},
+			"Radius": {
+				"description": "The items within a distance of a point, in meters over the ellipsoid. An item is inside when any part of it is at most at the distance, the edge included.",
+				"type": "object",
+				"required": ["operation", "center", "distance"],
+				"additionalProperties": false,
+				"examples": [{ "operation": "radius", "field": "location", "center": [-46.6333, -23.5505], "distance": 1500 }],
+				"properties": {
+					"operation": { "type": "string", "const": "radius" },
+					"field": {
+						"description": "The geometry field of the collection the operation reads. It may be left out when the collection has a single geometry field.",
+						"type": "string",
+						"minLength": 1
+					},
+					"center": { "$ref": "#/components/schemas/Position" },
+					"distance": { "description": "The distance, in meters.", "type": "number", "exclusiveMinimum": 0 }
+				}
+			},
+			"Position": {
+				"description": "A point as [longitude, latitude], in WGS 84, as GeoJSON writes it.",
+				"type": "array",
+				"prefixItems": [
+					{ "type": "number", "minimum": -180, "maximum": 180 },
+					{ "type": "number", "minimum": -90, "maximum": 90 }
+				],
+				"items": false,
+				"minItems": 2
+			},
+			"Item": {
+				"description": "An item of the collection, with the fields the request asks for, the geometries in GeoJSON and the other values as the database returns them, and the values the operation calculates in $geo.",
+				"type": "object",
+				"required": ["$geo"],
+				"properties": { "$geo": { "$ref": "#/components/schemas/GeoValues" } },
+				"additionalProperties": true
+			},
+			"GeoValues": {
+				"description": "The values the operation calculates for an item, in a reserved field, the way Directus keeps its own in $meta.",
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"distance": {
+						"description": "The distance from the center of the radius to the item, in meters over the ellipsoid: to its nearest part, and zero when the item covers the center.",
+						"type": "number",
+						"minimum": 0
+					}
+				}
+			},
+			"Items": {
+				"description": "The items an operation selects, and what the response tells about the list.",
+				"type": "object",
+				"required": ["data"],
+				"properties": {
+					"data": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } },
+					"meta": { "$ref": "#/components/schemas/ItemsMeta" }
+				}
+			},
+			"ItemsSearch": {
+				"description": "The body of the SEARCH: the spatial operation, and the query of /items, as Directus takes it in the body of its own SEARCH.",
+				"type": "object",
+				"required": ["geo"],
+				"additionalProperties": false,
+				"examples": [
+					{
+						"geo": { "operation": "radius", "field": "location", "center": [-46.6333, -23.5505], "distance": 1500 },
+						"query": { "fields": ["id", "category"], "limit": 2 }
+					}
+				],
+				"properties": {
+					"geo": { "$ref": "#/components/schemas/Geo" },
+					"query": {
+						"description": "The query of /items, with the fields, the filter, the search, the sort, the limit, the offset and the page, as Directus reads them in a body, with the fields as a list.",
+						"type": "object"
+					},
+					"cursor": {
+						"description": "Where the page starts, as the cursor of the GET, which the meta.next of the page before brings. In its place, the one of the URL.",
+						"$ref": "#/components/schemas/Cursor"
+					}
+				}
+			},
+			"RegisteredQuery": {
+				"description": "The whole question of a registered query: the collection, the spatial operation, and the filter, the search and the fields of /items. The page of each part, its limit and its sort, goes in the request of the part, so the map, the list and the summary share one id.",
+				"type": "object",
+				"required": ["collection", "geo"],
+				"additionalProperties": false,
+				"examples": [
+					{
+						"collection": "occurrences",
+						"geo": { "operation": "radius", "field": "location", "center": [-46.6333, -23.5505], "distance": 1500 },
+						"query": { "filter": { "status": { "_eq": "open" } }, "fields": ["id", "category"] }
+					}
+				],
+				"properties": {
+					"collection": { "description": "The collection, by its name in Directus.", "type": "string", "minLength": 1 },
+					"geo": { "$ref": "#/components/schemas/Geo" },
+					"query": {
+						"description": "The filter, the search and the fields of /items, as Directus reads them in a body. A $NOW of the filter becomes the minute of the registration, and the other variables, such as $CURRENT_USER, stand for whoever asks each part.",
+						"type": "object",
+						"additionalProperties": false,
+						"properties": {
+							"filter": { "type": "object" },
+							"search": { "type": "string" },
+							"fields": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+						}
+					}
+				}
+			},
+			"QueryId": {
+				"description": "The id of a registered query, a keyed hash of its question, in base64url.",
+				"type": "string",
+				"pattern": "^[A-Za-z0-9_-]{22}$"
+			},
+			"Cursor": {
+				"description": "Where a page of a list starts, opaque to the client: the order of the last item of the page before, sealed by the installation, in base64url. Nobody reads or changes what it holds, and it belongs to the list it came from.",
+				"type": "string",
+				"pattern": "^[A-Za-z0-9_-]+$"
+			},
+			"ItemsMeta": {
+				"description": "What the response tells about the list, the way /items of Directus does in its meta. It only carries what applies to the response.",
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"capped": { "$ref": "#/components/schemas/Capped" },
+					"next": {
+						"description": "The cursor of the next page, which is missing on the last one.",
+						"$ref": "#/components/schemas/Cursor"
+					}
+				}
+			},
+			"Capped": {
+				"description": "The list is partial. Where the database in use does not measure the distance, the server of the extension measures it and orders the list by it, over at most limit items of the circle, read in the order of the primary key, and the circle held more. The items past them are missing from the list. A smaller circle, a filter, or a sort of the request, which the database orders, brings the whole list.",
+				"type": "object",
+				"required": ["limit"],
+				"additionalProperties": false,
+				"properties": {
+					"limit": {
+						"description": "The most items the server of the extension orders.",
+						"type": "integer",
+						"minimum": 1
+					}
+				}
+			},
+			"Shapes": {
+				"description": "The shapes of a result, and what the response tells about the list.",
+				"type": "object",
+				"required": ["data"],
+				"properties": {
+					"data": { "$ref": "#/components/schemas/ShapeCollection" },
+					"meta": { "$ref": "#/components/schemas/ShapesMeta" }
+				}
+			},
+			"ShapeCollection": {
+				"description": "The shapes of the page, as a GeoJSON FeatureCollection (RFC 7946).",
+				"type": "object",
+				"required": ["type", "features"],
+				"additionalProperties": false,
+				"properties": {
+					"type": { "type": "string", "const": "FeatureCollection" },
+					"features": { "type": "array", "items": { "$ref": "#/components/schemas/Shape" } }
+				}
+			},
+			"Shape": {
+				"description": "A shape, as a GeoJSON Feature in WGS 84, with the values of the operation that belong to it in its properties.",
+				"type": "object",
+				"required": ["type", "geometry", "properties"],
+				"additionalProperties": false,
+				"properties": {
+					"type": { "type": "string", "const": "Feature" },
+					"geometry": {
+						"oneOf": [{ "$ref": "#/components/schemas/Polygon" }, { "$ref": "#/components/schemas/MultiPolygon" }],
+						"discriminator": {
+							"propertyName": "type",
+							"mapping": {
+								"Polygon": "#/components/schemas/Polygon",
+								"MultiPolygon": "#/components/schemas/MultiPolygon"
+							}
+						}
+					},
+					"properties": { "$ref": "#/components/schemas/ShapeValues" }
+				}
+			},
+			"ShapeValues": {
+				"description": "The values of the operation that belong to a shape. For the radius, the center and the distance of the circle, as the question gives them.",
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"center": { "$ref": "#/components/schemas/Position" },
+					"distance": { "description": "The distance, in meters.", "type": "number", "exclusiveMinimum": 0 }
+				}
+			},
+			"Polygon": {
+				"description": "A GeoJSON Polygon: the exterior ring counterclockwise, then each hole clockwise, every ring closed. A shape that crosses the antimeridian comes cut there, as a MultiPolygon (RFC 7946).",
+				"type": "object",
+				"required": ["type", "coordinates"],
+				"additionalProperties": false,
+				"properties": {
+					"type": { "type": "string", "const": "Polygon" },
+					"coordinates": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/LinearRing" } }
+				}
+			},
+			"MultiPolygon": {
+				"description": "A GeoJSON MultiPolygon, each polygon with its rings as in Polygon.",
+				"type": "object",
+				"required": ["type", "coordinates"],
+				"additionalProperties": false,
+				"properties": {
+					"type": { "type": "string", "const": "MultiPolygon" },
+					"coordinates": {
+						"type": "array",
+						"minItems": 1,
+						"items": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/LinearRing" } }
+					}
+				}
+			},
+			"LinearRing": {
+				"description": "A closed ring of positions, whose last one is the first.",
+				"type": "array",
+				"minItems": 4,
+				"items": { "$ref": "#/components/schemas/Position" }
+			},
+			"ShapesMeta": {
+				"description": "What the response tells about the list of shapes. It only carries what applies to the response.",
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"next": {
+						"description": "The cursor of the next page, which is missing on the last one.",
+						"$ref": "#/components/schemas/Cursor"
+					}
+				}
+			},
+			"Summary": {
+				"description": "The summary of the result of a registered query.",
+				"type": "object",
+				"required": ["data"],
+				"properties": { "data": { "$ref": "#/components/schemas/SummaryValues" } }
+			},
+			"SummaryValues": {
+				"description": "The total of the items of the result, in two times (§7.1): exact at once up to the most the quick count reads, and past that a floor, until the exact count running in the background brings the total.",
+				"type": "object",
+				"required": ["total", "exact", "counting"],
+				"additionalProperties": false,
+				"properties": {
+					"total": {
+						"description": "How many items the result holds, or, where exact is false, the most the quick count reads, 10,000, which the result goes past.",
+						"type": "integer",
+						"minimum": 0
+					},
+					"exact": {
+						"description": "Whether total is the number of items of the result, and not a floor.",
+						"type": "boolean"
+					},
+					"counting": {
+						"description": "Whether the exact count runs in the background, or waits for its turn, so a request after this one may bring it. It is false once the total is exact, after the exact count went past its time maximum, and where the database in use does not run it.",
+						"type": "boolean"
+					}
+				}
+			},
+			"Limit": {
+				"description": "How many items or shapes a page brings, up to the maximum of the contract.",
+				"type": "integer",
+				"minimum": 1,
+				"maximum": 1000
+			},
+			"ErrorCode": {
+				"description": "The codes of the errors of the extension, in the extensions.code of the error format of Directus. Each one starts with GEOSPATIAL_, so it never collides with a code of Directus.",
+				"type": "string",
+				"enum": [
+					"GEOSPATIAL_DATABASE_UNAVAILABLE",
+					"GEOSPATIAL_INTERNALS_UNSUPPORTED",
+					"GEOSPATIAL_OPERATION_UNAVAILABLE",
+					"GEOSPATIAL_INVALID_INPUT",
+					"GEOSPATIAL_LIMIT_EXCEEDED",
+					"GEOSPATIAL_UNKNOWN_QUERY"
+				]
+			},
+			"Errors": {
+				"description": "The error format of Directus.",
+				"type": "object",
+				"required": ["errors"],
+				"properties": {
+					"errors": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"required": ["message", "extensions"],
+							"properties": {
+								"message": { "type": "string" },
+								"extensions": {
+									"type": "object",
+									"required": ["code"],
+									"properties": {
+										"code": {
+											"description": "A code of the extension, or one of Directus, such as FORBIDDEN.",
+											"anyOf": [{ "$ref": "#/components/schemas/ErrorCode" }, { "type": "string" }]
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

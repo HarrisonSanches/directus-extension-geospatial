@@ -1,0 +1,15 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+---
+
+<StarlightPage frontmatter={{ title: 'API reference', template: 'splash' }}>
+	<div id="api-reference"></div>
+</StarlightPage>
+
+<script>
+	import { createApiReference } from '@scalar/api-reference';
+	import '@scalar/api-reference/style.css';
+	import { referenceConfiguration } from '../reference.ts';
+
+	createApiReference('#api-reference', referenceConfiguration);
+</script>

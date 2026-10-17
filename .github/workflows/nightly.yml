@@ -1,5 +1,6 @@
-# The checks of CI every night on develop, the default branch, with the newest PostGIS added to the integration suite
-# (D-037). It also runs by hand, from the Actions tab.
+# The checks of CI every night on develop, the default branch, with the floor of Directus 12 and the newest PostGIS added
+# to the integration suite (D-037), and the mutation testing of the golden rule (D-017). It also runs by hand, from the
+# Actions tab.
 name: Nightly
 
 on:
@@ -24,3 +25,30 @@ jobs:
       combinations: nightly
     secrets:
       DIRECTUS_LICENSE_KEY: ${{ secrets.DIRECTUS_LICENSE_KEY }}
+
+  mutation:
+    name: Mutation testing of the golden rule (StrykerJS)
+    runs-on: ubuntu-24.04
+    # Each mutant runs the unit tests of the extension, so the run takes over an hour (V-193).
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The version comes from packageManager in package.json.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Fails below 90% of the mutants killed (stryker.config.ts).
+      - run: pnpm mutation
+      # The report, also when the score falls below the threshold, when it matters the most.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          if-no-files-found: error
+          retention-days: 30

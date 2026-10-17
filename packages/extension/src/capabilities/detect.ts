@@ -1,4 +1,5 @@
-import type { Capabilities, Database, Spatial } from 'directus-geospatial-contract';
+import type { Capabilities, Database, Internals, Spatial } from 'directus-geospatial-contract';
+import { matrixOf } from './matrix.js';
 
 type DatabaseClient = Database['client'];
 
@@ -10,6 +11,8 @@ export interface EnvironmentReport {
 	directusVersion: string;
 	extensionVersion: string;
 	apiVersion: string;
+	// What the check of the internals found when the extension started.
+	internals: Internals;
 }
 
 // "18.6 (Debian 18.6-1.pgdg13+2)" and "18.6" both read as 18.6.
@@ -40,11 +43,16 @@ const spatialOf = ({ client, spatialVersion }: EnvironmentReport): Spatial | nul
 	return name === undefined || spatialVersion === null ? null : { name, version: spatialVersion };
 };
 
-export const detectCapabilities = (report: EnvironmentReport): Capabilities => ({
-	api: { version: report.apiVersion },
-	extension: { version: report.extensionVersion },
-	directus: { version: report.directusVersion },
-	database: { client: report.client, version: majorMinor(report.databaseVersion) },
-	spatial: spatialOf(report),
-	operations: {},
-});
+export const detectCapabilities = (report: EnvironmentReport): Capabilities => {
+	const spatial = spatialOf(report);
+
+	return {
+		api: { version: report.apiVersion },
+		extension: { version: report.extensionVersion },
+		directus: { version: report.directusVersion },
+		database: { client: report.client, version: majorMinor(report.databaseVersion) },
+		spatial,
+		operations: matrixOf({ client: report.client, spatial, internals: report.internals }),
+		internals: report.internals,
+	};
+};

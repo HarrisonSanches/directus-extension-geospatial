@@ -28,7 +28,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Só a API pública: permissões exatas e contrato estável, mas ficariam de fora tiles e agregações em zoom baixo, a ordenação de grandes resultados por distância, os focos em volume e os mais próximos exatos.
   - O fluxo do handoff com `_in`.
 - **Consequências:**
-  - Dependemos de API interna. Por isso: só um módulo toca nos internos, com um adaptador por versão; uma checagem na inicialização desliga as operações afetadas e avisa; testes de paridade com o `/items` rodam em v11 e v12; e um canário roda contra cada versão nova.
+  - Dependemos de API interna. Por isso: só um módulo toca nos internos, com um adaptador por versão; uma checagem na inicialização desliga as operações afetadas e avisa; testes de paridade com o `/items` rodam em v11 e v12; e um canary roda contra cada versão nova.
   - Perdas aceitas: os hooks `items.read` de outras extensões não rodam em tiles e agregações, e os valores saem crus do banco, sem o `PayloadService`.
 
 ## D-002 — PostGIS como referência, um adaptador por banco e a matriz de capacidades
@@ -118,10 +118,12 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-007 — Metros com filtro em dois estágios e suporte a qualquer SRID
 
 - **Estado:** aceita em 23/09/2026.
-- **Onde:** §7.6 · V-25, V-42.
+- **Onde:** §7.6 · V-25, V-42 · D-049 · D-050.
 - **Contexto:** em SRID 4326, `geometry` calcula em graus, e converter para `geography` impede o uso do índice. Além disso, o Directus não trata SRID.
 - **Decisão:**
   - Primeiro uma caixa no SRID da coluna, que usa o índice; depois o teste exato em `geography`.
+  - Os dois estágios leem a coluna, como mais condições da query permitida, e a guarda do nulo fica em volta (D-049).
+  - Em outro SRID, o tipo e o SRID vêm do catálogo, e a caixa só vai onde o PROJ a traz de volta (D-050).
   - Os mais próximos usam `<->` e a ordem exata em `geography`.
   - As medições são sempre em `geography`.
   - A entrada é convertida para o SRID da coluna, e a saída sai em 4326.
@@ -243,7 +245,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
     - o formato do `/items` (`GET` ou `SEARCH /geospatial/items/:coleção`, com o parâmetro `geo`);
     - a consulta registrada (`POST /geospatial/queries`, mais tiles, uma rota para cada parte do resultado e exportação; D-022).
   - **Convenções do Directus:** autenticação, formato de erro e valores calculados em `$geo`.
-  - **OpenAPI** em `/geospatial/openapi.json`, como fonte dos tipos e da validação. A entrada é validada antes de chegar ao banco.
+  - **OpenAPI** em `/geospatial/openapi.json`, como fonte dos tipos e da validação. A entrada é validada antes de chegar ao banco. Desde 03/10/2026, na F02-12, o documento é OpenAPI 3.2, por escolha do mantenedor, porque é a versão que descreve o `SEARCH`, pelo `additionalOperations` (V-181).
   - **SDK** `directus-geospatial-sdk`, com comandos usados em `client.request`.
 - **Alternativas descartadas:**
   - Só a consulta registrada: difícil para quem integra.
@@ -258,7 +260,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - Uma suíte de contrato para todos os bancos, com os dados carregados pela API do Directus.
   - Paridade com o `/items` para um papel restrito: IDs idênticos, ou um gabarito calculado com a GeographicLib.
   - Directus v11 e v12 e bancos reais em containers, sem mock.
-  - Camadas de CI: pull request, noite, release e canário.
+  - Camadas de CI: pull request, noite, release e canary.
   - Cobertura: pelo menos 90% no código novo; 90% de linhas e de ramificações no motor; relatórios somados entre os bancos.
   - Teste de mutação no módulo de permissões, com meta de 90%.
   - Testes de ponta a ponta com Playwright e axe-core.
@@ -586,7 +588,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 - **Contexto:** a D-018 prometia todo o 12 (`^12.0.0`), mas a matriz testava só a última minor, e os internos usados pela D-001 podem mudar entre minors. Ela também tirava o 11 quando o 13 chegasse. Só que o 11 e o 12 têm licenças diferentes (V-60, V-61), e muita gente fica no 11 por causa disso.
 - **Decisão:**
   - A faixa é a major atual a partir do piso testado, mais a última minor de cada major anterior que continua na política. Hoje, `^11.17.0 || ^12.4.0`; quando sair o 13, `^11.17.0 || ^12.<última minor> || ^13.<piso>`.
-  - O piso é a minor mais antiga que a matriz testa, e a matriz testa o piso e a mais nova, na última correção de cada minor. O piso só desce com teste, e o canário testa cada minor nova assim que ela sai.
+  - O piso é a minor mais antiga que a matriz testa, e a matriz testa o piso e a mais nova, na última correção de cada minor. O piso só desce com teste, e o canary testa cada minor nova três dias depois de ela sair, pela idade mínima da D-046, escolha do mantenedor na F02-20.
   - Uma major anterior fica enquanto a matriz inteira passar nela. Tirá-la exige uma decisão nova e o aviso de descontinuação publicado numa minor antes, e a última versão compatível continua instalável pelo npm e pela imagem Docker.
   - O que depender de algo novo de uma major mais recente aparece como indisponível nas anteriores, com o motivo. A matriz de capacidades passa a considerar também a versão do Directus.
   - Na CI, o pull request roda a versão mais antiga e a mais nova da faixa, e a noite roda a faixa inteira.
@@ -748,14 +750,14 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 
 - **Estado:** aceita em 27/09/2026.
 - **Onde:** `docs/padroes/seguranca-e-dependencias.md` · `.github/renovate.json5` · D-037 · D-041 · V-75 · V-139 · V-140.
-- **Contexto:** a F00 deixou a atualização automática como decisão da fase, e os padrões recomendavam o Renovate. As versões ficam no catálogo do pnpm, nas actions fixadas pelo commit, nas imagens da CI e do ambiente de desenvolvimento, e nas imagens do Directus e do PostGIS de `test/combinations.ts`, que alimentam o canário da F02.
+- **Contexto:** a F00 deixou a atualização automática como decisão da fase, e os padrões recomendavam o Renovate. As versões ficam no catálogo do pnpm, nas actions fixadas pelo commit, nas imagens da CI e do ambiente de desenvolvimento, e nas imagens do Directus e do PostGIS de `test/combinations.ts`, que alimentam o canary da F02.
 - **Decisão:**
   - O Renovate, pelo app hospedado da Mend, instalado só neste repositório, com a configuração em `.github/renovate.json5`, que a CI valida. Os pull requests vão para o `develop`, e nenhum entra sozinho: o merge é do mantenedor.
   - A mesma idade mínima do pnpm, 3 dias, conferida sempre que o registro informa a data da versão.
   - Os minor e patch num pull request por semana, na segunda-feira, e cada major à parte. As imagens do Directus chegam a qualquer hora, com o patch separado da minor, porque uma minor nova entra na matriz ao lado do piso (D-037).
   - A correção de um alerta do Dependabot chega na hora, sem os 3 dias, e o Renovate a registra no `minimumReleaseAgeExclude` do pnpm. O Dependabot só alerta: o Dependabot security updates fica desligado.
 - **Alternativas descartadas:**
-  - O Dependabot version updates: já vem no GitHub, mas não tem gerenciador por regex e não enxergaria as imagens do Directus no TypeScript, de que o canário depende.
+  - O Dependabot version updates: já vem no GitHub, mas não tem gerenciador por regex e não enxergaria as imagens do Directus no TypeScript, de que o canary depende.
   - A correção de segurança esperando os 3 dias, como o resto: enquanto a vulnerabilidade existe, o `pnpm audit` da CI reprova todo pull request, e a versão corrigida quase sempre já passou dos 3 dias quando o alerta sai. Chegar na hora é também o padrão do Renovate e do Dependabot.
   - O Renovate por uma action no próprio repositório, com um token ou um app nosso: mais um segredo para guardar e mais um workflow para manter, sem ganho num repositório público.
 - **Consequências:** o Scorecard passa a reconhecer a ferramenta de atualização. Uma versão fixada fora dos gerenciadores do Renovate precisa de uma regra por regex ou de um comentário `# renovate:`, senão ela fica parada sem aviso. Uma minor ou major nova do Directus não se aplica como veio: ela ganha combinações na matriz. A entrada que o Renovate acrescenta no `minimumReleaseAgeExclude` vale só para aquela versão e pode sair quando ela passar dos 3 dias.
@@ -763,7 +765,7 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
 ## D-047 — O navegador dos testes roda num container, na imagem oficial do Playwright
 
 - **Estado:** aceita em 28/09/2026.
-- **Onde:** `docs/padroes/testes.md` (o ponta a ponta) · `spikes/browser.ts` · V-158.
+- **Onde:** `docs/padroes/testes.md` (o ponta a ponta) · `spikes/browser.ts` na tag `f01-done`, até a F04 trazê-lo para `test/` · V-158.
 - **Contexto:** a F01-14 confere no Studio, por um navegador automatizado, o que a página baixa. A F04 vai precisar do mesmo para o ponta a ponta. O Chromium do Playwright, instalado na máquina, pede dependências do sistema, e o Playwright só as suporta no Debian e no Ubuntu.
 - **Decisão:**
   - O navegador roda na imagem oficial do Playwright, `mcr.microsoft.com/playwright`, fixada pelo digest da tag da mesma versão do `playwright-core` do catálogo, e sobe pelo Testcontainers, como os bancos da suíte.
@@ -773,3 +775,288 @@ Estas decisões são as mais caras de desfazer: mudar qualquer uma delas quebra 
   - O Chromium instalado na máquina: pede as dependências do sistema, que a máquina de cada um teria de ter, e fica de fora onde o Playwright não dá suporte.
   - O Playwright inteiro dentro do container, com os testes lá: os testes deixariam de rodar no Vitest do host, ao lado da suíte.
 - **Consequências:** a primeira rodada baixa uns 2 GB. A versão do `playwright-core` e a da imagem andam juntas: o Renovate não atualiza o `playwright-core`, e os dois sobem à mão, no mesmo pull request, porque a imagem, fora do Docker Hub, não tem data, e chegaria antes do pacote, que espera os 3 dias (V-139). Sem placa de vídeo, o Chromium desenha o WebGL no processador, pelo SwiftShader.
+
+## D-048 — O `geo` do formato do `/items` em JSON, com a operação na `operation`
+
+- **Estado:** aceita em 01/10/2026. Detalha a D-016.
+- **Onde:** §7.8 (API e SDK) · `docs/padroes/api-e-contrato.md` · D-024 · V-171.
+- **Contexto:** a D-016 põe as operações no formato do `/items` com um parâmetro `geo`, sem dizer a forma dele, e a F02-04 abriu a primeira rota, a do raio. O Directus só sanitiza os parâmetros que conhece, então o `geo` chega cru no `req.query`, lido pelo `qs`. O SDK do Directus manda um parâmetro que não conhece pelo `JSON.stringify` (V-171).
+- **Decisão:**
+  - O `geo` é um objeto JSON na URL, como o `filter` do Directus: `geo={"operation":"radius","center":[-46.7,-23.65],"distance":1000}`.
+  - A `operation` leva o id da operação (D-024), e as outras chaves são as entradas dela. O contrato descreve o `geo` num `oneOf`, com o `discriminator` pela `operation`, e cada operação nova entra como mais um ramo.
+  - O mesmo objeto vai no corpo do `SEARCH` e da consulta registrada.
+  - O `field` diz o campo de geometria que a operação lê. Sem ele, vale o único campo de geometria da coleção, e com dois ou mais o pedido é recusado, até a configuração da coleção trazer o campo padrão (F06).
+- **Alternativas descartadas:**
+  - A operação como chave, no estilo dos operadores do `filter` (`{"radius":{...}}`): o contrato viraria um `oneOf` de objetos de uma chave só, sem o `discriminator`, e o cliente teria de descobrir a operação pela chave que veio.
+  - Parâmetros soltos na URL (`operation=radius&center=-46.7,-23.65&distance=1000`), como na prova da F01: dividem o espaço de nomes com os parâmetros do `/items`, e uma entrada aninhada, como o polígono do "Por área", não cabe.
+  - Os colchetes do `qs` (`geo[center][0]=-46.7`): os números chegariam como texto, a profundidade e o tamanho das listas esbarram nos limites do Directus (`QUERYSTRING_MAX_PARSE_DEPTH` e `QUERYSTRING_ARRAY_LIMIT`), e o SDK do Directus não manda assim.
+- **Consequências:** o `geo` passa pelo mesmo `JSON.parse` e pela mesma validação do contrato no `GET`, no `SEARCH` e na consulta registrada. Na URL, o JSON vai codificado, como o `filter`. Depois da primeira publicação, mudar o formato quebra cliente, então ele só muda numa versão major (`docs/padroes/api-e-contrato.md`).
+
+## D-049 — O raio mede na coluna, dentro da query permitida, e a guarda do nulo fica em volta
+
+- **Estado:** aceita em 02/10/2026. Detalha a D-001 e a D-007.
+- **Onde:** §5 · §7.6 · `docs/padroes/banco-e-sql.md` · V-142 · V-143 · V-177.
+- **Contexto:** a query permitida expõe cada coluna num `CASE WHEN` com a regra da política, e a geometria como texto (V-142). O envelope da F02-04 media sobre esse texto, em volta da query, e nenhum índice enxerga um texto calculado: com 1 milhão de pontos, o raio da Maria levava perto de 1 s no banco, com ou sem o GiST (V-177). Uma condição em volta não chega à coluna, nem por um join pela chave primária, porque o Directus ordena toda query permitida e o Postgres não achata uma subconsulta ordenada (V-177).
+- **Decisão:**
+  - Os dois estágios do filtro, a caixa `&&` e o `ST_DWithin` em `geography`, leem a coluna e entram como mais condições do `WHERE` da query permitida. Os `CASE WHEN` e o `WHERE` das políticas ficam como o Directus os escreveu.
+  - Em volta, a guarda: só sai o item cujo valor exposto pela query permitida não é nulo. Onde uma política esconde a geometria, o `CASE WHEN` a deixa nula, e o item fica fora, mesmo com a posição dentro do círculo.
+  - A caixa sai do raio e da latitude e sempre contém o círculo: duas caixas onde ele cruza o antimeridiano, uma faixa de todas as longitudes onde ele chega a um polo ou é largo demais para as longitudes, e nenhuma onde ele cobre o mundo.
+  - O mesmo desenho vale nos outros bancos: o teste exato na coluna e a guarda do nulo em volta (F02-11 no SQLite, F15 nos outros).
+- **Alternativas descartadas:**
+  - A caixa na coluna e o teste exato sobre o texto exposto (A-023): devolve os mesmos itens, mas converte o texto de cada candidato, e fica de 20% a 30% mais lenta (V-177). O texto também perde o SRID, que a F02-09 precisa, e no SQLite tem só 6 casas (A-026).
+  - A caixa em volta, por um join pela chave primária: o `ORDER BY` da query permitida a mantém fechada, e ela segue lida inteira.
+  - Tirar o `ORDER BY` de dentro da query permitida: com a caixa dentro, ele só ordena os candidatos, e a medição não mostrou ganho.
+- **Consequências:** com 1 milhão de pontos e o GiST, o raio da Maria cai de quase 1 s para algumas dezenas de ms no banco (V-177), e a matriz o declara "no banco com índice". A regra de ouro passa a depender também da guarda do nulo, que o teste do vazamento da F02-05 confere. Uma condição a mais dentro da query permitida só pode descartar linhas, nunca acrescentar, e a extensão segue sem escrever regra de permissão. O teste do `EXPLAIN` reprova o plano que varre a tabela. O JIT ainda custa uns 20 ms por pedido, e desligá-lo fica para a F03 (A-037).
+
+## D-050 — Em qualquer SRID, o tipo e o SRID vêm do catálogo, e a caixa só vai onde o PROJ a traz de volta
+
+- **Estado:** aceita em 02/10/2026. Detalha a D-007.
+- **Onde:** §7.6 · `docs/padroes/banco-e-sql.md` · V-25 · V-178.
+- **Contexto:** o Directus só cria `geometry` em 4326 (V-25), e o esquema dele lê uma `geography` e uma `geometry` como o mesmo `geometry.Point`, sem o SRID (V-178). Uma projeção curva os lados de uma caixa em graus, e o PROJ converte sem erro pontos muito longe do centro de uma projeção. Numa projeção aproximada, a borda de uma caixa de 1.000 km volta a 3,1 km de onde estava a 25° do meridiano central, e a 1.060 km a 45° (V-178).
+- **Decisão:**
+  - O tipo e o SRID da coluna vêm do catálogo do banco, a cada pedido, depois da cadeia, e nunca do pedido. Uma `geometry` sem SRID declarado fica com o 4326, em que o Directus grava.
+  - Numa coluna em outro SRID, a caixa em graus vai para o SRID dela com cada lado cortado em trechos curtos, e a coluna fica como está, no estágio que o índice responde. A distância lê a coluna em 4326 só nos candidatos, e a geometria sai em 4326, convertida do texto que a query permitida expõe.
+  - A caixa convertida só vai onde a borda volta para 4326 a menos de 1 mm de onde estava. Onde o PROJ não a converte, ou não a traz de volta, o raio vai sem a caixa, mais lento e igualmente exato.
+  - Numa coluna `geography`, o próprio `ST_DWithin` traz a caixa do índice, e a extensão não põe outra.
+- **Alternativas descartadas:**
+  - Converter só o centro para o SRID da coluna e medir em metros da projeção: a escala muda fora da zona, e o círculo deixaria itens de fora sem erro.
+  - A caixa pelos quatro cantos: no círculo de 2.000 km em volta de São Paulo, ela deixou de fora pontos a 1 m dentro da borda (V-178).
+  - Confiar em toda conversão que o PROJ faz sem erro: numa projeção aproximada, a caixa sairia a quilômetros do círculo.
+  - Guardar o tipo e o SRID por esquema do Directus: um `ALTER` feito por SQL deixaria o SRID guardado velho, e a caixa errada, sem erro. O custo da leitura fica para a F03 medir (A-047).
+  - Numa `geography`, uma caixa em graus convertida para ela: as arestas seriam geodésicas e não conteriam o círculo.
+- **Consequências:** a extensão mede em metros onde o mapa nativo falha, como na SIRGAS 2000 / UTM 23S, cujo `/items` devolve os metros da projeção como se fossem graus (V-178). Cada pedido faz uma leitura a mais no banco, e duas numa coluna projetada. Um círculo que a projeção não cobre varre a tabela, com o resultado certo. Os testes da caixa conferem no SQL que chegou ao banco que ela estava lá, porque o resultado certo também sai sem ela.
+
+## D-051 — A página do raio: até 1.000 itens, sem o `-1`, e a ordem pelo valor exposto
+
+- **Estado:** aceita em 02/10/2026. Detalha a D-016 e a D-049.
+- **Onde:** §7.8 · `docs/padroes/api-e-contrato.md` · `docs/padroes/banco-e-sql.md` · V-176 · V-179.
+- **Contexto:** o raio responde no formato do `/items`, que traz todos os itens com o `limit=-1` e, sem o `limit`, a página padrão do Directus (V-176). O padrão da API diz que todo `limit` tem máximo. Com o `sort`, o Directus ordena pela coluna crua, também onde uma política esconde o campo de ordem (V-179).
+- **Decisão:**
+  - O `limit` vai de 1 a 1.000, o schema `Limit` do contrato, e fora disso o pedido volta com o `INVALID_QUERY` e o motivo, antes do banco. Sem o `limit`, vale o `QUERY_LIMIT_DEFAULT` do Directus em execução, sem passar do máximo. O círculo inteiro vem por páginas, e depois pelo cursor (F02-14).
+  - Sem o `sort`, a lista segue a ordem natural, a distância até o centro; com ele, a ordem da página. Nos dois casos, ela termina pela chave primária.
+  - A ordem lê os valores que a query permitida expõe, e não a coluna crua: o item cujo campo de ordem uma política esconde ordena como vazio. O `sort` vai à cadeia, e o Directus recusa o campo que o usuário não pode ler, como no `/items`.
+  - A distância vai no `$geo` de cada item, calculada do texto que a query permitida expõe.
+- **Alternativas descartadas:**
+  - O `-1` trazendo todos, como no `/items`: num círculo de 1 milhão de pontos, uma resposta só teria centenas de MB (D-006).
+  - O `-1` cortado no máximo, como faz o `QUERY_LIMIT_MAX` do Directus: quem pede todos recebe 1.000 e acha que veio tudo.
+  - A ordem pela coluna crua, como no `/items`: a posição do item na lista revela o valor que a política esconde, e as colunas cruas teriam de entrar no `select` da query permitida.
+- **Consequências:** o raio difere do `/items` em dois pontos, os dois a favor de quem usa e do banco: o `-1` e o `limit` acima de 1.000 voltam com erro, e o item com o campo de ordem escondido não revela o valor pela posição. A configuração dos limites pelo admin fica para a F02-12.
+
+## D-052 — O raio no SQLite: o círculo no banco, a distância e a ordem no servidor, com limite, e só pontos
+
+- **Estado:** aceita em 03/10/2026. Detalha a D-002 e a D-049.
+- **Onde:** §7.4 · §7.8 · `docs/padroes/api-e-contrato.md` · V-147 · V-180 · A-026.
+- **Contexto:** o Directus não cria os metadados espaciais no SQLite, e sem eles nenhuma função da SpatiaLite mede em metros. O `PtDistWithin`, que dispensa os metadados, diz no elipsoide se dois pontos estão a uma distância, ao milímetro. Mas, entre um ponto e uma linha ou um polígono, ele mede em graus, e todo raio em metros os pega (V-180).
+- **Decisão:**
+  - O raio no SQLite fica "com limite" (`capped`) na matriz. O `PtDistWithin` na coluna, dentro da query permitida, decide quem está no círculo, com a guarda do nulo em volta, como no PostGIS (D-049).
+  - Com o `sort` da página, o banco ordena e pagina, e o servidor só mede os itens da página.
+  - Na ordem natural, a distância:
+    - o banco entrega os itens do círculo pela chave primária, até 50.001;
+    - o servidor mede cada um com a GeographicLib (D-012), ordena pela distância e pela chave e corta a página;
+    - acima de 50.000, o volume de exemplo do §7.4, a resposta leva no `meta` o `capped: { limit: 50000 }`, e a lista vale só para os 50.000 primeiros pela chave. O contrato descreve o aviso.
+  - Os 50.000 ficam fixos até a F02-12 tornar os limites configuráveis.
+  - Só pontos. O campo cuja coluna não é declarada `Point` recebe o `GEOSPATIAL_OPERATION_UNAVAILABLE`, com o motivo, depois da cadeia, que recusa antes quem não lê. O tipo vem da coluna, porque o esquema que o Directus entrega à extensão diz só `geometry` no SQLite.
+  - A distância do `$geo` sai do texto que a query permitida expõe (D-051), com 6 casas no SQLite. Um item a menos de uns 7,5 cm da borda pode mostrar uma distância um pouco acima do raio.
+- **Alternativas descartadas:**
+  - **"No banco sem índice":** esconderia que a ordem natural sai do servidor, com limite, e a página 1 prometeria os mais próximos sem ter medido todos.
+  - **O servidor medir linhas e polígonos:** a distância geodésica até um trecho e o ponto dentro do polígono no elipsoide pedem um algoritmo próprio, só para um banco de desenvolvimento e de testes (§7.4).
+  - **A extensão inicializar os metadados espaciais:** mudaria o banco do Directus sem o admin pedir. A oferta ao admin, pelo painel de saúde, fica anotada no plano.
+  - **Recusar a ordem natural acima do limite, com um erro:** o resultado honesto avisa que é parcial e entrega o que mediu (§2).
+- **Consequências:**
+  - O SQLite passa a ter o raio, com a paridade inteira com o `/items`.
+  - A resposta da lista de itens ganha o `meta`, que o SDK do Directus deixa de fora e o SDK da extensão vai expor (F02-18).
+  - A ordem natural de um círculo grande lê até 50.001 linhas por pedido no servidor, que as mede em fatias de 1.000, cedendo a vez ao laço de eventos entre elas, porque o limitador de pressão do Directus responde 503 a todo pedido quando o laço atrasa mais de 500 ms (V-181, na F02-12).
+  - Numa linha, num polígono ou num `geometry` genérico, o raio no SQLite fica indisponível, com o motivo.
+
+## D-053 — A consulta registrada: o id por um hash com chave, a página na URL de cada parte e 24 h sem uso
+
+- **Estado:** aceita em 03/10/2026. Detalha a D-004 e a D-038.
+- **Onde:** §4.1 · §7.8 · §7.10 · `docs/padroes/api-e-contrato.md` · V-55 · V-182.
+- **Contexto:** a D-004 diz que o id de uma consulta registrada é o hash do conteúdo dela. Com um hash que qualquer um calcula, quem adivinha uma pergunta exata, como uma placa no filtro, o centro que o geocoder dá a um endereço e 500 m, calcula o id fora do servidor e pede os itens por ele: se a resposta não for "consulta desconhecida", alguém fez aquela pergunta nas últimas horas. A D-038 pede um prazo para o que a extensão guarda, e o desenho não dizia qual era o do registro, nem onde ficam a ordem e o tamanho da página.
+- **Decisão:**
+  - O id é o HMAC-SHA-256 da pergunta na forma canônica do JSON (RFC 8785), cortado em 128 bits, em base64url, com 22 caracteres. A chave sai do `SECRET` do Directus pelo HKDF (RFC 5869), então todas as instâncias e o mesmo Directus depois de reiniciar dão o mesmo id à mesma pergunta, e só a instalação sabe o id de uma pergunta. Sem o `SECRET`, a chave é sorteada no processo, como o Directus faz com o dele (V-182).
+  - A pergunta é a coleção, o `geo` e o filtro, a busca e os campos do `/items`. O `limit` e o `sort` vão na URL de cada parte, para o mapa, a lista e o resumo usarem o mesmo id também quando a lista muda de ordem.
+  - O `$NOW` do filtro vira o minuto do registro, e as outras variáveis, como o `$CURRENT_USER`, ficam para quem pede cada parte (D-031).
+  - O registro confere o contrato e a query pelo `sanitizeQuery` e pelo `validateQuery` do Directus, e não lê o esquema nem as permissões: registrar não diz se uma coleção existe, e cada parte aplica as permissões de quem pede (D-004).
+  - Na memória, cada entrada fica 24 h desde o último uso, e acima de 32 MB de perguntas em JSON sai primeiro a usada há mais tempo (LRU). Os dois limites ficam em `limits.ts`, até a F06 os tornar configuráveis.
+- **Alternativas descartadas:**
+  - **O hash puro (SHA-256):** o cliente calcularia o id sem registrar, mas o id diria a quem adivinha a pergunta se alguém a fez.
+  - **O `sort` e o `limit` no registro:** a lista em outra ordem pediria outro id, e o mapa e o resumo a acompanhariam sem precisar.
+  - **Conferir a permissão no registro:** a permissão de quem registra não vale para quem pede depois, e a conferência diria se a coleção existe.
+  - **1 h sem uso:** um mapa parado registraria de novo a cada hora, e um `$NOW` relativo andaria junto. **24 h desde o registro, fixo:** até um mapa em uso registraria de novo uma vez por dia.
+- **Consequências:**
+  - O cliente sempre registra para saber o id, e um id esquecido só o faz registrar de novo, com o mesmo id.
+  - Trocar o `SECRET` troca todos os ids, e as interfaces registram de novo.
+
+## D-054 — O cursor das listas de itens: a chave da ordem, cifrado e preso à lista
+
+- **Estado:** aceita em 03/10/2026. Detalha a D-022 e o §7.1.
+- **Onde:** §7.1 · §7.8 · `docs/padroes/api-e-contrato.md` · V-185.
+- **Contexto:** o §7.1 e a D-022 pedem a paginação por cursor, sem dizer o que ele guarda nem como protegê-lo. O cursor leva o valor da ordem do último item, e com `sort=placa` isso é a placa, numa URL que fica no log de acesso do Directus e de um proxy. E o driver `pg` entrega um `timestamp` como uma data do JavaScript, que perde os microssegundos que o Postgres guarda (V-185).
+- **Decisão:**
+  - A página começa logo depois do último item da anterior, pela chave da ordem, a distância ou os campos do `sort`, e pela chave primária (_keyset_). O banco lê um item a mais, e o `meta.next` traz o cursor da página seguinte, que falta na última.
+  - O cursor guarda os valores da ordem como o banco os escreve: no Postgres, o texto, `::text`, que volta ao tipo da coluna sem perda; no SQLite, o valor cru do driver. Um valor vazio fica onde cada banco o põe, no fim no Postgres e no começo no SQLite.
+  - O cursor é cifrado, por escolha do mantenedor: AES-256-GCM, com a chave derivada do `SECRET` pelo HKDF e a lista (a coleção, o `geo` e o `sort`) como dado associado. Um cursor mudado, de outra lista ou de outra instalação volta com o `GEOSPATIAL_INVALID_INPUT`, antes do banco.
+  - Vale no estilo do `/items`, na URL do `GET` e no corpo do `SEARCH`, e nas partes da consulta registrada, na URL. Com o `offset` ou o `page`, volta com o `INVALID_QUERY`.
+  - Na ordem natural do SQLite, o servidor aplica o cursor à lista que ele mesmo ordenou, dentro do limite de 50.000 itens (D-052).
+- **Alternativas descartadas:**
+  - **Assinado (HMAC), e legível:** ninguém o mudaria, mas quem decodifica o base64 lê o valor do campo, que fica no log.
+  - **Os valores como o JavaScript os lê:** o `timestamp` perderia os microssegundos, e o último item de uma página voltaria na seguinte.
+  - **Só a chave primária, com o banco relendo o último item:** um item apagado ou mudado entre as páginas mudaria o ponto de partida da leitura.
+- **Consequências:**
+  - Toda lista com mais itens traz o `meta.next`, que o SDK da extensão percorre como iterador (F02-19). O SDK do Directus deixa o `meta` de fora.
+  - Trocar o `SECRET` invalida os cursores em uso, e a interface recomeça da primeira página.
+  - Na ordem natural do PostGIS, o filtro do cursor compara a distância e a chave como uma linha, `(distância, id) > (?, ?)`, e mede a distância uma vez a mais.
+
+## D-055 — O círculo do raio: geodésico, no servidor, com 128 lados e cortado no antimeridiano
+
+- **Estado:** aceita em 04/10/2026. Detalha a D-022 e a D-023, e troca a referência do §6 (op. 1) para o desenho.
+- **Onde:** §6 (op. 1) · `docs/padroes/api-e-contrato.md` · V-46 · V-186.
+- **Contexto:** a F02-15 pedia o círculo montado no banco, pelo `ST_Buffer` em `geography`, a referência do §6 para o desenho. O `ST_Buffer` em `geography` desenha num plano que escolhe pela caixa do ponto (V-46). Na prova, ele errou os vértices em 0,005% num raio de 10 km, em 0,62% num de 1.000 km e em 9,8% num de 5.000 km. No antimeridiano, o anel foi de −179,9° a 179,9°, e perto do polo, deixou o polo de fora (V-186). O contrato aceita qualquer distância, e o SQLite não tem `geography` (D-052).
+- **Decisão:**
+  - O servidor monta o círculo pela GeographicLib, por escolha do mantenedor: um vértice a cada 2,8125° de azimute, à distância pedida sobre o elipsoide, igual em todo banco. O banco só monta a query permitida, sem rodá-la, para que quem não lê o que os itens leem receba o erro do `/items`.
+  - O círculo tem 128 lados, por escolha do mantenedor: cada lado fica a até 0,03% da distância, para dentro do círculo. É o mesmo polígono que a D-023 usa no "inteiramente dentro".
+  - O GeoJSON segue a RFC 7946:
+    - o anel de fora vai no anti-horário, e o furo, no horário;
+    - o círculo que cruza o antimeridiano sai cortado nele, num `MultiPolygon`;
+    - com um polo dentro, o anel vai pelo antimeridiano até o polo;
+    - com os dois polos dentro, sai o mundo com o furo do outro lado;
+    - a partir da distância até o antípoda, sai o mundo inteiro.
+- **Alternativas descartadas:**
+  - **O `ST_Buffer` em `geography`, como a issue pedia:** erra nos círculos grandes, no antimeridiano e nos polos, e não existe no SQLite.
+  - **Os vértices no banco, pelo `ST_Project`:** eles batem com a GeographicLib, mas o corte e os polos ficariam no servidor de qualquer jeito, e o SQLite também. Seriam duas implementações do mesmo círculo.
+  - **32 lados, como o `ST_Buffer`:** a borda fica a até 0,48% da distância, 48 m num raio de 10 km. Com zoom perto da borda, um item de dentro do raio apareceria fora do círculo.
+- **Consequências:**
+  - O círculo não depende do banco nem chega a ele, então sai igual nos bancos da F15.
+  - A forma salva (F07) e a comparação do "inteiramente dentro" (F05) podem usar o mesmo polígono.
+  - O entorno da F07 tem o mesmo problema do `ST_Buffer` em formas grandes e no antimeridiano (A-059, no plano).
+
+## D-056 — O resumo do raio: a contagem em dois tempos, o total guardado por quem pede e o SQLite sem a exata
+
+- **Estado:** aceita em 04/10/2026. Detalha a D-022, a D-006 e o §7.1.
+- **Onde:** §7.1 · §7.8 · `docs/padroes/api-e-contrato.md` · `docs/padroes/banco-e-sql.md` · V-187.
+- **Contexto:** o §7.1 pede a contagem em dois tempos, sem dizer o formato da resposta, quanto a contagem exata pode durar, quantas rodam juntas nem quanto tempo o total vale. Até a F03, ela usa o pool do Directus. São 10 conexões no Postgres e uma só no SQLite, onde o Knex não cancela uma consulta (V-187).
+- **Decisão:**
+  - **A resposta é `{ total, exact, counting }`,** por escolha do mantenedor:
+    - o `total` é um número, como o `{{ $last.summary.total }}` dos Flows;
+    - com o `exact` falso, o `total` é o piso, 10.000;
+    - o `counting` diz se a contagem exata ainda roda ou espera a vez, para a interface pedir de novo.
+  - **A contagem rápida** lê até 10.001 itens, no próprio pedido.
+  - **A contagem exata** roda em segundo plano, acima de 10.000. Por escolha do mantenedor:
+    - ela dura até 30 s;
+    - rodam no máximo 2 ao mesmo tempo;
+    - o total vale por 5 min. A contagem que estoura o tempo também fica guardada por 5 min, e o resumo segue com o 10.000+.
+  - **No Postgres,** a exata roda numa transação com o `set_config('statement_timeout', …, true)`, o `SET LOCAL` que aceita parâmetro, e o banco a cancela além do tempo (V-187). O servidor marca a desistência no mesmo prazo, pelo próprio relógio.
+  - **A chave do total guardado** é o SQL da contagem com os valores, onde vão as regras das políticas de quem pede (D-006). Quem tem as mesmas permissões divide o total, e quem tem outras nunca o recebe.
+  - **No SQLite, só a contagem rápida,** por escolha do mantenedor. Acima de 10.000, fica o 10.000+, com o `counting` falso.
+  - **A contagem tira a ordem da query permitida,** que não muda as linhas.
+- **Alternativas descartadas:**
+  - **O formato do Elasticsearch,** `total: { value, relation }`: os Flows leriam `total.value`.
+  - **No SQLite, a contagem até 50.000 no pedido:** o piso mudaria com o banco.
+  - **No SQLite, a contagem em segundo plano:** a única conexão do Directus ficaria presa até o tempo máximo.
+  - **O total valendo 1 min:** uma contagem pesada rodaria de novo a cada minuto, para cada conjunto de permissões.
+  - **Uma variável de ambiente para o tempo máximo,** para o teste ver o cancelamento: criaria uma configuração pública antes da F06 e um Directus a mais na suíte. Em vez disso, o teste confere o SQL que chegou ao banco.
+- **Consequências:**
+  - Um total exato pode ficar até 5 min atrás das gravações, enquanto a contagem rápida segue ao vivo. A versão da coleção, que muda a cada gravação (D-006), entra com o cache da F03.
+  - Até o pool próprio da F03, as contagens exatas ocupam até 2 das 10 conexões do Directus.
+  - O total guardado fica na memória de cada instância, como o registro (§7.8).
+
+## D-057 — O registro no Redis do Directus, com a queda para a memória da instância
+
+- **Estado:** aceita em 04/10/2026. Detalha a D-053, a D-038 e o §7.8.
+- **Onde:** §7.8 · §7.10 · `docs/padroes/testes.md` · V-188.
+- **Contexto:** o §7.8 diz que o registro das consultas vai para o Redis quando o Directus usa um, sem dizer como a extensão chega a ele, o que acontece quando ele cai, nem se o teto de 32 MB da D-053 vale lá. Com o Redis fora, o cliente do Directus segura cada comando numa fila e só desiste de 10,5 s a minutos depois (V-188). Qualquer um registra uma consulta, até sem sessão (D-053), e o Redis é o mesmo das travas, do bus e do cache das permissões do Directus.
+- **Decisão:**
+  - **O Redis é o do Directus,** por escolha do mantenedor: o registro usa o cliente que o `useRedis()` divide, pelo módulo `redis/index` do `@directus/api`, e segue o `redisConfigAvailable()`, sem configuração própria. A partida confere o módulo, as duas funções sem parâmetros e a forma do cliente. Se a conferência recusar, o registro fica na memória, com um aviso no log, e o resto da extensão segue.
+  - **Com o Redis fora, o registro cai para a memória da instância,** por escolha do mantenedor:
+    - com a conexão fora do `ready`, nenhum comando sai, e o pedido vai direto para a memória;
+    - um comando sem resposta em 1 s também manda o pedido para a memória;
+    - o log avisa uma vez por queda e diz quando o Redis volta;
+    - com o Redis de volta, o registro volta a ir para ele, e um id ausente no Redis ainda é procurado na memória, então o registrado durante a queda segue valendo naquela instância.
+  - **O teto de 32 MB vale para todas as instâncias juntas,** por escolha do mantenedor. Dois scripts Lua, atômicos entre as instâncias, guardam a soma dos bytes e a ordem de uso, e acima do teto sai primeiro a pergunta usada há mais tempo (LRU).
+  - **A pergunta vencida sai na hora,** por escolha do mantenedor (a sugestão da F02-13): no Redis, pelo prazo de 24 h na própria chave, que cada uso renova; na memória, por uma varredura a cada minuto, também numa instância sem pedidos.
+  - **O total exato do resumo fica na memória de cada instância,** por escolha do mantenedor (a sugestão da F02-16), até o cache da F03 (A-061).
+- **Alternativas descartadas:**
+  - **Falhar com um erro 503 com o Redis fora:** a interface pararia enquanto o Redis não voltasse.
+  - **Gravar sempre na memória e no Redis:** a pergunta, que pode ter dado pessoal, ficaria em dois lugares, e a memória de cada instância cresceria sempre.
+  - **Um cliente próprio do ioredis:** mais uma conexão por instância, o ioredis no bundle e a leitura das `REDIS_*` repetida.
+  - **Só o prazo de 24 h no Redis, sem o teto:** quem registra muito ocuparia o Redis das travas e do bus do Directus.
+  - **O `@directus/memory`:** o `set` dele não aceita um prazo por chave (V-188).
+- **Consequências:**
+  - Várias instâncias sem Redis seguem como antes: cada uma tem a própria memória, e a interface registra de novo quando muda de instância. O guia do admin avisa (F16).
+  - Durante uma queda, cada instância só conhece o que ela mesma registrou, e a interface registra de novo na outra.
+  - Uma instalação com o Redis em cluster não é atendida, como o próprio Directus, que se conecta a um Redis só.
+  - O painel de saúde da F06 pode mostrar onde o registro está.
+
+## D-058 — A lista de itens também no tipo próprio da extensão, para o SDK ler o `meta`
+
+- **Estado:** aceita em 06/10/2026. Detalha a D-016 e a D-052.
+- **Onde:** §7.8 (API e SDK) · `docs/padroes/api-e-contrato.md` · V-189.
+- **Contexto:**
+  - O `request` do `@directus/sdk` lê o corpo de uma resposta `application/json` e entrega só o `data`, e o `onResponse` de um comando recebe o que sobra desse corte (V-189).
+  - Um comando usado em `client.request(...)` nunca vê o `meta`. O `capped`, o aviso da lista parcial do SQLite (D-052), não chegaria a quem usa o SDK, e o cursor da página seguinte (D-054) também não.
+  - Com outro tipo de conteúdo, o `request` entrega a resposta inteira ao `onResponse` do comando.
+- **Decisão:**
+  - **A negociação de conteúdo,** por escolha do mantenedor: a lista de itens responde também como `application/vnd.directus-geospatial+json`, com o mesmo corpo, `{ data, meta }`, ao pedido que prefere esse tipo no `Accept` (RFC 9110). Sem ele, segue o `application/json`, o tipo do Directus. As duas respostas levam o `Vary: Accept`.
+  - **O nome** segue o dos pacotes do workspace, com o sufixo `+json` da RFC 6839, por escolha do mantenedor.
+  - **O comando do SDK** pede esse tipo e devolve o `{ data, meta }`. Se a resposta vier como `application/json`, de uma versão da extensão anterior ao SDK, ele devolve o `data`, sem o `meta`.
+  - **Os erros** seguem no `application/json` do Directus, e o `request` do SDK os rejeita como sempre.
+  - **O alcance:** toda lista de itens com `meta`. O `GET` e o `SEARCH` de `/geospatial/items/:coleção` respondem assim desde a F02-18, e as partes da consulta registrada passam a responder na F02-19.
+- **Alternativas descartadas:**
+  - **Só os itens, como o `readItems`:** o `capped` e o cursor não chegariam a quem usa o SDK, contra a D-052 e o resultado honesto (§2).
+  - **Um composable próprio,** o `client.with(geospatial())`, com um `fetch` da extensão: não enxergaria a configuração privada do `rest()`, como o `credentials` da sessão por cookie e os hooks, e repetiria a lógica do pedido.
+  - **O `{ data, meta }` dentro do `data`:** mudaria o formato do `/items` (D-016) para todo cliente.
+- **Consequências:**
+  - **O retorno:** o `client.request(geoRadius(...))` devolve o `{ data, meta }`, e não a lista, como o `readItems` devolve. A documentação do SDK diz por quê.
+  - **Cache e proxy:** um cache no caminho precisa respeitar o `Vary`. Um proxy que entregue o `application/json` ao SDK só tira o `meta`.
+  - **O nome é contrato:** o tipo entra no contrato de cada lista, e mudar o nome depois da primeira publicação quebra cliente (D-016).
+
+## D-059 — O SDK na consulta registrada: os comandos pelo `operationId`, o iterador por páginas e a espera do resumo
+
+- **Estado:** aceita em 14/10/2026. Detalha a D-024 e a D-058.
+- **Onde:** §7.8 (SDK) · `docs/padroes/api-e-contrato.md` · D-004, D-022, D-052, D-054, D-056 · V-189, V-192.
+- **Contexto:**
+  - A consulta registrada tem o registro e uma rota para cada parte do resultado (D-022), e a D-024 só dá nome aos comandos das operações, como o `geoRadius()`.
+  - A paginação por cursor (D-054) pede vários pedidos, e um comando do SDK do Directus faz um só.
+  - O resumo traz o total em dois tempos (D-056): acima de 10.000 itens, o primeiro é um piso, e o exato chega num pedido seguinte. Cada pedido refaz a contagem rápida, que lê até 10.001 itens.
+  - Uma página que chega em `application/json` traz só o `data` (V-189), sem dizer se outra vem depois. No ensaio da F02-19, com a rota trocada para esse tipo, o iterador leu 3 dos 8 itens da Maria e acabou sem erro.
+- **Decisão:**
+  - **Os nomes:** o comando de uma rota que não é uma operação leva o prefixo `geo` e o `operationId` da rota no contrato, como o `geoCapabilities()`: `geoRegisterQuery()`, `geoQueryItems()`, `geoQueryShapes()` e `geoQuerySummary()`.
+  - **A consulta:** o registro devolve `{ id }`, que leva só nos tipos a coleção e os campos da pergunta, e os comandos das partes a recebem e tipam o que dão. Um id sozinho, como o de um link, também serve, com os tipos do contrato.
+  - **O iterador,** o `geoPaginate(client, comando)`, serve a toda lista com cursor e entrega uma página inteira por volta, com o `meta`, por escolha do mantenedor, como os _paginators_ do AWS SDK v3 e o `paginate.iterator` do Octokit. Numa página sem o `meta` legível, ele falha, com um erro que nomeia o tipo próprio da extensão, em vez de acabar a lista nela.
+  - **A espera do resumo,** o `geoFinalSummary(client, consulta, { interval, timeout })`, por escolha do mantenedor, como os _waiters_ do AWS SDK v3: pede de novo enquanto o `counting` for verdadeiro e dá o primeiro resumo que não muda mais, ou o último, ainda contando, no tempo máximo. Por padrão, 1 s de intervalo, pelo custo da contagem rápida, e 30 s de tempo máximo, o da contagem exata.
+- **Alternativas descartadas:**
+  - **O iterador por itens,** como a autopaginação do Stripe: mais curto de usar, mas o `meta` de cada página, e com ele o `capped` de uma lista parcial (D-052), não chegaria a quem lê.
+  - **Acabar a lista na página sem o `meta`:** um proxy que troque o tipo da resposta faria o iterador entregar só a primeira página, sem aviso, contra o resultado honesto (§2).
+  - **Um iterador de resumos,** com o rápido e depois cada mudança: um laço só para os dois tempos, mas um iterador que pergunta de novo é menos comum que uma espera, e quem só quer o total final teria de ir até o fim do laço.
+  - **Só o comando do resumo:** cada projeto escreveria a própria espera, e um intervalo curto, como os 200 ms da suíte, refaria a contagem rápida a cada pedido.
+  - **Nomes sem o prefixo,** como `registerQuery()` e `queryItems()`: colidiriam com o código de quem usa, como a D-024 já descarta.
+- **Consequências:**
+  - O `geoPaginate()` precisa da extensão que responde no tipo próprio, a que sai junto com o SDK. Um comando sozinho segue dando o `data` sem o `meta` numa resposta em `application/json` (D-058).
+  - Nem o iterador nem a espera aceitam um `AbortSignal`: quem precisa parar antes sai do `for await`, e a espera vai até o resumo final ou o tempo máximo.
+  - Os nomes, a forma das páginas e a espera entram no contrato do SDK, e mudar depois da primeira publicação quebra cliente (D-016).
+
+## D-060 — O site de documentação no Starlight, com a referência da API pelo Scalar
+
+- **Estado:** aceita em 15/10/2026.
+- **Onde:** §7.5 (documentação) · `docs/padroes/api-e-contrato.md` · `packages/docs/` · D-016 · V-194 a V-196.
+- **Contexto:**
+  - A documentação pública nasce na F02-21, com a referência da API gerada do `openapi.yaml` (D-016), e vai ao ar na F16, com uma versão por release e o guia do usuário também em pt-BR (§7.5).
+  - O contrato é OpenAPI 3.2 desde a F02-12, e o `SEARCH` do raio fica no `additionalOperations` da rota (V-181).
+  - Na F02-21, três sites montaram o mesmo contrato e a mesma página do raio, fora do repositório, com os 3 dias da idade mínima. Os geradores nativos de cada um, o `starlight-openapi`, o `vitepress-openapi` e o `docusaurus-plugin-openapi-docs`, e o Redoc 2 do Redocly CLI deixam o `SEARCH` de fora sem aviso: percorrem uma lista fixa de métodos. O Scalar o mostra desde a 1.72 (V-194, V-196).
+- **Decisão:**
+  - **O site é Starlight,** sobre o Astro, no pacote `packages/docs`, por escolha do mantenedor, depois de ver as três opções rodando. É o padrão que mais cresce na documentação de projetos abertos, como a do Astro, da Cloudflare, do Biome e do Tauri, e usa o Vite 8, o mesmo do repositório.
+  - **A referência da API é o Scalar,** numa página do site, montada no navegador a partir do contrato que o build embute, e não de uma URL de fora. As âncoras levam o `operationId`, como `/api/#geospatial/items`.
+  - **Nem o site nem o Scalar falam com alguém de fora:** a telemetria do Astro fica desligada em cada comando do site (V-195), e as fontes do Scalar, o chat de IA, o MCP, a telemetria, o proxy de pedidos e o botão do cliente dele também (V-194).
+  - **O build reprova com link quebrado,** pelo `starlight-links-validator`. Um link para a referência só passa quando o `operationId` da âncora existe no contrato.
+  - **Ainda não vai ao ar:** o build roda no `pnpm check` e na CI, e a publicação fica para a F16.
+- **Alternativas descartadas:**
+  - **VitePress,** do ecossistema Vue, como o Studio: a versão estável, a 1.6, prende o Vite 5 e o esbuild 0.21, com 4 alertas que só se resolvem no Vite 6.4.3 e no esbuild 0.25 (V-196), e o `pnpm audit` da CI reprovaria até o VitePress 2 sair do alpha. Não tem versão por release.
+  - **Docusaurus,** o mais maduro, com versão por release e pt-BR nativos: 1.315 pacotes, contra 538 do Starlight com o Scalar, 11 alertas, 2 deles críticos, e 29 s de build, contra 5 s. A referência nativa perde o `SEARCH` e mostra o `geo` como `any`.
+  - **Uma referência estática gerada no build,** como a do `starlight-openapi`: o HTML traria o texto da referência, que a busca do site indexaria, mas sem o `SEARCH`.
+- **Consequências:**
+  - O HTML da página da API não traz o texto da referência, então a busca do site não a encontra. A página pesa uns 460 KB com gzip, só ela.
+  - A versão por release vem de um plugin, o `starlight-versions`, e entra na F16, com a publicação.
+  - Os exemplos de pedido da referência saem dos exemplos do contrato, que o lint do Redocly confere contra os schemas (V-194).
+  - O build avisa do sitemap até a F16 dar o endereço do site (V-195).
+  - Um gerador que passar a ler o `additionalOperations` pode substituir o Scalar sem mudar o contrato.

@@ -4,6 +4,10 @@
 
 - Todo SQL que devolve dado de uma coleção começa pela query permitida que o Directus montou (D-001), e a parte
   espacial vai em volta dela. Não existe atalho: nem para o admin, nem para "só uma contagem".
+- O filtro que usa o índice entra como mais condições do `WHERE` da query permitida, sobre a coluna, porque o Directus
+  a ordena e o Postgres não achata uma subconsulta ordenada (D-049). Uma condição a mais só descarta linhas, e o
+  `WHERE` das políticas e os `CASE WHEN` não mudam. Em volta fica a guarda: o que sai é decidido pelo valor que a query
+  permitida expõe, nulo onde uma política esconde o campo.
 - Juntar duas coleções é juntar duas queries permitidas.
 
 ## SQL seguro
@@ -18,6 +22,12 @@
 - Distância, área, perímetro e comprimento sempre em `geography` (D-007).
 - Filtro em dois estágios: a caixa no SRID da coluna, que usa o índice, e o teste exato em metros no que sobrou.
 - O SRID é lido da coluna: a entrada chega em 4326 e é convertida para ele, e a saída volta em 4326.
+  - O tipo e o SRID de uma coluna espacial vêm do catálogo, a cada pedido, porque o esquema do Directus não os tem
+    (D-050, V-178).
+  - No estágio que o índice responde, converte-se o que entra, nunca a coluna. A caixa vai com a borda cortada em
+    trechos curtos, e só onde o PROJ a traz de volta ao mesmo lugar.
+  - Um SRID que vai como parâmetro ao `ST_Transform` leva `::integer`: sem o tipo, o Postgres escolhe a sobrecarga de
+    texto dele, que o lê como um texto do PROJ (V-178).
 - Nas datas, converter o parâmetro, nunca a coluna (D-031), para o banco continuar usando o índice.
 - A operação que promete índice tem teste com `EXPLAIN` ([`testes.md`](testes.md)).
 
@@ -25,9 +35,13 @@
 
 - Toda ordenação termina pela chave primária, para o cursor não pular nem repetir itens e para o relatório gerado
   de novo sair igual.
+- A ordem lê os valores que a query permitida expõe, nunca a coluna crua, para a posição de um item não revelar o
+  valor que uma política esconde (D-051, V-179).
 - Toda consulta tem um tempo máximo pelo tipo: tile, página, contagem ou análise. No Postgres, é o
-  `SET LOCAL statement_timeout` dentro da transação; nos outros bancos, o equivalente de cada um, registrado como
-  V-xx.
+  `SET LOCAL statement_timeout` dentro da transação, pelo `set_config(..., true)`, que aceita o valor como parâmetro
+  (V-187); nos outros bancos, o equivalente de cada um, registrado como V-xx. O adaptador que limita um comando no
+  tempo o declara pelo `bounded`, e onde não há, como no SQLite, nenhuma consulta sem limite roda em segundo plano
+  (D-056).
 - O pedido cancelado cancela a consulta no banco.
 - As consultas da extensão usam o pool próprio (D-006), nunca o do Directus.
 

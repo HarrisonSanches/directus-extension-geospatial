@@ -37,9 +37,10 @@ You need only Node, pnpm and Docker:
 
 ```sh
 pnpm install                # also installs the commit-msg hook
-pnpm check                  # formatting, lint, types, Knip, unit tests and the integration suite
+pnpm check                  # formatting, lint, types, Knip, the docs site, unit tests and the integration suite
 pnpm test                   # unit tests only
 pnpm test:integration       # the integration suite, with Directus and the databases in containers
+pnpm docs:dev               # the docs site, reloading on every change
 ```
 
 The integration suite runs each test file on Directus 11.17 and 12, with PostGIS and with SQLite.
@@ -50,6 +51,10 @@ maintainer has, Directus 12 runs on its Core tier, and the tests expect that.
 The development environment runs Directus 12, PostGIS and Redis on `127.0.0.1`, with the extension rebuilt on
 every change. Copy [`dev/.env.example`](dev/.env.example) to `dev/.env` and run `pnpm dev`: it fills in the empty
 secrets, and the file explains the rest. `pnpm dev:down` stops it.
+
+The docs site is in [`packages/docs`](packages/docs), and its reference of the API comes from the OpenAPI document of
+[`packages/contract`](packages/contract/openapi.yaml), so a change to a route changes it too. `pnpm docs:build` builds
+the site and fails on a broken link.
 
 ## How a change gets in
 

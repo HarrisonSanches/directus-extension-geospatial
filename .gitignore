@@ -3,12 +3,16 @@ node_modules/
 
 # Build and test output
 dist/
+# The types Astro writes for the content of the docs site.
+.astro/
 coverage/
 reports/
 .stryker-tmp/
 playwright-report/
 test-results/
 *.tsbuildinfo
+# The SDK as pnpm packs it, which pnpm sdk:check reads.
+*.tgz
 
 # Environment and secrets
 .env

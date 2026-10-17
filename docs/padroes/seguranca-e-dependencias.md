@@ -27,8 +27,10 @@ confiança se constrói no repositório.
 - **O build gera o aviso de licenças de terceiros,** junto do `dist`, como as licenças MIT e BSD exigem de quem
   redistribui.
 - **Nenhum código do `@directus/api` dentro do pacote.** O núcleo do Directus tem licença própria, a MSCL-1.0-GPL,
-  diferente da MIT dos pacotes de apoio (V-60). A extensão usa os internos do Directus que já está rodando, e uma
-  conferência na CI garante que o build os deixou de fora.
+  diferente da MIT dos pacotes de apoio (V-60). A extensão usa os internos do Directus que já está rodando: o
+  `extension.config.js` mantém cada import dele como import, mesmo com o pacote instalado, e um teste da integração
+  (`test/bundle.test.ts`) confere no bundle que os imports continuam lá e, pelo mapa do código, que nenhum arquivo do
+  pacote entrou.
 - **Cadeia de suprimentos:**
   - lockfile versionado, e instalação com o lockfile congelado na CI;
   - scripts de instalação das dependências desligados, com cada exceção decidida no `allowBuilds`; a instalação
@@ -44,20 +46,25 @@ confiança se constrói no repositório.
     dela no GitHub é dispensado com o mesmo motivo, senão o Renovate tenta a correção que não existe (V-140);
   - o Dependabot alerts ligado, para a vulnerabilidade nova aparecer mesmo sem push (V-75, V-140). O Dependabot
     security updates fica desligado, porque a correção vem pelo Renovate;
-  - os workflows do GitHub Actions passam pelo zizmor (V-74).
+  - os workflows do GitHub Actions passam pelo zizmor (V-74);
+  - ferramenta que manda telemetria fica com ela desligada pelo próprio repositório, e não pela máquina de quem roda:
+    o Redocly CLI pelo `redocly.yaml` (V-169), e o Astro pela variável em cada script do site (V-195). O site também
+    não fala com ninguém de fora, e o Scalar, da referência da API, fica sem as fontes, o chat de IA e o proxy dele
+    (D-060, V-194).
 - **Atualizações pelo Renovate** (D-046), com a configuração em `.github/renovate.json5`, que a CI valida:
   - os minor e patch num pull request por semana, na segunda-feira, e cada major à parte. Nenhum entra sozinho, e
     a integração contínua é o filtro. A descrição, que vira o commit do `develop`, leva a tabela das versões, com o
     link do diff de cada uma, e não as notas de versão;
-  - as imagens do Directus a qualquer hora, com o patch separado da minor. O patch troca a versão da matriz, e a
-    minor ou a major nova entra nela ao lado do piso (D-037). O canário roda nelas;
+  - as imagens do Directus a qualquer hora, com o patch separado da minor. O patch troca a versão da matriz, também a
+    do piso, que só anda nos patches da minor dele. A minor nova toma o lugar da mais nova da major, ao lado do piso,
+    e a major nova entra na matriz com combinações próprias (D-037). O canary roda nelas;
   - o que só anda junto vem num grupo: os pacotes do Directus, que o `@directus/extensions-sdk` prende em versões
     exatas, e, no major, o Vitest com as bibliotecas de cobertura;
   - o que segue outra coisa fica parado: o `knex` e o `pino`, peers exatos do `@directus/types`; o `vue`, que o
     `@directus/extensions-sdk` prende, e com outra versão os tipos dos layouts não batem; o `playwright-core`, que
-    sobe à mão com a imagem do Playwright da mesma versão (D-047); o `@types/node` de cada catálogo, na linha do Node
-    dele; o override, no major em que está, e abaixo do 1.0.0 também na minor; e o PostGIS mínimo, que segue a
-    política de suporte;
+    sobe à mão com a imagem do Playwright da mesma versão (D-047); o `@directus/sdk` mais antigo que o par do SDK
+    aceita, que anda à mão com o par (V-191); o `@types/node` de cada catálogo, na linha do Node dele; o override, no
+    major em que está, e abaixo do 1.0.0 também na minor; e o PostGIS mínimo, que segue a política de suporte;
   - uma versão fixada fora dos gerenciadores do Renovate ganha uma regra por regex ou um comentário `# renovate:`
     com a origem, senão fica parada sem aviso (V-139).
   - o lock file maintenance regenera o lockfile toda segunda-feira, com as dependências indiretas. Ele não tem data de

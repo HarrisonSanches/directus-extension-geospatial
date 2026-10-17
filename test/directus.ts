@@ -1,10 +1,22 @@
+import { setTimeout } from 'node:timers/promises';
 import { createDirectus, type DirectusClient, rest, type RestClient, staticToken } from '@directus/sdk';
 import { inject } from 'vitest';
 import type { Combination } from './combinations.ts';
+import { checkedFetch } from './contract.ts';
 import type { Database, Spatial } from 'directus-geospatial-contract';
 
-// The users the suite calls Directus as. Each one but the public has a static token of its own.
-export type Role = 'admin' | 'maria' | 'twoPolicies' | 'public';
+// The users the suite calls Directus as. Each one but the public has a static token of its own. The ones without a field
+// read the south zone, as Maria (test/seed.ts).
+export type Role =
+	| 'admin'
+	| 'maria'
+	| 'twoPolicies'
+	| 'withoutCategory'
+	| 'withoutGeometry'
+	| 'geometryInPart'
+	| 'statusInPart'
+	| 'withoutKey'
+	| 'public';
 
 // The database and the spatial extension a combination runs, with the versions as they report them.
 export interface DatabaseVersions {
@@ -21,15 +33,20 @@ export interface Directus {
 	// Whether Directus accepts permissions with rules of their own, such as the row filter of Maria. Directus 12 only
 	// does with a license key, and runs on the Core tier without one (V-114, D-043).
 	customPermissionRules: boolean;
+	// The id of the container that holds the database, for the tests that read or write it directly: the one of the
+	// database, or the one of Directus, whose file SQLite keeps (test/postgres.ts, test/sqlite.ts).
+	databaseContainer: string;
 }
 
 declare module 'vitest' {
 	export interface ProvidedContext {
 		// The combination a project of the integration suite runs, set in vitest.config.ts.
 		combination: Combination;
-		// The packages a project loads into Directus beside the extension, by their folder in the repository, as the
-		// spikes of F01 do.
+		// The packages a project loads into Directus beside the extension, by their folder in the repository.
 		extensions: string[];
+		// Whether a project measures (test/measure/), whose Directus runs as an installation runs it: without the coverage
+		// and without the other extension of the suite.
+		measure: boolean;
 		// The Directus of each combination the global setup started.
 		directus: Partial<Record<Combination, Directus>>;
 		// The folder where each Directus of the run gets a folder for the coverage of its processes (test/coverage.ts).
@@ -48,13 +65,16 @@ export interface Occurrence {
 
 interface Schema {
 	occurrences: Occurrence[];
+	// The same occurrences, in the collection whose reads the hooks of the other extension of the suite change.
+	hooked_occurrences: Occurrence[];
 }
 
 export type Client = DirectusClient<Schema> & RestClient<Schema>;
 
-// A token of null calls Directus without a session, as the public role.
+// A token of null calls Directus without a session, as the public role. Each response of the extension goes through
+// the contract (test/contract.ts).
 export const connect = (url: string, token: string | null): Client => {
-	const client = createDirectus<Schema>(url).with(rest());
+	const client = createDirectus<Schema>(url, { globals: { fetch: checkedFetch } }).with(rest());
 
 	return token === null ? client : client.with(staticToken(token));
 };
@@ -78,6 +98,49 @@ export const as = (role: Role): Client => {
 	return connect(url, role === 'public' ? null : tokens[role]);
 };
 
+// A request as one of the users of the suite, with the whole body of the response: the client of the SDK hands over only
+// its data, and leaves the meta out. A body goes as JSON, and an accept as the Accept header. The response goes through
+// the contract too.
+export const fetchAs = (
+	role: Exclude<Role, 'public'>,
+	path: string,
+	{ method = 'GET', body, accept }: { method?: string; body?: string; accept?: string } = {},
+): Promise<Response> => {
+	const { url, tokens } = current();
+	const headers: Record<string, string> = {
+		Authorization: `Bearer ${tokens[role]}`,
+		...(accept !== undefined && { Accept: accept }),
+	};
+
+	if (body !== undefined) {
+		headers['Content-Type'] = 'application/json';
+	}
+
+	return checkedFetch(`${url}${path}`, { method, body, headers });
+};
+
+// Waits until Directus knows a collection a test just created. A process of Directus that was preparing the schema when
+// the collection came puts the schema without it in the cache, after the creation cleared it, and it stays there until
+// the next change (V-184). Between tries, the admin clears the cache of the system again.
+export const untilKnown = async (collection: string): Promise<void> => {
+	for (let attempt = 0; attempt < 20; attempt += 1) {
+		const read = await fetchAs('admin', `/items/${collection}?limit=0`);
+
+		await read.arrayBuffer();
+
+		if (read.ok) {
+			return;
+		}
+
+		await (await fetchAs('admin', '/utils/cache/clear?system', { method: 'POST' })).arrayBuffer();
+		await setTimeout(250);
+	}
+
+	throw new Error(`Directus did not get to know the collection ${collection}.`);
+};
+
 export const versions = (): Directus['versions'] => current().versions;
 
 export const hasCustomPermissionRules = (): boolean => current().customPermissionRules;
+
+export const databaseContainer = (): string => current().databaseContainer;

@@ -1,25 +1,34 @@
 import type { KnipConfig } from 'knip';
 import extension from './packages/extension/package.json' with { type: 'json' };
-import spikes from './spikes/extension/package.json' with { type: 'json' };
-import hook from './spikes/hook/package.json' with { type: 'json' };
-import layout from './spikes/layout/package.json' with { type: 'json' };
+import testHook from './test/hook/package.json' with { type: 'json' };
+import observer from './test/measure/observer/package.json' with { type: 'json' };
 
 // Each extension starts at the sources of the bundle in its Directus manifest, which Knip does not read by itself.
-const entriesOf = (manifest: typeof extension | typeof spikes | typeof hook | typeof layout) =>
+const entriesOf = (manifest: { 'directus:extension': { entries: { source: string }[] } }) =>
 	manifest['directus:extension'].entries.map(({ source }) => source);
 
 export default {
 	workspaces: {
-		// Node runs the preload inside the image of Directus with SpatiaLite, whose Dockerfile Knip does not read.
-		'.': { entry: ['test/spatialite/load-spatialite.ts'] },
-		'packages/extension': { entry: entriesOf(extension) },
-		// The extensions SDK loads its configuration by name, and the running Directus provides @directus/api, which the
-		// spikes declare instead of installing.
-		'spikes/extension': {
-			entry: [...entriesOf(spikes), 'extension.config.js'],
-			ignoreDependencies: ['@directus/api'],
+		'.': {
+			// Node runs the preload inside the image of Directus with SpatiaLite, whose Dockerfile Knip does not read, and the
+			// command of the mutation testing runs Vitest with its own config, which Knip does not read in the command.
+			entry: ['test/spatialite/load-spatialite.ts', 'vitest.mutation.config.ts'],
+			// Knip takes the runner of the mutation testing for a package of its own, and the command runner comes inside
+			// @stryker-mutator/core (V-193).
+			ignoreDependencies: ['@stryker-mutator/command-runner'],
 		},
-		'spikes/hook': { entry: entriesOf(hook) },
-		'spikes/layout': { entry: [...entriesOf(layout), 'extension.config.js'] },
+		'packages/extension': {
+			// The extensions SDK reads extension.config.js when it builds.
+			entry: [...entriesOf(extension), 'extension.config.js'],
+			// The running Directus provides @directus/api, which internals/directus-api.d.ts declares and nothing installs
+			// (V-141). The Knex of the tests of SQLite names its client, whose driver it loads only to connect, and it never
+			// connects.
+			ignoreDependencies: ['@directus/api', 'sqlite3'],
+		},
+		// The oldest @directus/sdk its peer accepts comes in only by name, through an alias of Vitest and a path of
+		// tsconfig.oldest.json, which Knip does not read as imports (V-191).
+		'packages/sdk': { ignoreDependencies: ['directus-sdk-oldest'] },
+		'test/hook': { entry: entriesOf(testHook) },
+		'test/measure/observer': { entry: entriesOf(observer) },
 	},
 } satisfies KnipConfig;

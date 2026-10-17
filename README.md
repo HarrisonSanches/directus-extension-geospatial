@@ -26,9 +26,10 @@ permissions.
 ---
 
 > [!NOTE]
-> **Status: in development.** The foundation and the technical proofs are in place, and no spatial
-> operation works yet. Nothing is published on npm or the Directus Marketplace. This page describes
-> what the extension will do.
+> **Status: in development.** The first spatial operation, the radius, works end to end through the API
+> and the SDK, with the permissions of each user. The map, the other operations and the reports are on
+> the way. Nothing is published on npm or the Directus Marketplace. This page describes what the
+> extension will do.
 
 ## Why it exists
 
@@ -92,7 +93,7 @@ flowchart LR
   OpenAPI contract and a typed SDK in the style of the official one.
 
 ```ts
-const nearby = await client.request(
+const { data: nearby } = await client.request(
 	geoRadius('stores', { center: [-46.63, -23.55], distance: 2000, fields: ['id', 'name'] }),
 );
 ```
@@ -162,15 +163,19 @@ Full detail, with the reasoning behind each choice, in [`docs/arquitetura.md`](d
       suite on Directus 11.17 and 12, with PostGIS and with SQLite
 - [x] Technical proofs on Directus 11.17 and 12: the permitted query wrapped in spatial SQL on seven databases, a
       vector tile around it, and MapLibre, deck.gl and Terra Draw loading only when a map opens
-- [ ] Permitted queries, database adapters, tiles and the capability matrix
+- [x] The engine on Directus 11.17 and 12: the permitted query by version, the PostGIS and SQLite adapters, the
+      capability matrix, the registered query and the radius end to end, through the API and the typed SDK, with the
+      OpenAPI contract and the documentation site
+- [ ] Vector tiles and the protection of the database
 - [ ] Studio surfaces, operations, time and movement
 - [ ] Evidence reports, starting with the geofence template
 - [ ] First public release on npm and the Directus Marketplace
 
 ## Documentation
 
-The design documents are currently in Portuguese. English user, admin, API and SDK documentation
-will ship with the first release. The phase-by-phase implementation plan is kept by the maintainer in a
+The design documents are currently in Portuguese. The English documentation site, with the radius through the API
+and the SDK and the reference of the API, lives in [`packages/docs`](packages/docs) and goes online with the first
+release. The phase-by-phase implementation plan is kept by the maintainer in a
 private repository, and the Status above follows it. The phase ids (F00), issue ids (F00-06) and
 finding ids (A-001) in the documents refer to that plan.
 

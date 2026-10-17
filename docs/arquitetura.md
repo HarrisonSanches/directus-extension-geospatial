@@ -86,7 +86,7 @@ Uma extensão não consegue adicionar operadores novos ao sistema de filtros nat
 
 1. O Studio ou o SDK chama o endpoint com a sessão ou o token do usuário, sem privilégio extra.
 2. A extensão pede às funções internas do Directus, que são a mesma cadeia usada pelo `ItemsService`, a query do que esse usuário pode ver na coleção. Essa query já vem com o filtro de permissão (o item passa se bater com pelo menos uma política), o filtro da página, a busca e as regras por campo. O Directus a monta sem executar.
-3. O adaptador do banco envolve essa query com a parte espacial (tile, distância, mais próximos, agrupamento, junção com outra coleção) e executa tudo num SQL só.
+3. O adaptador do banco envolve essa query com a parte espacial (tile, distância, mais próximos, agrupamento, junção com outra coleção) e executa tudo num SQL só. O filtro que usa o índice entra como mais condições da própria query, sobre a coluna, porque o Directus a ordena e uma condição em volta não chegaria ao índice. Ele só descarta linhas, e o que sai continua decidido pelo valor que a query expõe (D-049).
 
 ### Exemplo
 
@@ -108,12 +108,12 @@ A alternativa era usar só a API pública, ou seja, traduzir cada operação em 
 1. Só um módulo da extensão toca nos internos do Directus, com um adaptador por versão.
 2. Ao subir, a extensão confere se os internos são os esperados. Se não forem, ela desliga as operações afetadas e avisa, para não arriscar vazar dados.
 3. Testes de integração com Directus v11 e v12 reais e um papel restrito provam que a extensão devolve os mesmos itens que o `/items` (7.4).
-4. Um canário roda os testes contra cada nova versão do Directus (7.4).
+4. Um canary roda os testes contra cada nova versão do Directus (7.4).
 
 ### Perdas aceitas
 
-- Os hooks `items.read` de outras extensões não rodam sobre tiles e agregações. O `items.query` é respeitado.
-- Os valores saem crus do banco, sem a formatação do `PayloadService`.
+- Os hooks `items.read` de outras extensões rodam nas listas de itens, como no `/items`, e não sobre tiles e agregações, que não devolvem itens. O `items.query` é respeitado em todas.
+- Nos tiles e nas agregações, os valores saem crus do banco, sem a formatação do `PayloadService`. As listas de itens passam por ele, como no `/items` (V-173).
 
 ### O que esta opção resolveu do handoff
 
@@ -134,12 +134,12 @@ As referências PostGIS são a implementação de referência. Nos outros bancos
 
 ### Básico
 
-| #   | Operação      | O que o usuário faz                         | O que aparece no mapa                                                           | Referência PostGIS                                       |
-| --- | ------------- | ------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| 1   | Raio          | Clica num ponto e informa a distância       | Círculo desenhado, itens de dentro destacados, lista com a distância de cada um | `ST_Buffer` (desenho), `ST_DWithin` (seleção)            |
-| 2   | Por área      | Desenha uma área ou usa uma forma existente | Os itens que tocam a área, ficam inteiramente dentro ou ficam fora              | `ST_Intersects`; `ST_CoveredBy` em "inteiramente dentro" |
-| 3   | Medir         | Seleciona dois itens, ou um polígono        | Linha entre os itens com a distância; área e perímetro do polígono              | `ST_Distance`, `ST_MakeLine`, `ST_Area`, `ST_Perimeter`  |
-| 4   | Mais próximos | Clica num ponto e escolhe N                 | Os N itens mais próximos ligados ao ponto por linhas                            | Operador `<->` (KNN)                                     |
+| #   | Operação      | O que o usuário faz                         | O que aparece no mapa                                                           | Referência PostGIS                                                        |
+| --- | ------------- | ------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1   | Raio          | Clica num ponto e informa a distância       | Círculo desenhado, itens de dentro destacados, lista com a distância de cada um | `ST_DWithin` (seleção); o círculo pela GeographicLib, no servidor (D-055) |
+| 2   | Por área      | Desenha uma área ou usa uma forma existente | Os itens que tocam a área, ficam inteiramente dentro ou ficam fora              | `ST_Intersects`; `ST_CoveredBy` em "inteiramente dentro"                  |
+| 3   | Medir         | Seleciona dois itens, ou um polígono        | Linha entre os itens com a distância; área e perímetro do polígono              | `ST_Distance`, `ST_MakeLine`, `ST_Area`, `ST_Perimeter`                   |
+| 4   | Mais próximos | Clica num ponto e escolhe N                 | Os N itens mais próximos ligados ao ponto por linhas                            | Operador `<->` (KNN)                                                      |
 
 ### Intermediário
 
@@ -625,7 +625,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 - **MariaDB:** passa pelo mesmo helper e pelo mesmo cliente do MySQL, e o Directus não o distingue: a extensão o reconhece pelo `version()`. O envelope sobre a query permitida é o do MySQL, e o MariaDB ignora o SRID num predicado e não troca os eixos. O índice espacial exige `NOT NULL`, e com ele o otimizador o considera, sem o SRID que o MySQL pede. As distâncias são planas, e metros só com o `ST_Distance_Sphere`, na esfera e só entre pontos: com um multiponto dá nulo, e com linha ou polígono, erro (V-152).
 - **SQL Server:** a coluna é `geometry` (plano), de qualquer tipo, com os valores em SRID 4326, e o subtipo do campo fica só no `meta` dele. O envelope sobre a query permitida usa o `STIntersects` no plano. O SQL Server recusa o `ORDER BY` numa subconsulta sem `TOP`, e o Directus dá um `TOP` a toda query, menos à de fora que ele monta num filtro por uma relação a vários: dela o envelope tira a ordem, que não muda as linhas. Para medir em metros, os itens são convertidos para `geography` depois do filtro por caixa, e o `geography` mede no elipsoide, com o anel do polígono valendo pela orientação. O índice espacial exige a caixa limite (V-153).
 - **Oracle:** a coluna é `sdo_geometry` com SRID 4326, que o Oracle trata como geodésico: as arestas dos polígonos seguem as geodésicas, e as medidas saem em metros, no elipsoide. O envelope sobre a query permitida compara no plano, sem SRID, como o PostGIS. O `_intersects` do Directus usa a máscara `OVERLAPBDYINTERSECT`, que deixa de fora um ponto dentro do polígono, então a paridade compara com o resultado calculado. Os operadores respondem sem índice espacial, e o índice nasce sem os metadados, que ele mesmo registra. Com ele, o `SDO_NN` dá os mais próximos sem um limite de distância. As imagens slim, as que os testes do Directus usam, não têm o Oracle Spatial (V-154).
-- **SQLite:** só tem geometria se a SpatiaLite já estiver carregada, e o Directus não a carrega: quem monta o ambiente a carrega em cada conexão, como a imagem dos testes faz (V-121). Na prática, é banco de desenvolvimento e de testes.
+- **SQLite:** só tem geometria se a SpatiaLite já estiver carregada, e o Directus não a carrega: quem monta o ambiente a carrega em cada conexão, como a imagem dos testes faz (V-121). Na prática, é banco de desenvolvimento e de testes. O Directus não cria os metadados espaciais, e sem eles não há índice espacial nem distância em metros. O raio decide no banco quem está no círculo, com o `PtDistWithin`, que só mede pontos, e a distância e a ordem natural saem no Node, com limite (D-052, V-147, V-180).
 
 #### Como lidar com as diferenças
 
@@ -645,9 +645,9 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
    - Um conjunto fixo de dados é carregado pela API do Directus, para que fique gravado do jeito que o Directus grava em cada banco.
    - Cada operação declarada na matriz tem um resultado esperado, com tolerância para distâncias.
    - Uma operação não declarada precisa devolver o erro de indisponível.
-2. **Paridade de permissão com o `/items`**, usando um papel restrito.
-   - Quando um filtro nativo faz a mesma pergunta (a operação por área com "toca" equivale ao `_intersects`, e com "fora", ao `_nintersects`), os IDs precisam ser idênticos. No Oracle, o `_intersects` não faz a mesma pergunta, e a paridade compara com o resultado calculado (V-154).
-   - Quando não faz, como no raio, o teste calcula a resposta certa: busca os itens permitidos pelo `/items` e calcula com a GeographicLib.
+2. **Paridade de permissão com o `/items`**, com os papéis restritos de `docs/padroes/testes.md`.
+   - O teste calcula a resposta certa em todo banco: busca os itens que o `/items` dá ao mesmo papel, com a mesma página, e calcula com a GeographicLib. Um filtro espacial do Directus não serve de gabarito: ele não vale num campo `geometry.Point` (V-123), e no Oracle o `_intersects` não faz a mesma pergunta (V-154).
+   - Os erros do `/items` se comparam inteiros, com o código e a mensagem, e o item que uma política deixa ver sem a geometria fica fora de toda operação.
 3. **Ambiente real, sem mock de banco.** Directus v11 e v12 de verdade e bancos em containers, com as mesmas imagens dos testes do Directus, e o SQLite na imagem oficial do Directus com a SpatiaLite (V-121). Cada banco roda na versão mínima suportada e na mais nova; as mínimas serão definidas no 7.5. O 12 com PostGIS roda com a chave do Open Innovation Grant, ativada sempre no mesmo projeto dos testes, e, sem ela, no tier Core. O 12 com SQLite fica sempre no Core, porque outro banco seria outro projeto e gastaria outra ativação (D-043, D-044).
 
 **Quando cada teste roda:**
@@ -655,7 +655,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 - Em todo pull request: PostGIS e SQLite na versão mais antiga e na mais nova da faixa do Directus (D-037), mais os testes unitários.
 - Em todo pull request que mexe na interface, também um ponta a ponta curto, que bloqueia o merge: o mapa abre no layout, um tile chega, o clique abre o drawer, e o axe-core não aponta violações. Roda com PostGIS e o Directus mais novo.
 - Toda noite e antes de cada release: a matriz inteira.
-- Um canário roda contra cada nova versão do Directus.
+- Um canary roda contra cada nova versão do Directus, três dias depois do lançamento (D-046).
 
 **Fora dos testes que bloqueiam:**
 
@@ -669,7 +669,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 - **Motor** (adaptadores, permissões, tiles, consulta registrada): 90% de linhas e 90% de ramificações.
 - **Cobertura somada entre os bancos.** Os relatórios de todos os bancos são somados, e um pull request que mexe num adaptador também roda o teste daquele banco.
 - **Interface.** A lógica (composables, stores, cálculos, estado das ferramentas) fica em módulos testáveis, com 90%. A camada fina que só desenha no WebGL é coberta pelos testes de ponta a ponta, sem meta de linhas.
-- **Teste de mutação** (Stryker) no módulo de permissões, toda noite, com meta de 90%.
+- **Teste de mutação** (Stryker) no caminho da regra de ouro, toda noite, com meta de 90% (`docs/padroes/testes.md`).
 - A cobertura precisa vir de testes de comportamento. Teste escrito só para bater a meta não conta.
 
 ### 7.5 Publicação e compatibilidade
@@ -686,7 +686,7 @@ A mesma detecção invalida o cache (7.1). Ela também entra na matriz de capaci
 #### Versões suportadas
 
 - **Directus** (D-037): a major atual a partir do piso testado, mais a última minor de cada major anterior que continua na política. Hoje, `host: ^11.17.0 || ^12.4.0`; quando sair o v13, `^11.17.0 || ^12.<última minor> || ^13.<piso>`.
-  - O piso é a minor mais antiga que a matriz testa, e a matriz testa o piso e a mais nova. O piso só desce com teste, porque as funções internas usadas pela D-001 podem mudar entre minors. O canário testa cada versão nova.
+  - O piso é a minor mais antiga que a matriz testa, e a matriz testa o piso e a mais nova. O piso só desce com teste, porque as funções internas usadas pela D-001 podem mudar entre minors. O canary testa cada versão nova, três dias depois do lançamento (D-046).
   - Uma major anterior fica enquanto a matriz inteira passar nela, e só sai por decisão nova, com o aviso publicado uma minor antes. O v11 e o v12 têm licenças diferentes (V-60, V-61), e muita gente fica no v11 por causa disso.
   - O que depender de algo novo de uma major mais recente aparece como indisponível nas anteriores, pela matriz de capacidades.
   - O Marketplace só oferece a última versão de cada extensão, então todo release precisa valer para a faixa inteira; do contrário, quem está numa major anterior perderia a instalação pelo Marketplace.
@@ -729,7 +729,7 @@ Uma extensão fora do sandbox tem acesso total ao banco. Para quem instala poder
 
 - **Idiomas:** inglês como principal (o Marketplace é global) e o guia do usuário também em pt-BR.
 - **README:** vira a página no Marketplace, com o que a extensão faz, GIFs, os três caminhos de instalação e um início rápido.
-- **Site de documentação**, com uma versão por release:
+- **Site de documentação**, no Starlight, com a referência da API pelo Scalar (D-060), e uma versão por release:
   - guia do usuário;
   - guia do admin (instalação, índices, permissões, Redis, CSP, provedores, variáveis de ambiente, tudo o que a extensão acessa, os dados pessoais (7.10) e o roteiro de desinstalação (7.8));
   - referências da API (gerada do OpenAPI) e do SDK (gerada dos tipos);
@@ -771,9 +771,14 @@ Fica num servidor próprio do autor, com volume moderado (alguns milhões de pon
 **O problema.** Em SRID 4326, as coordenadas estão em graus, e as funções sobre `geometry` calculam em graus. Converter para `geography` dá o resultado em metros, mas impede o uso do índice espacial da coluna.
 
 - **Metros sem perder o índice: filtro em dois estágios.** Primeiro, uma caixa no SRID da coluna, que usa o índice e descarta quase tudo. Depois, o teste exato em metros com `geography`, só no que sobrou. O tamanho da caixa é calculado a partir do raio e da latitude, para ela sempre conter o círculo. O resultado é exato e o esquema não muda.
+  - Os dois estágios leem a coluna e entram como mais condições da query permitida, porque o Directus a ordena e uma condição em volta não chegaria ao índice. Em volta fica só a guarda: sai o item cujo valor exposto não é nulo, e o que uma política esconde fica fora (D-049).
 - **Mais próximos:** o `<->` acha os candidatos pelo índice, e o `geography` dá a ordem exata.
 - **Medições** (distância, área, perímetro, comprimento) sempre em `geography`.
 - **Qualquer SRID.** O motor lê o SRID da coluna, converte a entrada do usuário (que chega em 4326) para esse SRID, para usar o índice, e devolve o resultado em 4326 para o mapa. Colunas `geography` também são suportadas. O Directus não trata SRID, então a extensão funciona onde o mapa nativo falha, por exemplo com SIRGAS 2000 / UTM 23S (EPSG:31983).
+  - O tipo e o SRID vêm do catálogo do banco, a cada pedido, porque o esquema do Directus lê uma `geography` e uma `geometry` como o mesmo tipo e não guarda o SRID (D-050, V-178). Uma `geometry` sem SRID declarado fica com o 4326, em que o Directus grava.
+  - A caixa vai para o SRID da coluna com cada lado cortado em trechos curtos, porque a projeção curva os lados. Ela só vale onde a conversão é de um para um: a borda volta para 4326 e precisa cair onde estava. Onde o PROJ não a converte, ou não a traz de volta, o raio vai sem a caixa, mais lento e igualmente exato.
+  - A distância lê a coluna em 4326 só nos candidatos que a caixa deixou, e a geometria sai em 4326, convertida do texto que a query permitida expõe.
+  - Numa coluna `geography`, o próprio `ST_DWithin` traz a caixa do índice. Uma caixa em graus teria arestas geodésicas e não conteria o círculo.
 - **Saúde do índice.**
   - O Directus nunca cria índice espacial: a opção "Index" do campo cria um B-tree. A extensão detecta quando falta um índice espacial em cada coluna de geometria.
   - Sem o índice, todos os usuários veem um aviso que explica o impacto: cada operação e cada movimento do mapa varrem a tabela inteira, o que pode levar segundos e pesa o banco para todos.
@@ -826,8 +831,9 @@ O mapa tem vários mapas de fundo, com um seletor, organizado em três grupos:
 - **Inventário e remoção** (D-039). Toda ação do admin que cria algo fica no inventário, com como desfazer, e o painel de saúde o mostra. A ação "Remover o que a extensão criou" desfaz o que estiver lá: por padrão, a função, os gatilhos e as políticas prontas; os índices ficam, com a opção de removê-los, porque ajudam o próprio Directus; as coleções da extensão e a pasta dos relatórios só saem com confirmação digitada. O guia do admin traz o roteiro de desinstalação.
 - **Chaves e segredos em variáveis de ambiente**, nunca no banco. As configurações que não são segredo ficam na coleção de configurações, editáveis pela interface.
 - **Estado temporário em memória ou Redis.**
-  - O id de uma consulta é o hash do conteúdo dela. Se o servidor esquecer um id, a interface registra de novo sem o usuário perceber.
+  - O id de uma consulta é o hash do conteúdo dela, com uma chave que só a instalação tem (D-053). Se o servidor esquecer um id, a interface registra de novo sem o usuário perceber, e recebe o mesmo id.
   - Com várias instâncias, esse estado vai para o Redis, que o Directus já exige para escalar horizontalmente.
+  - O registro das consultas usa o Redis do próprio Directus, quando ele usa um, e o teto de 32 MB vale para todas as instâncias juntas. Com o Redis fora, cada instância cai para a própria memória, com um aviso no log, e volta ao Redis quando ele volta (D-057).
   - Salvar ou compartilhar uma consulta copia o conteúdo dela para a coleção da extensão.
 
 #### Trabalhos em segundo plano (D-036)
@@ -876,7 +882,7 @@ O admin configura cada coleção uma vez, numa tela do módulo. Todas as camadas
 
 **Dois jeitos de usar a API**
 
-1. **No formato do `/items`, para quem integra.** `GET` ou `SEARCH /geospatial/items/:coleção` recebe os mesmos parâmetros do Directus (fields, filter, search, sort, limit) mais o parâmetro `geo`, com a operação. A resposta é `{ data, meta }`, como no `/items`. O `SEARCH`, que leva a consulta no corpo, é o mesmo que o `/items` aceita.
+1. **No formato do `/items`, para quem integra.** `GET` ou `SEARCH /geospatial/items/:coleção` recebe os mesmos parâmetros do Directus (fields, filter, search, sort, limit) mais o parâmetro `geo`, um JSON com a operação (D-048). A resposta é `{ data, meta }`, como no `/items`. O `SEARCH`, que leva a consulta no corpo, é o mesmo que o `/items` aceita.
    - `data` são os itens. Nas operações que agregam (contagem por região, grade e focos), `data` traz uma linha por região, célula da grade ou foco, com a contagem, como o Directus faz com `aggregate` e `groupBy` (V-44).
    - As formas só saem pela consulta registrada. Quem integra por aqui já conhece a geometria que mandou.
 2. **Consulta registrada, para o Studio, os dashboards e o compartilhamento.** `POST /geospatial/queries` registra a consulta e devolve o id, que os tiles, as três partes do resultado e a exportação usam. Cada parte tem a sua rota, e o mapa, a lista e o resumo carregam em paralelo (D-022).
@@ -911,7 +917,7 @@ O prefixo `/geospatial` vem do nome do pacote (7.5). As rotas de relatório est�
 
 - **Autenticação:** a do Directus (sessão, token ou `access_token`). O papel público também vale: se ele pode ler uma coleção, a extensão atende anônimos, com limite de pedidos por IP.
 - **Erros:** no formato do Directus, com códigos próprios para operação indisponível, geometria inválida, limite excedido, consulta desconhecida (a interface registra de novo) e tempo esgotado.
-- **Paginação:** por `limit` e `cursor`. O formato do `/items` também aceita `page` e `offset`, por compatibilidade, mas fica mais lento em páginas fundas.
+- **Paginação:** por `limit` e `cursor`. O formato do `/items` também aceita `page` e `offset`, por compatibilidade, mas fica mais lento em páginas fundas. O `limit` vai até 1.000, e o `-1` do `/items`, que traz todos, é recusado; sem ele, vale a página padrão do Directus (D-051).
 - **Nomes das operações** (D-024): o id de cada uma é o termo canônico do glossário em camelCase: `radius`, `byArea`, `measure`, `nearest`, `trajectory`, `corridor`, `countByRegion`, `geofence`, `densityGrid`, `hotspots`, `buffer`, `center` e `simplify`.
 - **Valores calculados** (distância, posição ao longo da linha, tempo desde o ponto anterior, contagem da região, foco do ponto) vêm num campo reservado, `$geo`, na mesma convenção do `$meta` do Directus. Nas formas, os números de cada uma (a contagem da célula da grade ou do foco) vão nas propriedades do GeoJSON.
 - **Contrato primeiro:** um documento OpenAPI publicado em `GET /geospatial/openapi.json`. Os tipos do SDK e a validação saem desse mesmo contrato.
@@ -927,12 +933,12 @@ O prefixo `/geospatial` vem do nome do pacote (7.5). As rotas de relatório est�
 
 **SDK**
 
-- **Estilo:** o mesmo do SDK oficial, com comandos usados em `client.request(...)`, como o `readItems`. Por exemplo, `client.request(geoRadius('ocorrencias', { center, distance, fields }))`.
+- **Estilo:** o mesmo do SDK oficial, com comandos usados em `client.request(...)`, como o `readItems`. Por exemplo, `client.request(geoRadius('ocorrencias', { center, distance, fields }))`. Um comando de lista devolve `{ data, meta }`, com o `capped` e o cursor, e não só os itens: o `request` do SDK oficial entrega só o `data` de uma resposta `application/json`, e o comando pede a lista no tipo próprio da extensão, `application/vnd.directus-geospatial+json`, com o mesmo corpo (D-058).
 - **Comandos:** o id da operação com o prefixo `geo` (`geoRadius()`, `geoByArea()`, `geoCountByRegion()`), como o `geoCapabilities()`. O prefixo evita colisão de nomes genéricos, como `center()` e `measure()`, com o código de quem usa e com outras extensões, e agrupa tudo no autocompletar (D-024).
 - **Tipos:** usa o esquema do usuário, com autocompletar de campos.
-- **Paginação:** por cursor, como iterador (`for await`).
-- **Partes do resultado:** na consulta registrada, um comando para cada parte (itens, formas e resumo).
-- **Erros e capacidades:** erros tipados com os códigos da API, e `geoCapabilities()` para checar antes de chamar.
+- **Paginação:** por cursor, como iterador (`for await`), o `geoPaginate()`, com uma página inteira por volta, e o `meta` dela (D-059).
+- **Partes do resultado:** na consulta registrada, o registro e um comando para cada parte (itens, formas e resumo), e uma espera pelo total exato do resumo, o `geoFinalSummary()` (D-059).
+- **Erros e capacidades:** erros tipados com os códigos da API, pelo `isGeospatialError()`, e `geoCapabilities()` para checar antes de chamar.
 - **Mapas externos:** um ajudante monta a URL dos tiles.
 - **Tempo real:** `geoLive()`, um iterador sobre o canal ao vivo, com o token no cabeçalho (D-035).
 
@@ -1038,14 +1044,15 @@ Placa, posição, trajeto e ocorrência são dado pessoal (LGPD, GDPR). Quem con
 
 **O que a extensão guarda**
 
-| O quê                                                                     | Onde                                          | Por quanto tempo                      |
-| ------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------- |
-| Consultas registradas, cache e estado dos alertas de cerca                | Memória ou Redis                              | Temporário: expira sozinho            |
-| Visões e consultas salvas                                                 | Coleções da extensão                          | Até o dono apagar                     |
-| Links compartilhados                                                      | Coleção da extensão                           | Sem vencimento, com a opção de vencer |
-| Capturas que não entraram num relatório gerado, com as cópias de arquivos | Coleção da extensão e a pasta dos relatórios  | 90 dias, ajustável                    |
-| Relatórios gerados, com as capturas, o PDF e as cópias de arquivos        | Coleções da extensão e a pasta dos relatórios | Até o admin remover                   |
-| Trabalhos concluídos                                                      | Coleção da extensão                           | 30 dias, ajustável                    |
+| O quê                                                                     | Onde                                          | Por quanto tempo                                                                                      |
+| ------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Consultas registradas                                                     | Memória ou Redis                              | 24 h sem uso, e acima de 32 MB sai antes a usada há mais tempo (D-053). A vencida sai na hora (D-057) |
+| Cache e estado dos alertas de cerca                                       | Memória ou Redis                              | Temporário: expira sozinho                                                                            |
+| Visões e consultas salvas                                                 | Coleções da extensão                          | Até o dono apagar                                                                                     |
+| Links compartilhados                                                      | Coleção da extensão                           | Sem vencimento, com a opção de vencer                                                                 |
+| Capturas que não entraram num relatório gerado, com as cópias de arquivos | Coleção da extensão e a pasta dos relatórios  | 90 dias, ajustável                                                                                    |
+| Relatórios gerados, com as capturas, o PDF e as cópias de arquivos        | Coleções da extensão e a pasta dos relatórios | Até o admin remover                                                                                   |
+| Trabalhos concluídos                                                      | Coleção da extensão                           | 30 dias, ajustável                                                                                    |
 
 - A limpeza periódica é um trabalho do executor (7.8).
 - Os logs não levam dado de item, geometria nem token.

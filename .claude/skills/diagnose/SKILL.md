@@ -1,6 +1,6 @@
 ---
 name: diagnose
-description: Loop de diagnóstico disciplinado para bugs difíceis e regressões de performance no directus-extension-geospatial. Reproduzir → minimizar → hipotetisar → instrumentar → corrigir → teste de regressão. Use quando reportar um bug, algo está quebrando/falhando, ou descrever uma regressão de performance.
+description: Loop de diagnóstico disciplinado para bugs difíceis e regressões de performance no directus-extension-geospatial. Reproduzir → minimizar → hipotetizar → instrumentar → corrigir → teste de regressão. Use quando reportar um bug, algo está quebrando/falhando, ou descrever uma regressão de performance.
 ---
 
 ## Diagnose
@@ -44,7 +44,7 @@ O objetivo não é uma reprodução limpa mas uma "taxa de reprodução mais alt
 
 #### Quando genuinamente não conseguir construir um loop
 
-Pare e diga explicitamente. Liste o que tentou. Peça ao usuário: (a) acesso ao ambiente que reproduz, (b) artefato capturado (log dump, screen recording com timestamps), ou (c) permissão para adicionar instrumentação temporária. **Não prossiga para hipotetisar sem um loop.**
+Pare e diga explicitamente. Liste o que tentou. Peça ao mantenedor: (a) acesso ao ambiente que reproduz, (b) artefato capturado (log dump, screen recording com timestamps), ou (c) permissão para adicionar instrumentação temporária. **Não prossiga para hipotetizar sem um loop.**
 
 ---
 
@@ -54,7 +54,7 @@ Execute o loop. Observe o bug aparecer.
 
 Confirme:
 
-- O loop produz o modo de falha que o **usuário** descreveu — não uma falha diferente que acontece estar por perto.
+- O loop produz o modo de falha que o **mantenedor** descreveu — não uma falha diferente que acontece estar por perto.
 - A falha é reproduzível através de múltiplas execuções.
 - Você capturou o sintoma exato (mensagem de erro, saída errada, timing lento).
 
@@ -62,7 +62,7 @@ Não prossiga até reproduzir o bug.
 
 ---
 
-### Fase 3 — Hipotetisar
+### Fase 3 — Hipotetize
 
 Gere **3–5 hipóteses rankeadas** antes de testar qualquer uma.
 
@@ -72,7 +72,7 @@ Formato: "Se [X] for a causa, então [Y] fará o bug desaparecer / piorar."
 
 Se não conseguir declarar a predição, a hipótese é um palpite — descarte ou afine.
 
-**Mostre a lista rankeada ao usuário antes de testar.** Eles frequentemente têm conhecimento de domínio que re-rankeia instantaneamente.
+**Mostre a lista rankeada ao mantenedor antes de testar.** Ele frequentemente tem conhecimento do domínio que re-rankeia instantaneamente.
 
 ---
 

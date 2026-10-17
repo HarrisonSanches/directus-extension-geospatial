@@ -1,5 +1,6 @@
 import { createCollection, createItems, createPolicy, createRole, createUser } from '@directus/sdk';
-import type { Client, Occurrence } from './directus.ts';
+import geographiclib from 'geographiclib-geodesic';
+import type { Client, Occurrence, Role } from './directus.ts';
 
 const point = (longitude: number, latitude: number): Occurrence['geometry'] => ({
 	type: 'Point',
@@ -8,7 +9,7 @@ const point = (longitude: number, latitude: number): Occurrence['geometry'] => (
 
 // Occurrences in São Paulo. Each region and category appears more than once, so every policy lets some through and
 // holds some back.
-export const occurrences: Omit<Occurrence, 'id'>[] = [
+const scattered: Omit<Occurrence, 'id'>[] = [
 	{
 		region: 'south',
 		category: 'theft',
@@ -53,17 +54,54 @@ export const occurrences: Omit<Occurrence, 'id'>[] = [
 	},
 ];
 
-// A role whose policies each read the occurrences that match one filter. Directus joins the policies of a role with OR.
-const roleWith = async (admin: Client, name: string, filters: Record<string, Record<string, unknown>>) => {
+export const wgs84 = geographiclib.Geodesic.WGS84;
+
+// A circle of 10 km in the south zone of São Paulo, for the radius. Over 10 km, the sphere and the ellipsoid disagree by
+// up to 40 m, so the points 2 m from the edge only fall on the right side by the geodesic distance (F01-02).
+export const circle = { center: [-46.7, -23.65] as [number, number], meters: 10_000 };
+
+// Points every 30° around the center, 2 m inside and 2 m outside the edge. Half of them are in the south zone and half
+// in the north, which Maria does not read, and the status and the category vary, for the filter and the search.
+const aroundTheEdge: Omit<Occurrence, 'id'>[] = Array.from({ length: 12 }, (_, index) => index * 30).flatMap(
+	(azimuth, index) =>
+		[circle.meters - 2, circle.meters + 2].map((distance) => {
+			const [longitude, latitude] = circle.center;
+			const { lat2, lon2 } = wgs84.Direct(latitude, longitude, azimuth, distance);
+
+			if (lat2 === undefined || lon2 === undefined) {
+				throw new Error('GeographicLib did not return the point.');
+			}
+
+			return {
+				region: index % 2 === 0 ? 'south' : 'north',
+				category: Math.floor(index / 4) % 2 === 0 ? 'theft' : 'fire',
+				status: Math.floor(index / 2) % 2 === 0 ? 'open' : 'closed',
+				occurred_at: '2026-09-10T10:00:00Z',
+				geometry: point(lon2, lat2),
+			};
+		}),
+);
+
+export const occurrences: Omit<Occurrence, 'id'>[] = [...scattered, ...aroundTheEdge];
+
+// What a policy lets its role read of the occurrences: the items that match a filter, with every field or with some.
+interface Read {
+	filter: Record<string, unknown>;
+	fields?: string[];
+}
+
+// A role whose policies each read the occurrences of one filter. Directus joins the policies of a role with OR, and a
+// field one policy holds back comes null in the items that only that policy lets through (V-22, V-143).
+const roleWith = async (admin: Client, name: string, policies: Record<string, Read>) => {
 	const role = await admin.request(createRole({ name }));
 
-	for (const [policy, filter] of Object.entries(filters)) {
+	for (const [policy, { filter, fields = ['*'] }] of Object.entries(policies)) {
 		await admin.request(
 			createPolicy({
 				name: policy,
 				admin_access: false,
 				app_access: false,
-				permissions: [{ collection: 'occurrences', action: 'read', fields: ['*'], permissions: filter }],
+				permissions: [{ collection: 'occurrences', action: 'read', fields, permissions: filter }],
 				roles: [{ role: role.id }],
 			}),
 		);
@@ -84,17 +122,16 @@ const userWith = async (admin: Client, role: string, email: string, newSecret: (
 // The row rule of Maria, who only reads the south zone.
 export const southZone = { region: { _eq: 'south' } };
 
-// Builds the schema, the roles and the data through the API, so each database stores them the way Directus writes to
-// it. Without custom permission rules, as on the Core tier of Directus 12, the roles get no policy, and their users
-// only have a session (V-114).
-export const seed = async (
-	admin: Client,
-	newSecret: () => string,
-	customPermissionRules: boolean,
-): Promise<{ maria: string; twoPolicies: string }> => {
-	await admin.request(
+export const northZone = { region: { _eq: 'north' } };
+
+const everyFieldBut = (field: keyof Occurrence) =>
+	(['id', 'geometry', 'region', 'category', 'status', 'occurred_at'] as const).filter((name) => name !== field);
+
+// A collection of occurrences, as Directus creates it in each database.
+export const createOccurrences = (admin: Client, collection: 'occurrences' | 'hooked_occurrences') =>
+	admin.request(
 		createCollection({
-			collection: 'occurrences',
+			collection,
 			schema: {},
 			meta: {},
 			fields: [
@@ -112,22 +149,47 @@ export const seed = async (
 		}),
 	);
 
+// Builds the schema, the roles and the data through the API, so each database stores them the way Directus writes to
+// it. Without custom permission rules, as on the Core tier of Directus 12, the roles get no policy, and their users
+// only have a session (V-114).
+export const seed = async (
+	admin: Client,
+	newSecret: () => string,
+	customPermissionRules: boolean,
+): Promise<Record<Exclude<Role, 'admin' | 'public'>, string>> => {
+	await createOccurrences(admin, 'occurrences');
+
 	await admin.request(createItems('occurrences', occurrences));
 
-	const maria = await roleWith(
-		admin,
-		'Maria, South Zone Operator',
-		customPermissionRules ? { 'South zone': southZone } : {},
-	);
-
-	const twoPolicies = await roleWith(
-		admin,
-		'Two policies',
-		customPermissionRules ? { 'North zone': { region: { _eq: 'north' } }, Theft: { category: { _eq: 'theft' } } } : {},
-	);
+	const userOf = async (name: string, email: string, policies: Record<string, Read>) =>
+		userWith(admin, await roleWith(admin, name, customPermissionRules ? policies : {}), email, newSecret);
 
 	return {
-		maria: await userWith(admin, maria, 'maria@example.com', newSecret),
-		twoPolicies: await userWith(admin, twoPolicies, 'two-policies@example.com', newSecret),
+		maria: await userOf('Maria, South Zone Operator', 'maria@example.com', { 'South zone': { filter: southZone } }),
+		twoPolicies: await userOf('Two policies', 'two-policies@example.com', {
+			'North zone': { filter: northZone },
+			Theft: { filter: { category: { _eq: 'theft' } } },
+		}),
+		// The south zone without one field, for the error of /items to a field asked by name.
+		withoutCategory: await userOf('Without category', 'without-category@example.com', {
+			'South zone without category': { filter: southZone, fields: everyFieldBut('category') },
+		}),
+		withoutGeometry: await userOf('Without geometry', 'without-geometry@example.com', {
+			'South zone without geometry': { filter: southZone, fields: everyFieldBut('geometry') },
+		}),
+		// The geometry in the south zone, and the north zone without it, for the leak a radius over the column would show.
+		geometryInPart: await userOf('Geometry in part', 'geometry-in-part@example.com', {
+			'South zone with geometry': { filter: southZone },
+			'North zone without geometry': { filter: northZone, fields: everyFieldBut('geometry') },
+		}),
+		// The status in the south zone, and the north zone without it, for the order by a field a policy holds back.
+		statusInPart: await userOf('Status in part', 'status-in-part@example.com', {
+			'South zone with status': { filter: southZone },
+			'North zone without status': { filter: northZone, fields: everyFieldBut('status') },
+		}),
+		// The south zone without the primary key, which Directus reads for itself and leaves out of /items (V-183).
+		withoutKey: await userOf('Without key', 'without-key@example.com', {
+			'South zone without key': { filter: southZone, fields: everyFieldBut('id') },
+		}),
 	};
 };

@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { format, resolveConfig } from 'prettier';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { apiVersion } from './index.js';
+import { apiVersion, limitMaximum, openapi, wholeBodyType } from './index.js';
 
 const contract = join(import.meta.dirname, '..');
 const generated = join(import.meta.dirname, 'generated');
@@ -16,6 +16,33 @@ describe('contrato', () => {
 		const openapi: unknown = parse(await readFile(join(contract, 'openapi.yaml'), 'utf8'));
 
 		expect(openapi).toMatchObject({ info: { version: apiVersion } });
+	});
+
+	it('o máximo de uma página é o do documento', async () => {
+		const openapi: unknown = parse(await readFile(join(contract, 'openapi.yaml'), 'utf8'));
+
+		expect(openapi).toMatchObject({ components: { schemas: { Limit: { maximum: limitMaximum } } } });
+	});
+
+	it('toda lista com meta, os itens e as formas, também sai no tipo próprio da extensão, com o mesmo corpo (D-058)', async () => {
+		const openapi: unknown = parse(await readFile(join(contract, 'openapi.yaml'), 'utf8'));
+		const both = (schema: string) => {
+			const body = { schema: { $ref: `#/components/schemas/${schema}` } };
+
+			return { responses: { '200': { content: { 'application/json': body, [wholeBodyType]: body } } } };
+		};
+
+		expect(openapi).toMatchObject({
+			paths: {
+				'/geospatial/items/{collection}': { get: both('Items'), additionalOperations: { SEARCH: both('Items') } },
+				'/geospatial/queries/{id}/items': { get: both('Items') },
+				'/geospatial/queries/{id}/shapes': { get: both('Shapes') },
+			},
+		});
+	});
+
+	it('o documento em JSON, que a extensão serve, é o openapi.yaml', async () => {
+		expect(openapi).toEqual(parse(await readFile(join(contract, 'openapi.yaml'), 'utf8')));
 	});
 
 	it('os tipos gerados estão em dia com o documento', async () => {

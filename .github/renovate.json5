@@ -62,6 +62,14 @@
 			],
 			datasourceTemplate: 'docker',
 		},
+		// The Redis of the integration suite, the image of the development environment, which the manager of Docker Compose
+		// follows in dev/compose.yaml.
+		{
+			customType: 'regex',
+			managerFilePatterns: ['/^test/environment\\.ts$/'],
+			matchStrings: ["const redisImage = '(?<depName>redis):(?<currentValue>[^']+)'"],
+			datasourceTemplate: 'docker',
+		},
 		// The versions in the workflows that no manager reads, each under a comment that names its source.
 		{
 			customType: 'regex',
@@ -105,9 +113,17 @@
 		{
 			matchDatasources: ['docker'],
 			matchPackageNames: ['directus/directus'],
-			matchUpdateTypes: ['minor', 'major'],
+			matchUpdateTypes: ['minor'],
 			prBodyNotes: [
-				'A new minor or major of Directus joins the matrix as the newest version, and the floor stays (D-037): add its combinations to test/combinations.ts instead of replacing the ones there.',
+				'A new minor of Directus takes the place of the newest version of its major, and the floor stays (D-037): the floor has combinations of its own in test/combinations.ts, which this update leaves as they are.',
+			],
+		},
+		{
+			matchDatasources: ['docker'],
+			matchPackageNames: ['directus/directus'],
+			matchUpdateTypes: ['major'],
+			prBodyNotes: [
+				'A new major of Directus joins the matrix with combinations of its own, and the major before stays in its last minor (D-037): add its combinations to test/combinations.ts instead of replacing the ones there.',
 			],
 		},
 		// 11.17 is the last minor of Directus 11 (V-35), which stays in the range while the matrix passes on it (D-037).
@@ -116,6 +132,13 @@
 			matchPackageNames: ['directus/directus'],
 			matchCurrentValue: '/^11\\./',
 			allowedVersions: '/^11\\./',
+		},
+		// 12.4 is the floor of Directus 12, which follows only the patches of its minor (D-037).
+		{
+			matchDatasources: ['docker'],
+			matchPackageNames: ['directus/directus'],
+			matchCurrentValue: '/^12\\.4\\./',
+			allowedVersions: '/^12\\.4\\./',
 		},
 		// @directus/extensions-sdk depends on exact versions of the other packages of Directus, such as @directus/types,
 		// so they come together, majors included.
@@ -126,6 +149,12 @@
 			prBodyNotes: [
 				'@directus/types names exact versions of knex and pino as its peers, and the catalog keeps them at those versions by hand.',
 			],
+		},
+		// The oldest @directus/sdk the peer of the SDK of the extension accepts, which its tests also run against (V-191).
+		// It moves with the peer, by hand.
+		{
+			matchDepNames: ['directus-sdk-oldest'],
+			enabled: false,
 		},
 		// The peers of @directus/types, which follow it and not their latest version.
 		{
@@ -157,6 +186,14 @@
 			matchPackageNames: ['terra-draw', 'terra-draw-*'],
 			matchUpdateTypes: ['major'],
 			groupName: 'Terra Draw',
+		},
+		// The docs site (D-060): Starlight names the major of Astro it takes as its peer, and Starlight and its check of the
+		// links are below 1.0.0, where a minor breaks as a major does. So they come together, apart from the weekly group,
+		// and the CI of the pull request builds the site.
+		{
+			matchPackageNames: ['astro', '@astrojs/**', 'starlight-links-validator'],
+			groupName: 'Docs site',
+			separateMajorMinor: false,
 		},
 		// The tools run on the Node of .node-version, the 24 (V-79), and the code of the extension on the Node of the
 		// Directus images, the 22 (V-80). Each catalog stays on its line, and a new line is a decision.

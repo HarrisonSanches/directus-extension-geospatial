@@ -139,18 +139,154 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
   quatro combinações e o `pnpm spike:dialects` nos cinco bancos. Nenhuma premissa das portas de mão única caiu. A
   pasta `spikes/` sai do `develop` depois da tag `f01-done`, que a guarda para a F02 consultar, e os passos da F02
   foram escritos com o resultado das provas (A-022, no plano).
-- Próximo passo: `/to-issues F02`, a quebra da query permitida e do motor.
+- F02 quebrada em 21 issues em 30/09/2026, no repositório do plano, com a A-015 resolvida: a paridade compara com a
+  resposta calculada em todo banco.
+- F02-01 feita em 30/09/2026: o lint garante a direção das camadas do motor, rotas → operações → adaptadores →
+  internos, também nos testes, e nada fora de `internals/` importa o `@directus/api`. O `no-restricted-imports` não vê
+  o `import()`, e o `no-restricted-paths` pula o que não resolve e parte do `process.cwd()`, então o `import()` e o
+  `typeof import()` vão pelo `no-restricted-syntax`, e as zonas pela raiz do repositório (V-167).
+- F02-02 feita em 30/09/2026: o documento do contrato é servido em `GET /geospatial/openapi.json`, cru, como o Directus
+  serve o dele, a quem tem sessão, do JSON que o `generate` escreve a partir do YAML e o build embute. O Redocly CLI,
+  no `recommended-strict` e sem a telemetria dele, passa no `pnpm lint` e na CI, e a suíte confere cada resposta da
+  extensão contra o documento, pelo Ajv: a rota, o status, o tipo e o schema (V-168, V-169).
+- F02-03 feita em 30/09/2026: a pasta `internals/` é a única que importa o `@directus/api`, declarado num `.d.ts` e
+  importado na hora, módulo a módulo, e um adaptador para o 11.17 e outro para o 12 montam a cadeia até o `getDBQuery`.
+  Ao subir, a checagem confere o módulo, a função, a aridade e a forma de cada passo, sobre a `directus_collections`, e
+  o resultado sai no log e no `capabilities` do admin. O próprio Directus importa cada módulo da cadeia, então o ensaio
+  move um deles para outro arquivo, em vez de apagá-lo, e a suíte confere pelo mapa do código que nenhum arquivo do
+  `@directus/api` entrou no bundle (V-170, A-039, no plano).
+- F02-04 feita em 01/10/2026: `GET /geospatial/items/:coleção` devolve o raio no formato do `/items`, sobre a query
+  permitida do `req.sanitizedQuery`, num SQL só, com o `ST_DWithin` em `geography` sobre o texto da geometria, e a
+  geometria em GeoJSON, igual à do `/items`. O `geo` vai em JSON, com a `operation`, como o SDK do Directus manda um
+  parâmetro que não conhece (D-048, V-171). A matriz declara o raio e o envelope de cada banco num lugar
+  só: no PostGIS, sem índice; nos outros, indisponível, com o `GEOSPATIAL_OPERATION_UNAVAILABLE`. A suíte conta as
+  queries pelo `pg_stat_statements` (V-172).
+- F02-05 feita em 01/10/2026: o raio passa pela paridade inteira da F01-03. O papel com duas políticas e o filtro, a
+  busca e os campos da Maria batem com o gabarito sobre o `/items` de cada um, e o público, o campo sem permissão pedido
+  pelo nome e a geometria sem permissão recebem o erro do `/items`, inteiro. O seed ganhou três papéis com campos sem
+  permissão. O item que uma política deixa ver sem a geometria fica fora do raio, e um envelope sobre a coluna crua
+  devolveu seis itens do norte, e o teste reprovou. O `/items` recusa as coleções do sistema e as inativas e processa
+  os valores lidos, e o raio ainda não (V-173, A-041, no plano).
+- F02-22 feita em 01/10/2026: o raio responde como o `/items` também fora das permissões. A coleção do sistema, pelo
+  prefixo `directus_`, volta com o `FORBIDDEN`, também ao admin, e as linhas passam pelo `PayloadService` do Directus,
+  que esconde o `conceal`, converte as datas, o CSV e o resto e faz o GeoJSON do texto da query permitida, então o
+  `ST_AsGeoJSON` saiu do envelope. A coleção inativa do 12 a própria cadeia já recusava, pelo `processAst` (V-173,
+  A-042, no plano).
+- F02-06 feita em 01/10/2026: o raio emite o `items.query` como o `readByQuery`, pelo emissor dos eventos do núcleo,
+  depois do que a versão faz antes dos hooks e antes da cadeia, e lê a página que os hooks devolveram. O `emitFilter` é
+  um método da instância que o módulo exporta, e a checagem o confere pela aridade, 3, sem emitir na partida. A suíte
+  carrega em toda rodada uma segunda extensão, a de `test/hook/`, cujos hooks mudam uma coleção própria, e a cobertura
+  continua somada pela catraca (V-174).
+- F02-07 feita em 02/10/2026: o `pnpm measure` mede sob demanda, fora da CI, pelo método da F01-16. Ele sobe o 11.17
+  com o PostGIS 3.2 e o 3.6 e o 12, carrega o volume por SQL, mede e derruba tudo em uns 8 min, e o `MEASURE_QUICK=1`
+  confere em 1 min que ele funciona. A extensão de `test/measure/observer/`, que só a medição carrega, mede dentro do
+  Directus a montagem da query permitida e o banco, sem mudar o produto. A query permitida custa de 3 a 4 ms, e o raio
+  da Maria com 1 milhão, de 1,8 a 2,0 s, com ou sem o GiST, porque o envelope lê o texto da geometria, e o JIT leva
+  0,7 s disso. A medição rodou fora da máquina de referência, e o raio sem `limit` devolve o círculo inteiro, onde o
+  `/items` devolve 100 (V-175, V-176, A-043, A-044, no plano).
+- F02-08 feita em 02/10/2026: o raio usa o índice. A caixa e o `ST_DWithin` leem a coluna e entram como mais condições
+  da query permitida, porque o Directus a ordena e o Postgres não achata uma subconsulta ordenada, e a guarda do nulo,
+  em volta, deixa fora o que uma política esconde (D-049, a opção da A-026, escolha do mantenedor). Com 1 milhão de
+  pontos e o GiST, o pedido da Maria caiu de 0,9 s para 50 a 64 ms na primeira página, na máquina de referência. Um
+  teste lê o `EXPLAIN` do SQL que chegou ao banco, que o observador da medição, agora também na suíte, entrega (V-177).
+- F02-09 feita em 02/10/2026: o raio mede em metros numa coluna em qualquer SRID e numa `geography`, e a geometria sai
+  em 4326. O esquema do Directus lê as duas como `geometry.Point` e não guarda o SRID, então o motor os lê do catálogo,
+  a cada pedido. A caixa vai para o SRID da coluna com a borda cortada em trechos curtos, e só onde o PROJ a traz de
+  volta ao mesmo lugar, e na `geography` o próprio `ST_DWithin` usa o índice. Com o SRID sem tipo, o `ST_Transform`
+  lia o número como um texto do PROJ, e a caixa ficava de fora com o resultado certo: só o `EXPLAIN` reprovou (D-050,
+  V-178).
+- F02-10 feita em 02/10/2026: cada item do raio traz no `$geo` a distância até o centro, em metros, do texto que a
+  query permitida expõe, e a lista vem pela distância, com o empate pela chave. Com o `sort`, vem a ordem da página,
+  pelo valor exposto, e não pela coluna crua, como o `/items` faz, então o item cujo campo de ordem uma política esconde
+  não revela o valor pela posição. O `limit` vai de 1 a 1.000, o `-1` volta com erro, e sem o `limit` vale a página
+  padrão do Directus, e não o círculo inteiro. A ordem custa uns 20 ms na primeira página da Maria com 1 milhão de
+  pontos (D-051, V-179, resolve a A-044).
+- F02-11 feita em 03/10/2026: o raio roda no SQLite, com limite (D-052). Sem os metadados espaciais, que o Directus não
+  cria, nenhuma função da SpatiaLite mede em metros, e o `PtDistWithin` só mede pontos: ele decide no banco quem está no
+  círculo, na coluna, dentro da query permitida, com a guarda do nulo em volta (D-049). A distância e a ordem natural
+  saem no Node, pela GeographicLib, sobre até 50.000 itens, e acima disso o `meta` da resposta avisa com o `capped`. Um
+  campo que não é ponto volta indisponível, e o tipo vem da coluna, porque o esquema que o Directus entrega à extensão
+  diz só `geometry` no SQLite. A paridade inteira com o `/items` e os hooks de outra extensão passam no SQLite (V-180).
+- F02-12 feita em 03/10/2026: a entrada passa pelo contrato antes do banco. O `geo`, o corpo do `SEARCH` e o campo que
+  não é de geometria voltam com o `GEOSPATIAL_INVALID_INPUT`, e o corpo acima de 256 KB, com o
+  `GEOSPATIAL_LIMIT_EXCEEDED`, sem query na coleção. O `SEARCH /geospatial/items/:coleção` leva o `geo` e a query do
+  `/items` no corpo, que a extensão lê pelo `sanitizeQuery` e pelo `validateQuery` do Directus, conferidos ao subir, e
+  dá o mesmo raio que o `GET`. O contrato subiu para o OpenAPI 3.2, que descreve o `SEARCH` no `additionalOperations`.
+  A geometria de entrada foi para a F05, e a ordem natural do SQLite passou a medir em fatias, porque travava o laço de
+  eventos até o limitador de pressão do Directus responder 503 (A-051, V-181).
+- F02-13 feita em 03/10/2026: o `POST /geospatial/queries` registra a pergunta, com a coleção, o `geo` e o filtro, a
+  busca e os campos do `/items`, e devolve um id curto, o HMAC da pergunta na forma canônica do JSON, com a chave
+  derivada do `SECRET` do Directus, então só a instalação sabe o id de uma pergunta (D-053). O
+  `GET /geospatial/queries/:id/items` dá o raio do estilo do `/items` com as permissões de quem pede, e o `limit` e o
+  `sort` vão na URL. O `$NOW` do filtro vira o minuto do registro, que o Directus compara como compara o `$NOW` (V-182).
+  O registro fica na memória por 24 h sem uso, com um teto de 32 MB, e o Directus reiniciado responde
+  `GEOSPATIAL_UNKNOWN_QUERY` até o cliente registrar de novo, com o mesmo id.
+- F02-14 feita em 03/10/2026: as listas de itens, no estilo do `/items` e na consulta registrada, paginam por cursor.
+  A página começa logo depois do último item, pela chave da ordem e pela chave primária (_keyset_), e o `meta.next`
+  traz o cursor da seguinte. O cursor guarda a ordem como o banco a escreve, o texto no Postgres, que mantém os
+  microssegundos, cifrada por AES-256-GCM com a chave derivada do `SECRET` e presa à lista (D-054, V-185). A issue
+  achou e corrigiu uma falha da regra de ouro: o raio entregava a chave primária a quem a política não a libera, e
+  agora cada item leva só os campos da árvore do Directus, como o `/items` (V-183).
+- F02-15 feita em 04/10/2026: o `GET /geospatial/queries/:id/shapes` devolve as formas do resultado em GeoJSON, por
+  cursor, e no raio, o círculo, com o centro e a distância nas propriedades. O servidor o monta pela GeographicLib, com
+  128 lados, igual em todo banco, e o corta no antimeridiano, como pede a RFC 7946 (D-055). O `ST_Buffer` em `geography`,
+  que a issue pedia, erra 9,8% num raio de 5.000 km, dá a volta no mundo no antimeridiano e deixa o polo de fora (V-186).
+  As formas não leem item, mas a query permitida é montada, sem rodar, e quem não lê a coleção recebe o erro do `/items`.
+- F02-16 feita em 04/10/2026: o `GET /geospatial/queries/:id/summary` traz o total em dois tempos,
+  `{ total, exact, counting }`. Até 10.000 itens, o total vem exato de uma vez. Acima disso, vem o 10.000+, e a contagem
+  exata roda em segundo plano, até 30 s e no máximo 2 ao mesmo tempo, numa transação com o `statement_timeout`, que o
+  Postgres cancela além do tempo (V-187). O total vale por 5 min, guardado pelo SQL com os valores, então quem tem
+  outras permissões nunca o recebe (D-006). No SQLite, que tem uma conexão só, fica o 10.000+ (D-056).
+- F02-17 feita em 04/10/2026: quando o Directus usa o Redis, o registro das consultas vai para ele, pelo cliente que o
+  próprio Directus divide, e um id registrado numa instância é lido na outra. O teto de 32 MB vale para as instâncias
+  juntas, num script Lua, e a pergunta vencida sai na hora, no Redis e na memória. Com o Redis fora, cada instância cai
+  para a própria memória sem esperar a fila do cliente, que só desiste depois de 10,5 s, o log avisa, e o Redis volta a
+  ser usado quando volta (D-057). Com o Redis fora, o próprio Directus responde 500 a quem não tem o acesso na memória
+  da instância (V-188).
+- F02-18 feita em 06/10/2026: o SDK nasce, no pacote `directus-geospatial-sdk`, com o `@directus/sdk` como dependência
+  de par e nenhuma outra. O `geoCapabilities()` e o `geoRadius()` são comandos usados em `client.request(...)`, com os
+  campos tipados pelo esquema do projeto, e o `isGeospatialError()` tipa o erro pelo código. O `request` do SDK do
+  Directus entrega só o `data` de uma resposta `application/json`, então a lista de itens responde também como
+  `application/vnd.directus-geospatial+json`, com o mesmo corpo, a quem a pede assim, e o `geoRadius()` devolve o
+  `{ data, meta }` (D-058, V-189). O tsdown faz o build em ESM e em CommonJS, e o `pnpm sdk:check` confere o pacote
+  como o npm o receberia, pelo `publint` e pelo `attw` (V-190).
+- F02-19 feita em 14/10/2026: o SDK ganha a consulta registrada. O `geoRegisterQuery()` devolve a consulta, que leva nos
+  tipos a coleção e os campos da pergunta, e o `geoQueryItems()`, o `geoQueryShapes()` e o `geoQuerySummary()` dão cada
+  parte, tipada. O `geoPaginate()` percorre qualquer lista por cursor num `for await`, página a página, com o `meta`, e
+  falha numa página que chegou sem ele, em vez de acabar a lista ali. O `geoFinalSummary()` espera o total exato,
+  pedindo de novo a cada 1 s, até 30 s. Os itens e as formas da consulta registrada respondem também no tipo próprio da
+  extensão (D-058, D-059, V-192).
+- F02-20 feita em 14/10/2026: o StrykerJS mede toda noite a mutação do caminho da regra de ouro, escolha do mantenedor:
+  os internos, o envelope de cada banco, os campos de cada item, a entrada recusada e a consulta registrada, só pelos
+  unitários. O executor do Vitest do Stryker 10 não roda teste nenhum contra os mutantes no Vitest 5, e a mutação usa o
+  executor de comando, que roda os unitários da extensão para cada mutante (V-193, A-070). A primeira rodada deu 89,5%,
+  e os mutantes mostraram casos que faltavam, como a ação `read` que a cadeia pede ao Directus; com eles, 95,6%. O
+  canary espera os 3 dias da idade mínima, escolha do mantenedor, e o caminho dele está em `docs/padroes/testes.md`.
+- F02-21 feita em 15/10/2026: a documentação pública nasce, em inglês, no Starlight, em `packages/docs`, com a página do
+  raio pela API e pelo SDK e a referência da API, que o Scalar monta no navegador a partir do contrato, escolha do
+  mantenedor depois de ver três sites rodando (D-060). Os geradores do Starlight, do VitePress e do Docusaurus e o Redoc
+  deixam o `SEARCH` do OpenAPI 3.2 de fora sem aviso, e o Scalar o lê desde a 1.72. O build reprova com link quebrado,
+  também para uma operação que o contrato não tem, e roda no `pnpm check` e na CI; o site vai ao ar na F16. Nem o site
+  nem o Scalar falam com alguém de fora: a telemetria do Astro, que manda dados também na CI, desliga por variável, e o
+  Scalar, por seis opções (V-194 a V-196). O contrato ganhou exemplos, de que a referência monta os pedidos.
+- F02 concluída em 16/10/2026: o critério de saída foi conferido de novo, com o `pnpm check` e as quatro combinações, e
+  a mutação deu 95,6% no caminho da regra de ouro. O motor tem 99,8% das linhas e 98,3% das ramificações cobertas, na
+  soma. Com 1 milhão de pontos e o GiST, a primeira página do raio da Maria leva de 68 a 84 ms de mediana na máquina de
+  referência. A Maria no 12 com SQLite não roda, porque ali o Directus fica no Core. O §5 da arquitetura passou a dizer
+  que o `items.read` roda nas listas de itens, o que uma issue da F03 entrega, e o guia técnico da fase fica no plano
+  (A-076).
+- Próximo passo: a promoção da F02 para o `main`, com a tag `f02-done`, que é do mantenedor, e depois `/to-prd F03`.
 
 ## Documentação
 
-| Arquivo                                      | Papel                                                                                               |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [CONTEXT.md](CONTEXT.md)                     | Glossário do domínio, com o termo em português e o canônico em inglês                               |
-| [docs/arquitetura.md](docs/arquitetura.md)   | O desenho: o que a extensão faz e como                                                              |
-| [docs/decisoes.md](docs/decisoes.md)         | As decisões D-0xx; as portas de mão única ficam no topo. Não existe `docs/adr/`                     |
-| [docs/verificacoes.md](docs/verificacoes.md) | Fatos verificados em ferramentas de terceiros (V-xx) e pendências (P-xx)                            |
-| `../directus-extension-geospatial-plan/`     | Plano por fases, issues, especificações, achados e histórico, num repositório privado do mantenedor |
-| [docs/padroes/](docs/padroes/README.md)      | Padrões de código e de testes, e o que "Pronto quer dizer"                                          |
+| Arquivo                                      | Papel                                                                                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| [CONTEXT.md](CONTEXT.md)                     | Glossário do domínio, com o termo em português e o canônico em inglês                                                          |
+| [docs/arquitetura.md](docs/arquitetura.md)   | O desenho: o que a extensão faz e como                                                                                         |
+| [docs/decisoes.md](docs/decisoes.md)         | As decisões D-0xx; as portas de mão única ficam no topo. Não existe `docs/adr/`                                                |
+| [docs/verificacoes.md](docs/verificacoes.md) | Fatos verificados em ferramentas de terceiros (V-xx) e pendências (P-xx)                                                       |
+| `../directus-extension-geospatial-plan/`     | Plano por fases, issues, especificações, achados, histórico e a fonte dos guias de fase, num repositório privado do mantenedor |
+| [docs/padroes/](docs/padroes/README.md)      | Padrões de código e de testes, e o que "Pronto quer dizer"                                                                     |
 
 ## Idioma
 
@@ -163,7 +299,7 @@ Extensão para o Directus que transforma o Studio num painel geoespacial operaci
 - Preferências pessoais de quem trabalha no projeto ficam no `CLAUDE.local.md`, que não vai para o Git.
 - **O plano** mora num repositório privado, clonado ao lado deste, na mesma pasta. O Claude Code chega nele pelo `permissions.additionalDirectories` do `.claude/settings.local.json`, e as mudanças no plano viram commits lá, separados dos do produto.
 - Um passo de cada vez, uma decisão por vez, sempre com uma recomendação.
-- Explicações didáticas e passo a passo na conversa, ao entregar algo novo ou quando o mantenedor pedir. Não existe guia didático em arquivo.
+- Explicações didáticas e passo a passo na conversa, ao entregar algo novo ou quando o mantenedor pedir. O que elas ensinam vai para a seção "Para a documentação de fim de fase" do arquivo da fase, que no fechamento vira o guia técnico da fase: um artefato privado, com a fonte no plano (A-076, no plano).
 - O desenho é sempre o da extensão completa, sem recortes de "primeira versão". A ordem só aparece no plano de implementação.
 - Cada proposta traz a prática consagrada do mercado, pelo nome e com o porquê.
 - Pesquisas curtas e focadas: poucas perguntas por agente, com resposta em minutos. Uma afirmação sobre ferramenta de terceiros se confere no código-fonte ou na documentação oficial e vai para `docs/verificacoes.md`.

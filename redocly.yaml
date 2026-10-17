@@ -1,0 +1,9 @@
+# The lint of the contract (D-016), with the recommended rules of Redocly, each warning as an error, and none turned off
+# (docs/padroes/api-e-contrato.md).
+extends:
+  - recommended-strict
+apis:
+  geospatial:
+    root: packages/contract/openapi.yaml
+# Redocly CLI sends to Redocly, on each run, the command, its result and the rules that failed, unless this is off.
+telemetry: off

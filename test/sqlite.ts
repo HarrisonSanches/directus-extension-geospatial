@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import { GenericContainer, getContainerRuntimeClient, type StartedTestContainer } from 'testcontainers';
 import type { DatabaseVersions } from './directus.ts';
 
 const context = fileURLToPath(new URL('spatialite/', import.meta.url));
@@ -38,4 +38,48 @@ export const versionsOf = async (directus: StartedTestContainer): Promise<Databa
 	const { sqlite, spatialite } = JSON.parse(stdout) as { sqlite: string; spatialite: string };
 
 	return { database: { client: 'sqlite', version: sqlite }, spatial: { name: 'spatialite', version: spatialite } };
+};
+
+// Runs statements on the SQLite file of a Directus container, one after the other, each in a transaction of its own,
+// with the driver Directus uses and SpatiaLite loaded, for the data a test cannot write through the API in time. Directus
+// holds the same file, and the sqlite3 driver waits a second for a lock (V-180), so each statement stays short, and this
+// connection waits for Directus as long as it takes.
+export const runOnSqlite = async (container: string, statements: string[]): Promise<void> => {
+	const run = `
+import { sqlite3 } from '/directus/load-spatialite.ts';
+
+const statements = ${JSON.stringify(statements)};
+const database = new sqlite3.Database(process.env.DB_FILENAME, (error) => {
+	if (error) throw error;
+
+	database.configure('busyTimeout', 60000);
+
+	const next = (index) => {
+		if (index === statements.length) {
+			database.close();
+
+			return;
+		}
+
+		database.exec(statements[index], (error) => {
+			if (error) throw error;
+
+			next(index + 1);
+		});
+	};
+
+	next(0);
+});
+`;
+	const runtime = await getContainerRuntimeClient();
+	const { output, exitCode } = await runtime.container.exec(runtime.container.getById(container), [
+		'node',
+		'--input-type=module',
+		'--eval',
+		run,
+	]);
+
+	if (exitCode !== 0) {
+		throw new Error(`The statements failed on the SQLite file of Directus: ${output}`);
+	}
 };

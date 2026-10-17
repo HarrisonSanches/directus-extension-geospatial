@@ -10,19 +10,33 @@ import { extension, log, newSecret, openCoverage, seconds, startEnvironment } fr
 import { readLicenseKey } from './license.ts';
 import { seed } from './seed.ts';
 
+// The other extension of the suite, whose hooks on items.query the radius respects as /items does (V-144). It loads in
+// every run, and the coverage, which reads only the bundle of the extension, leaves its code out (test/coverage.ts).
+const testHook = 'test/hook';
+// The extension that hands over the statement of the radius with its values, which the measurements time and the suite
+// reads the plan of (test/measure/observer/).
+const observer = 'test/measure/observer';
+
 interface Started {
 	combination: Combination;
 	directus: Directus;
 	stop: () => Promise<void>;
 }
 
+// How a run starts each Directus: the folder of the coverage, whether Node records it, the key of the tests, and the
+// packages beside the extension.
+interface Run {
+	coverage: string;
+	recordsCoverage: boolean;
+	licenseKey: string | undefined;
+	packages: readonly string[];
+}
+
 // Starts the database and the Directus of one combination, with the packages of the run, and builds the schema, the
 // roles and the data.
 const start = async (
 	combination: Combination,
-	coverage: string,
-	licenseKey: string | undefined,
-	packages: readonly string[],
+	{ coverage, recordsCoverage, licenseKey, packages }: Run,
 ): Promise<Started> => {
 	const {
 		directus: container,
@@ -30,7 +44,7 @@ const start = async (
 		admin: credentials,
 		backend,
 		stop,
-	} = await startEnvironment(combination, coverage, combination, packages);
+	} = await startEnvironment(combination, coverage, { packages, coverage: recordsCoverage });
 	const images = combinations[combination];
 	const admin = connect(url, credentials.token);
 
@@ -63,6 +77,8 @@ const start = async (
 			tokens: { admin: credentials.token, ...tokens },
 			versions: { directus: images.directus.version, ...(await backend.versions(container)) },
 			customPermissionRules,
+			// SQLite keeps its database in a file of the container of Directus.
+			databaseContainer: (backend.database ?? container).getId(),
 		},
 		stop,
 	};
@@ -71,9 +87,10 @@ const start = async (
 // Vitest runs the global setup of each project one after the other, so this one, at the root, runs once and starts at
 // the same time the combinations of every project of the run. Each project finds its own by name (test/directus.ts).
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
-	// A run with both the suite and the spikes has two projects for a combination, and starts it once.
+	// Two projects of a run can share a combination, which starts once.
 	const selected = [...new Set(project.vitest.projects.flatMap(({ config }) => config.provide.combination ?? []))];
 	const extensions = [...new Set(project.vitest.projects.flatMap(({ config }) => config.provide.extensions ?? []))];
+	const measuring = project.vitest.projects.some(({ config }) => config.provide.measure === true);
 	const [first] = selected;
 
 	// A run of the unit tests alone starts nothing.
@@ -84,9 +101,15 @@ export default async function setup(project: TestProject): Promise<() => Promise
 	// A folder for each Directus of the run, the ones of the tests included, with the coverage of its processes.
 	const coverage = await mkdtemp(join(tmpdir(), 'geospatial-coverage-'));
 	const licenseKey = await readLicenseKey();
-	const results = await Promise.allSettled(
-		selected.map((combination) => start(combination, coverage, licenseKey, [extension, ...extensions])),
-	);
+	// A run of the measurements loads only its own packages beside the extension, and Directus runs without the coverage,
+	// as an installation runs it.
+	const run: Run = {
+		coverage,
+		recordsCoverage: !measuring,
+		licenseKey,
+		packages: measuring ? [extension, ...extensions] : [extension, testHook, observer, ...extensions],
+	};
+	const results = await Promise.allSettled(selected.map((combination) => start(combination, run)));
 	const started = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
 	const failure = results.find((result) => result.status === 'rejected');
 
@@ -103,8 +126,8 @@ export default async function setup(project: TestProject): Promise<() => Promise
 		try {
 			await Promise.all(started.map(({ stop }) => stop()));
 
-			// A run with other packages, as the spikes, is not the suite, and its coverage would replace the one of the
-			// suite.
+			// A run with packages besides the ones of the suite is not the suite, and its coverage would replace the one of
+			// the suite.
 			if (extensions.length === 0) {
 				await openCoverage(coverage, combinations[first].directus.image);
 				await collectCoverage(coverage, new URL('../coverage/integration/coverage-final.json', import.meta.url));
