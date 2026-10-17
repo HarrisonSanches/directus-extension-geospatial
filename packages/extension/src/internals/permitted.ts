@@ -1,20 +1,24 @@
 import type { Query } from '@directus/types';
-import type { Internals } from 'directus-geospatial-contract';
+import type { Internals, Item } from 'directus-geospatial-contract';
 import type { Knex } from 'knex';
 import type { Logger } from 'pino';
 import { acceptedWith, offOnMismatch } from './accepted.js';
 import { chain, type Context, type Request } from './chain.js';
 import { type Load, load as loadDirectus } from './modules.js';
 
+// The items of a list, through the hooks of items.read of other extensions, as the readByQuery hands its rows to them:
+// the list is what the filters return, and the actions get it after them, without anyone waiting for them (V-174).
+type ReadItems = (items: Item[]) => Promise<Item[]>;
+
 // The permitted query of a request, the query of the page as the hooks of items.query returned it, which the operation
-// reads its page by, and the fields Directus keeps of each item, which /items would give. The query of the request is
-// the page as Directus sanitized it for /items, and queryOf says what the operation asks of the chain out of what the
-// hooks returned.
+// reads its page by, the fields Directus keeps of each item, which /items would give, and the hooks of items.read, which
+// only a list of items calls (A-045). The query of the request is the page as Directus sanitized it for /items, and
+// queryOf says what the operation asks of the chain out of what the hooks returned.
 export type PermittedQuery = (
 	request: Request,
 	context: Context,
 	queryOf?: (hooked: Query) => Query,
-) => Promise<{ builder: Knex.QueryBuilder; query: Query; fields: string[] }>;
+) => Promise<{ builder: Knex.QueryBuilder; query: Query; fields: string[]; read: ReadItems }>;
 
 // The permitted query of a request (D-001), built by the adapter the check accepted for the running Directus, without
 // running it, in the order of the readByQuery of the ItemsService: what that Directus does before the hooks, the hooks
@@ -35,19 +39,32 @@ export const permittedQueryWith = (
 		return offOnMismatch(async () => {
 			await adapter.beforeHooks(take, request, context);
 
-			// The hooks of other extensions change the query as the readByQuery lets them: through the emitter of the core
-			// events, where their filters register, with the same events, meta and context. The emitter in the context of
-			// an extension never reaches them (A-024).
-			const query = await take('emitFilter')(
+			// The hooks of other extensions change the query and the items as the readByQuery lets them: through the emitter
+			// of the core events, where their filters and actions register, with the same events, meta and context. The
+			// emitter in the context of an extension never reaches them (A-024).
+			const emitFilter = take('emitFilter');
+			const emitAction = take('emitAction');
+			const eventContext = { database: context.knex, schema: context.schema, accountability };
+
+			const query = await emitFilter(
 				['items.query', `${collection}.items.query`],
 				request.query,
 				{ collection },
-				{ database: context.knex, schema: context.schema, accountability },
+				eventContext,
 			);
 
 			const { builder, fields } = await chain(take, { collection, query: queryOf(query), accountability }, context);
 
-			return { builder, query, fields };
+			const read: ReadItems = async (items) => {
+				const events = ['items.read', `${collection}.items.read`];
+				const filtered = await emitFilter(events, items, { query, collection }, eventContext);
+
+				emitAction(events, { payload: filtered, query, collection }, eventContext);
+
+				return filtered;
+			};
+
+			return { builder, query, fields, read };
 		}, logger);
 	};
 };

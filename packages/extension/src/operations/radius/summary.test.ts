@@ -107,6 +107,8 @@ const engineWith = ({
 				builder: database.select('id').from('occurrences'),
 				query: request.query,
 				fields: ['id'],
+				// The shapes and the summary hand no items over, so the hooks of items.read never run on them (A-045).
+				read: () => Promise.reject(new Error('Only a list of items calls the hooks of items.read.')),
 			});
 		},
 		logger: { error: () => undefined },

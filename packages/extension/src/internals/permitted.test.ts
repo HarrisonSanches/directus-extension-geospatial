@@ -1,5 +1,6 @@
 import { CollectionInactiveError, ForbiddenError } from '@directus/errors';
-import type { Accountability } from '@directus/types';
+import type { Accountability, Query } from '@directus/types';
+import type { Item } from 'directus-geospatial-contract';
 import type { Internals } from 'directus-geospatial-contract';
 import { describe, expect, it } from 'vitest';
 import {
@@ -90,7 +91,7 @@ describe('os hooks de items.query de outras extensões (V-144)', () => {
 	const openOnly = () => {
 		const emitter = new FakeEmitter();
 
-		emitter.filter('occurrences.items.query', (query) => ({ ...query, filter: { status: { _eq: 'open' } } }));
+		emitter.filter<Query>('occurrences.items.query', (query) => ({ ...query, filter: { status: { _eq: 'open' } } }));
 
 		return emitter;
 	};
@@ -119,7 +120,7 @@ describe('os hooks de items.query de outras extensões (V-144)', () => {
 			expect(emitter.emitted).toEqual([
 				{
 					events: ['items.query', 'occurrences.items.query'],
-					query: page,
+					payload: page,
 					meta: { collection: 'occurrences' },
 					context: { database: context.knex, schema: context.schema, accountability },
 				},
@@ -175,5 +176,79 @@ describe('os hooks de items.query de outras extensões (V-144)', () => {
 			),
 		).rejects.toMatchObject({ code: 'COLLECTION_INACTIVE' });
 		expect(emitter.emitted).toEqual([]);
+	});
+});
+
+describe('os hooks de items.read de outras extensões, nas listas de itens (A-045)', () => {
+	const accountability = { ...maria };
+	const page = { fields: ['id', 'region'], limit: 10 };
+	const eventContext = { database: context.knex, schema: context.schema, accountability };
+
+	// A hook of another extension, on the event of the collection, that hides the region of each item it reads.
+	const regionHidden = () => {
+		const emitter = new FakeEmitter();
+
+		emitter.filter<Item[]>('occurrences.items.read', (items) => items.map((item) => ({ ...item, region: null })));
+
+		return emitter;
+	};
+
+	const items: Item[] = [
+		{ id: 1, region: 'south', $geo: { distance: 120 } },
+		{ id: 2, region: 'south', $geo: { distance: 340 } },
+	];
+
+	it.each(['11.17', '12'] as const)(
+		'no %s, o filtro recebe os itens como a lista os dá, e a lista é o que ele devolve',
+		async (adapter) => {
+			const emitter = regionHidden();
+			const modules = adapter === '12' ? directus12(undefined, emitter) : directus11(undefined, emitter);
+			const { read, query } = await permittedWith({ status: 'accepted', adapter }, modules)(
+				{ collection: 'occurrences', query: page, accountability },
+				context,
+			);
+
+			expect(await read(items)).toEqual([
+				{ id: 1, region: null, $geo: { distance: 120 } },
+				{ id: 2, region: null, $geo: { distance: 340 } },
+			]);
+			expect(emitter.emitted.at(-1)).toEqual({
+				events: ['items.read', 'occurrences.items.read'],
+				payload: items,
+				meta: { query, collection: 'occurrences' },
+				context: eventContext,
+			});
+		},
+	);
+
+	it('a ação vem depois do filtro, com o que ele devolveu, como no readByQuery (V-174)', async () => {
+		const emitter = regionHidden();
+		const { read, query } = await permittedWith({ status: 'accepted', adapter: '12' }, directus12(undefined, emitter))(
+			{ collection: 'occurrences', query: page, accountability },
+			context,
+		);
+
+		const filtered = await read(items);
+
+		expect(emitter.acted).toEqual([
+			{
+				events: ['items.read', 'occurrences.items.read'],
+				meta: { payload: filtered, query, collection: 'occurrences' },
+				context: eventContext,
+			},
+		]);
+		expect(emitter.order).toEqual(['filter', 'filter', 'action']);
+	});
+
+	it('a query permitida sozinha não emite o items.read, que só a lista pede', async () => {
+		const emitter = regionHidden();
+
+		await permittedWith({ status: 'accepted', adapter: '12' }, directus12(undefined, emitter))(
+			{ collection: 'occurrences', query: page, accountability },
+			context,
+		);
+
+		expect(emitter.order).toEqual(['filter']);
+		expect(emitter.acted).toEqual([]);
 	});
 });

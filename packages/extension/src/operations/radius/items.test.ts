@@ -1,5 +1,5 @@
 import type { Accountability, Query, SchemaOverview } from '@directus/types';
-import type { Internals, Radius } from 'directus-geospatial-contract';
+import type { Internals, Item, Radius } from 'directus-geospatial-contract';
 import geographiclib from 'geographiclib-geodesic';
 import type { Knex } from 'knex';
 import { describe, expect, it } from 'vitest';
@@ -56,6 +56,8 @@ const natural: List = { collection: 'occurrences', geo, sort: [] };
 const engineWith = (overrides: Partial<Engine> = {}) => {
 	const built: Request[] = [];
 	const logged: unknown[] = [];
+	// What the list handed to the hooks of items.read, which here give it back as it came.
+	const reads: Item[][] = [];
 	const engine: Engine = {
 		knex: database,
 		schema,
@@ -74,6 +76,11 @@ const engineWith = (overrides: Partial<Engine> = {}) => {
 				fields: (query.fields ?? []).flatMap((field) =>
 					field === '*' ? ['id', 'geometry', 'region', 'status'] : [field],
 				),
+				read: (items) => {
+					reads.push(items);
+
+					return Promise.resolve(items);
+				},
 			});
 		},
 		logger: { error: (error: unknown) => logged.push(error) },
@@ -84,7 +91,7 @@ const engineWith = (overrides: Partial<Engine> = {}) => {
 		...overrides,
 	};
 
-	return { engine, built, logged };
+	return { engine, built, logged, reads };
 };
 
 const radiusWith = (request: Partial<RadiusRequest>, engine: Engine) =>
@@ -156,6 +163,7 @@ describe('a página que os hooks de items.query devolvem (V-144)', () => {
 					builder: database.select('id').from('occurrences'),
 					query: queryOf(hooked),
 					fields: [],
+					read: (items) => Promise.resolve(items),
 				});
 			},
 		});
@@ -416,6 +424,7 @@ describe('o cursor do raio (D-054)', () => {
 					builder: database.select('id').from('occurrences'),
 					query: queryOf(hooked),
 					fields: [],
+					read: (items) => Promise.resolve(items),
 				});
 			},
 		});
@@ -530,6 +539,7 @@ describe('os campos de cada item, como o /items os dá (V-183)', () => {
 					builder: database.select('id', 'geometry').from('occurrences'),
 					query: request.query,
 					fields: ['region', 'geometry'],
+					read: (items) => Promise.resolve(items),
 				}),
 			levels: {
 				...radiusLevels,
@@ -554,5 +564,69 @@ describe('os campos de cada item, como o /items os dá (V-183)', () => {
 		expect(await radiusWith({ page: { fields: ['*'] } }, engine)).toEqual({
 			data: [{ region: 'south', geometry: 'POINT(-46.7 -23.65)', $geo: { distance: 0 } }],
 		});
+	});
+});
+
+describe('os hooks de items.read de outras extensões (A-045)', () => {
+	// The database hands three items of the circle, one past the page of two, which tells that a next page exists.
+	const threeRows = {
+		...radiusLevels,
+		postgres: {
+			level: 'indexed' as const,
+			adapter: {
+				...postgis,
+				columnOf: () => Promise.resolve({ type: 'geometry' as const, srid: 4326 }),
+				boxesIn: () => Promise.resolve(null),
+				radius: () => ({
+					builder: returning(
+						[1, 2, 3].map((id) => ({ id, region: 'south', far: id * 10, 'geospatial:key:1': String(id) })),
+					),
+					distance: 'far',
+					keys: ['far', 'geospatial:key:1'],
+				}),
+			},
+		},
+	};
+
+	const page = { fields: ['id', 'region'], limit: 2 };
+
+	it('recebem os itens da página como a resposta os manda, com o $geo, uma vez só', async () => {
+		const { engine, reads } = engineWith({ levels: threeRows });
+
+		await radiusWith({ page }, engine);
+
+		expect(reads).toEqual([
+			[
+				{ id: 1, region: 'south', $geo: { distance: 10 } },
+				{ id: 2, region: 'south', $geo: { distance: 20 } },
+			],
+		]);
+	});
+
+	it('a lista é o que eles devolvem, e o cursor da página seguinte sai do banco, de antes deles', async () => {
+		const { engine } = engineWith({ levels: threeRows });
+		const asIs = await radiusWith({ page }, engine);
+		const { engine: hooked } = engineWith({
+			levels: threeRows,
+			// A hook that leaves out the last item of the page and hides the region of the others.
+			permittedQuery: async (request, context, queryOf) => {
+				const permitted = await engine.permittedQuery(request, context, queryOf);
+
+				return {
+					...permitted,
+					read: (items) => Promise.resolve(items.slice(0, -1).map((item) => ({ ...item, region: null }))),
+				};
+			},
+		});
+
+		const { data, meta } = await radiusWith({ page }, hooked);
+
+		expect(data).toEqual([{ id: 1, region: null, $geo: { distance: 10 } }]);
+		// Each cursor is sealed with a nonce of its own, so the two are compared by the order they hold: the one of the
+		// second item, which the hook left out.
+		expect(afterOf(cursorKey, natural, String(meta?.next))).toEqual(
+			afterOf(cursorKey, natural, String(asIs.meta?.next)),
+		);
+		expect(afterOf(cursorKey, natural, String(meta?.next))).toEqual([20, '2']);
 	});
 });

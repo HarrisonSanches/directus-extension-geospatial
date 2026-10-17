@@ -16,9 +16,9 @@ interface Modules {
 export type ModulePath = keyof Modules;
 
 // Each function the adapters call, with the module that exports it and the number of parameters it declares, the same
-// in 11.17 and in 12 (V-146). Directus wraps fetchPolicies in a cache, which declares none. The emitFilter is a method
-// of the emitter the module exports by default, whose fourth parameter has a default value, which Function.length does
-// not count (V-174).
+// in 11.17 and in 12 (V-146). Directus wraps fetchPolicies in a cache, which declares none. The emitFilter and the
+// emitAction are methods of the emitter the module exports by default, whose last parameter, the context, has a default
+// value, which Function.length does not count (V-174).
 export const functions = {
 	getAstFromQuery: { module: 'database/get-ast-from-query/get-ast-from-query', arity: 2 },
 	processAst: { module: 'permissions/modules/process-ast/process-ast', arity: 2 },
@@ -31,6 +31,7 @@ export const functions = {
 		arity: 2,
 	},
 	emitFilter: { module: 'emitter', arity: 3, owner: 'default' },
+	emitAction: { module: 'emitter', arity: 2, owner: 'default' },
 	sanitizeQuery: { module: 'utils/sanitize-query', arity: 3 },
 	validateQuery: { module: 'utils/validate-query', arity: 1 },
 } as const satisfies Record<string, { module: ModulePath; arity: number; owner?: 'default' }>;

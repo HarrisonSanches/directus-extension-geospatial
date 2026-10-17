@@ -32,25 +32,36 @@ export const permission: Permission = {
 	fields: ['*'],
 };
 
-type Filter = (query: Query, meta: Record<string, unknown>, context: unknown) => Query;
+type Filter = (payload: unknown, meta: Record<string, unknown>, context: unknown) => unknown;
 
 // The emitter of the core events, as Directus has it (api/src/emitter.ts): an instance, whose emitFilter calls the
 // filters of each event in order, each one with what the one before returned, and declares 3 parameters, since the
-// fourth has a default (V-174). The events go as a list, as the internals emit them.
+// fourth has a default, and whose emitAction declares 2, for the same reason (V-174). The events go as a list, as the
+// internals emit them.
 export class FakeEmitter {
 	private readonly filters = new Map<string, Filter[]>();
 
-	// What each emit received, as it came.
-	readonly emitted: { events: string[]; query: Query; meta: Record<string, unknown>; context: unknown }[] = [];
+	// What each emitFilter received, as it came.
+	readonly emitted: { events: string[]; payload: unknown; meta: Record<string, unknown>; context: unknown }[] = [];
 
-	filter(event: string, handler: Filter): void {
-		this.filters.set(event, [...(this.filters.get(event) ?? []), handler]);
+	// What each emitAction received.
+	readonly acted: { events: string[]; meta: Record<string, unknown>; context: unknown }[] = [];
+
+	// The filters and the actions, in the order they were emitted.
+	readonly order: ('filter' | 'action')[] = [];
+
+	// A filter of a hook, on the payload of the type its event carries: the query of items.query, the items of items.read.
+	filter<T>(event: string, handler: (payload: T, meta: Record<string, unknown>, context: unknown) => T): void {
+		const filter: Filter = (payload, meta, context) => handler(payload as T, meta, context);
+
+		this.filters.set(event, [...(this.filters.get(event) ?? []), filter]);
 	}
 
-	emitFilter(events: string[], query: Query, meta: Record<string, unknown>, context: unknown = null): Promise<Query> {
-		let updated = query;
+	emitFilter<T>(events: string[], payload: T, meta: Record<string, unknown>, context: unknown = null): Promise<T> {
+		let updated: unknown = payload;
 
-		this.emitted.push({ events, query: structuredClone(query), meta, context });
+		this.emitted.push({ events, payload: structuredClone(payload), meta, context });
+		this.order.push('filter');
 
 		for (const name of events) {
 			for (const handler of this.filters.get(name) ?? []) {
@@ -58,7 +69,12 @@ export class FakeEmitter {
 			}
 		}
 
-		return Promise.resolve(updated);
+		return Promise.resolve(updated as T);
+	}
+
+	emitAction(events: string[], meta: Record<string, unknown>, context: unknown = null): void {
+		this.acted.push({ events, meta, context });
+		this.order.push('action');
 	}
 }
 
