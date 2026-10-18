@@ -98,7 +98,9 @@ gabarito calculado, em todo banco (A-015):
 **Um SQL só, conferido.** O Postgres dos testes carrega o `pg_stat_statements` (V-172), e o teste que promete a query
 permitida e a parte espacial num SQL só conta, pelo `callsOn` de `test/postgres.ts`, quantas vezes o banco rodou o que
 lê uma coleção que só ele usa, porque os outros testes da combinação rodam ao mesmo tempo. É o que pega a query
-permitida rodando sozinha antes do envelope (V-142).
+permitida rodando sozinha antes do envelope (V-142). Em qualquer banco, o SQLite incluído, o observador da suíte conta
+do mesmo jeito, pela conexão do Directus: a rota `/geospatial-test-observer/calls` diz quantos comandos tinham um
+trecho de texto, como o nome da tabela entre aspas.
 
 **O laço de eventos conferido.** O observador da suíte mede, pelo `monitorEventLoopDelay` do Node, quanto o laço de
 eventos do Directus atrasa, e o teste da operação que o servidor completa reprova se o atraso passar dos 500 ms em que
@@ -274,7 +276,10 @@ ponta a ponta. Os que derrubam uma peça (o banco, o Redis, o processo do Direct
 teste, que o `test/containers.ts` para sem esperar e sobe de novo. O `startEnvironment` sobe um Redis na rede do banco
 com a opção `redis`, e o `another()` sobe outra instância do Directus sobre o mesmo banco e o mesmo Redis, como uma
 instalação que escala. Os que mudam o Directus montam a imagem na suíte, sobre a oficial, como a do módulo da cadeia
-fora do lugar (`test/moved-module/`), e sobem um ambiente próprio, pelo `startEnvironment`.
+fora do lugar (`test/moved-module/`), e sobem um ambiente próprio, pelo `startEnvironment`. Com a opção `spatial`
+desligada, o ambiente fica sem a extensão espacial: o SQLite na imagem oficial do Directus, sem a SpatiaLite, e o
+PostGIS sem a extensão no banco do Directus. O do PostGIS roda só nas combinações da noite, porque as quatro de um pull
+request, numa máquina só, já levam o Directus ao limitador de pressão (A-052).
 
 ## Quando cada teste roda
 

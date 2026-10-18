@@ -7,6 +7,7 @@ import type {
 	QuerySummaryResponse,
 	RegisterQueryResponse,
 } from 'directus-geospatial-contract';
+import { detectOnStartup } from './capabilities/startup.js';
 import { pageQueryWith } from './internals/page.js';
 import { permittedQueryWith } from './internals/permitted.js';
 import { redisOf } from './internals/redis.js';
@@ -29,6 +30,8 @@ export default defineEndpoint({
 	id: 'geospatial',
 	handler: (router, context) => {
 		const logger = context.logger.child({ extension: 'geospatial' });
+		// The database and the internals, each once for the process, which every route reads (§ capability matrix, §5).
+		const detected = detectOnStartup({ database: context.database, logger });
 		const internals = checkOnStartup({ getSchema: () => context.getSchema(), database: context.database, logger });
 		const permittedQuery = permittedQueryWith(internals, logger);
 		const pageQuery = pageQueryWith(internals, logger);
@@ -80,7 +83,7 @@ export default defineEndpoint({
 
 		router.get('/capabilities', (req, res, next) => {
 			// Any error, from the detection or from sending the response, goes to the error handler of Directus.
-			readCapabilities(context, req.accountability, internals)
+			readCapabilities(context, req.accountability, { detected, internals })
 				.then((capabilities) => {
 					if (capabilities === 'forbidden') {
 						next(new ForbiddenError());
@@ -98,7 +101,7 @@ export default defineEndpoint({
 		router.get('/items/:collection', (req, res, next) => {
 			// Any error, the one of a geo off the contract included, goes to the error handler of Directus.
 			Promise.resolve()
-				.then(() => getItems(context, req, { internals, permittedQuery, cursorKey }))
+				.then(() => getItems(context, req, { detected, internals, permittedQuery, cursorKey }))
 				.then((body: ItemsResponse) => {
 					sendList(req, res, body);
 				})
@@ -108,7 +111,7 @@ export default defineEndpoint({
 		// The same items, with the geo and the query in the body, as Directus takes its own SEARCH (V-11).
 		router.search('/items/:collection', (req, res, next) => {
 			Promise.resolve()
-				.then(() => searchItems(context, req, { internals, permittedQuery, pageQuery, cursorKey }))
+				.then(() => searchItems(context, req, { detected, internals, permittedQuery, pageQuery, cursorKey }))
 				.then((body: ItemsResponse) => {
 					sendList(req, res, body);
 				})
@@ -127,7 +130,7 @@ export default defineEndpoint({
 
 		router.get('/queries/:id/items', (req, res, next) => {
 			Promise.resolve()
-				.then(() => queryItems(context, req, { internals, permittedQuery, pageQuery, registry, cursorKey }))
+				.then(() => queryItems(context, req, { detected, internals, permittedQuery, pageQuery, registry, cursorKey }))
 				.then((body: ItemsResponse) => {
 					sendList(req, res, body);
 				})
@@ -137,7 +140,7 @@ export default defineEndpoint({
 		// The shapes of a registered query, the circle of the radius (D-022).
 		router.get('/queries/:id/shapes', (req, res, next) => {
 			Promise.resolve()
-				.then(() => queryShapes(context, req, { internals, permittedQuery, pageQuery, registry }))
+				.then(() => queryShapes(context, req, { detected, internals, permittedQuery, pageQuery, registry }))
 				.then((body: QueryShapesResponse) => {
 					sendList(req, res, body);
 				})
@@ -147,7 +150,7 @@ export default defineEndpoint({
 		// The summary of a registered query, the total of the radius in two times (§7.1).
 		router.get('/queries/:id/summary', (req, res, next) => {
 			Promise.resolve()
-				.then(() => querySummary(context, req, { internals, permittedQuery, pageQuery, registry, counts }))
+				.then(() => querySummary(context, req, { detected, internals, permittedQuery, pageQuery, registry, counts }))
 				.then((body: QuerySummaryResponse) => {
 					res.json(body);
 				})

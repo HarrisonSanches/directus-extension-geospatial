@@ -1,5 +1,5 @@
 import type { Accountability, SchemaOverview } from '@directus/types';
-import type { Internals, Radius } from 'directus-geospatial-contract';
+import type { Database, Internals, Radius } from 'directus-geospatial-contract';
 import type { Knex } from 'knex';
 import { describe, expect, it } from 'vitest';
 import type { CircleEnvelope } from '../../db/adapter.js';
@@ -42,6 +42,13 @@ const schema = {
 } as unknown as SchemaOverview;
 
 const geo: Radius = { operation: 'radius', center: [-46.7, -23.65], distance: 1000 };
+
+// The database the extension detected on startup (capabilities/startup.ts), with a spatial extension unless a test says
+// otherwise.
+const detectedOn =
+	(client: Database['client'], spatialVersion: string | null = '3.6.4') =>
+	() =>
+		Promise.resolve({ client, databaseVersion: null, spatialVersion });
 
 // A statement of a count, which brings a total as Postgres hands a bigint, as text, in its transaction too. The rule of
 // a policy goes in its values, as Directus writes it: the same SQL, region = ?, with another value (D-006).
@@ -98,7 +105,7 @@ const engineWith = ({
 	const engine: Summing = {
 		knex: database,
 		schema,
-		client: 'postgres',
+		detected: detectedOn('postgres'),
 		internals: () => Promise.resolve({ status: 'accepted', adapter: '12' }),
 		permittedQuery: (request, _, queryOf = (hooked) => hooked) => {
 			built.push({ ...request, query: queryOf(request.query) });
@@ -226,7 +233,12 @@ describe('o resumo do raio, em dois tempos (§7.1)', () => {
 			},
 		};
 
-		expect(await summaryWith({}, { ...engine, client: 'sqlite', levels: { ...engine.levels, sqlite } })).toEqual({
+		expect(
+			await summaryWith(
+				{},
+				{ ...engine, detected: detectedOn('sqlite', '5.1.0'), levels: { ...engine.levels, sqlite } },
+			),
+		).toEqual({
 			data: { total: 10_000, exact: false, counting: false },
 		});
 	});
@@ -236,7 +248,7 @@ describe('o resumo do raio, em dois tempos (§7.1)', () => {
 		const sqlite = { level: 'capped' as const, adapter: { ...spatialite, measures: () => Promise.resolve(false) } };
 
 		await expect(
-			summaryWith({}, { ...engine, client: 'sqlite', levels: { ...engine.levels, sqlite } }),
+			summaryWith({}, { ...engine, detected: detectedOn('sqlite', '5.1.0'), levels: { ...engine.levels, sqlite } }),
 		).rejects.toMatchObject({ code: 'GEOSPATIAL_OPERATION_UNAVAILABLE' });
 		expect(built).toHaveLength(1);
 	});
@@ -259,7 +271,13 @@ describe('o resumo do raio, em dois tempos (§7.1)', () => {
 	it.each([
 		['um parâmetro que o raio ainda não trata', { page: { fields: ['*'], group: ['region'] } }, {}, 'INVALID_QUERY'],
 		['os internos recusados', {}, { internals: () => Promise.resolve(refused) }, 'GEOSPATIAL_INTERNALS_UNSUPPORTED'],
-		['um banco onde o raio não roda', {}, { client: 'mysql' as const }, 'GEOSPATIAL_OPERATION_UNAVAILABLE'],
+		['um banco onde o raio não roda', {}, { detected: detectedOn('mysql') }, 'GEOSPATIAL_OPERATION_UNAVAILABLE'],
+		[
+			'um banco sem a extensão espacial',
+			{},
+			{ detected: detectedOn('postgres', null) },
+			'GEOSPATIAL_OPERATION_UNAVAILABLE',
+		],
 		['uma coleção do sistema, mesmo com uma geometria', { collection: 'directus_users' }, {}, 'FORBIDDEN'],
 	])('%s volta com o erro, sem montar a query permitida', async (_, request, overrides, code) => {
 		const { engine, built } = engineWith({ quick: 1, overrides });

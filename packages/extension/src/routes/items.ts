@@ -1,7 +1,6 @@
 import type { Accountability, ApiExtensionContext, Query, SchemaOverview } from '@directus/types';
 import type { Geo, Internals, ItemsResponse } from 'directus-geospatial-contract';
-import { databaseClientOf } from '../capabilities/detect.js';
-import { knexClassOf } from '../db/client.js';
+import type { Detected } from '../capabilities/detect.js';
 import type { PageQuery } from '../internals/page.js';
 import type { PermittedQuery } from '../internals/permitted.js';
 import { radiusItems } from '../operations/radius/items.js';
@@ -39,6 +38,8 @@ interface Asked {
 }
 
 interface Engines {
+	// The database the extension detected on startup (capabilities/startup.ts).
+	detected: () => Promise<Detected>;
 	internals: () => Promise<Internals>;
 	permittedQuery: PermittedQuery;
 	// The key of the cursors (query/key.ts).
@@ -52,14 +53,14 @@ const readItems = (
 	context: ApiExtensionContext,
 	{ accountability, schema }: Incoming,
 	{ collection, geo, page, cursor }: Asked,
-	{ internals, permittedQuery, cursorKey }: Engines,
+	{ detected, internals, permittedQuery, cursorKey }: Engines,
 ): Promise<ItemsResponse> =>
 	radiusItems(
 		{ collection, geo, page, accountability: accountabilityOf(accountability), cursor },
 		{
 			knex: context.database,
 			schema,
-			client: databaseClientOf(knexClassOf(context.database)),
+			detected,
 			internals,
 			permittedQuery,
 			logger: context.logger.child({ extension: 'geospatial' }),

@@ -18,6 +18,10 @@ const coverageInContainer = '/tmp/v8-coverage';
 // the repository.
 export const extension = 'packages/extension';
 
+// The extension that hands over the statement of the radius with its values, which the measurements time and the suite
+// reads the plan of, and how many statements reached a table, in any database (test/measure/observer/).
+export const observer = 'test/measure/observer';
+
 const repository = new URL('../', import.meta.url);
 
 // A copy of each built package, as an installation has it, in the folder of its name, where Directus loads it from.
@@ -64,7 +68,11 @@ interface Backend {
 	stop: () => Promise<void>;
 }
 
-const withPostgis = async (directus: string, image: string): Promise<Backend> => {
+// A database without its spatial extension has no versions of it to read.
+const noSpatialVersions = () =>
+	Promise.reject(new Error('The database of this Directus has no spatial extension, whose version the suite reads.'));
+
+const withPostgis = async (directus: string, image: string, spatial: boolean): Promise<Backend> => {
 	const network = await new Network().start();
 
 	const database = await new PostgreSqlContainer(image)
@@ -79,6 +87,11 @@ const withPostgis = async (directus: string, image: string): Promise<Backend> =>
 
 	await query(database, 'create extension pg_stat_statements');
 
+	// The image creates PostGIS in the database of Directus, and the extensions that depend on it go with it.
+	if (!spatial) {
+		await query(database, 'drop extension postgis cascade');
+	}
+
 	return {
 		directus: new GenericContainer(directus).withNetwork(network),
 		environment: {
@@ -91,7 +104,7 @@ const withPostgis = async (directus: string, image: string): Promise<Backend> =>
 		},
 		database,
 		network,
-		versions: () => postgresVersionsOf(database),
+		versions: spatial ? () => postgresVersionsOf(database) : noSpatialVersions,
 		activate: (admin, key) => activateLicense(admin, database, key),
 		hasProjectOfTests: () => hasProjectOfTests(database),
 		stop: async () => {
@@ -101,8 +114,18 @@ const withPostgis = async (directus: string, image: string): Promise<Backend> =>
 	};
 };
 
-// SQLite has no container of its own: Directus opens the file its image points DB_FILENAME to.
-const withSqlite = async (name: string, image: DirectusImage): Promise<Backend> => {
+// SQLite has no container of its own: Directus opens the file its image points DB_FILENAME to. Without the spatial
+// extension, Directus runs on its official image, which has no SpatiaLite (V-104).
+const withSqlite = async (name: string, image: DirectusImage, spatial: boolean): Promise<Backend> => {
+	if (!spatial) {
+		return {
+			directus: new GenericContainer(image.image),
+			environment: {},
+			versions: noSpatialVersions,
+			stop: () => Promise.resolve(),
+		};
+	}
+
 	const builtAt = performance.now();
 	const directus = await directusWithSpatialite(image);
 
@@ -150,6 +173,9 @@ interface Options {
 	// REDIS set, Directus moves its bus, its locks and the cache of the permissions there, and the extension its registry
 	// (V-188).
 	redis?: boolean;
+	// Whether the database has its spatial extension, as every combination has. Without it, SQLite runs on the official
+	// image of Directus, and PostGIS without the extension in the database of Directus.
+	spatial?: boolean;
 }
 
 // A Redis on the network of the database, which Directus reaches by the name redis.
@@ -175,12 +201,15 @@ export const startEnvironment = async (
 		directus: image = combinations[combination].directus,
 		coverage: recordsCoverage = true,
 		redis: usesRedis = false,
+		spatial = true,
 	}: Options = {},
 ): Promise<Environment> => {
 	const { database } = combinations[combination];
 
 	const backend =
-		database.client === 'postgres' ? await withPostgis(image.image, database.image) : await withSqlite(name, image);
+		database.client === 'postgres'
+			? await withPostgis(image.image, database.image, spatial)
+			: await withSqlite(name, image, spatial);
 	const redis = usesRedis ? await redisOn(backend.network) : undefined;
 
 	// The container user of Directus writes the coverage here, so the folder is open to any user.

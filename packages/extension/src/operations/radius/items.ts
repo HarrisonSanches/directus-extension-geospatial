@@ -3,6 +3,8 @@ import type { Accountability, ApiExtensionContext, Query, SchemaOverview } from 
 import type { Database, Internals, Item, ItemsResponse, Radius } from 'directus-geospatial-contract';
 import type { Knex } from 'knex';
 import type { Logger } from 'pino';
+import { type Detected, spatialOf } from '../../capabilities/detect.js';
+import { levelOn } from '../../capabilities/matrix.js';
 import type { CircleEnvelope, Key, MeasuringAdapter, RadiusEnvelope, SelectingAdapter } from '../../db/adapter.js';
 import { failClosed } from '../../db/fail-closed.js';
 import { InternalsUnsupportedError, InvalidInputError, OperationUnavailableError } from '../../errors.js';
@@ -27,7 +29,8 @@ export interface RadiusRequest {
 export interface Engine {
 	knex: ApiExtensionContext['database'];
 	schema: SchemaOverview;
-	client: Database['client'];
+	// The database the extension detected on startup, which the capabilities read too (capabilities/startup.ts).
+	detected: () => Promise<Detected>;
 	internals: () => Promise<Internals>;
 	permittedQuery: PermittedQuery;
 	logger: Pick<Logger, 'error'>;
@@ -214,16 +217,17 @@ const measuredByServer = async (
 // What each part of the radius needs of the engine before the database.
 export type Checking = Pick<
 	Engine,
-	'knex' | 'schema' | 'client' | 'internals' | 'permittedQuery' | 'defaultLimit' | 'levels'
+	'knex' | 'schema' | 'detected' | 'internals' | 'permittedQuery' | 'defaultLimit' | 'levels'
 >;
 
 // What each part of the radius checks before it reads anything: that the operation runs on the database in use, that
 // the collection is one /items reads, and the permitted query of whoever asks, built and not run, which refuses the
 // collection, a field or the geometry the user cannot read, as /items does (D-001). The database the operation does
-// not run on answers so before the permitted query is built.
+// not run on, or that has no spatial extension, answers so before the permitted query is built, with the reason the
+// capabilities give (A-050).
 export const permittedRadius = async (
 	{ collection, geo, page, accountability }: Omit<RadiusRequest, 'cursor'>,
-	{ knex, schema, client, internals, permittedQuery, defaultLimit, levels }: Checking,
+	{ knex, schema, detected, internals, permittedQuery, defaultLimit, levels }: Checking,
 ) => {
 	const checked = await internals();
 
@@ -231,7 +235,8 @@ export const permittedRadius = async (
 		throw new InternalsUnsupportedError();
 	}
 
-	const declared = levels[client];
+	const database = await detected();
+	const declared = levelOn(levels, { client: database.client, spatial: spatialOf(database) });
 
 	if (declared.level === 'unavailable') {
 		throw new OperationUnavailableError({ operation: 'radius', reason: declared.reason });

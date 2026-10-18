@@ -1,6 +1,6 @@
 import { ForbiddenError } from '@directus/errors';
 import type { Accountability, SchemaOverview } from '@directus/types';
-import type { Internals, Radius } from 'directus-geospatial-contract';
+import type { Database, Internals, Radius } from 'directus-geospatial-contract';
 import { describe, expect, it } from 'vitest';
 import type { Request } from '../../internals/chain.js';
 import { database } from '../../internals/fake-directus.js';
@@ -40,6 +40,13 @@ const schema = {
 
 const geo: Radius = { operation: 'radius', center: [-46.7, -23.65], distance: 1000 };
 
+// The database the extension detected on startup (capabilities/startup.ts), with a spatial extension unless a test says
+// otherwise.
+const detectedOn =
+	(client: Database['client'], spatialVersion: string | null = '3.6.4') =>
+	() =>
+		Promise.resolve({ client, databaseVersion: null, spatialVersion });
+
 // The engine over the fake Directus: the chain hands back a query of the Knex that never connects, which fails as a
 // database that went down if anything runs it.
 const engineWith = (overrides: Partial<Checking> = {}) => {
@@ -47,7 +54,7 @@ const engineWith = (overrides: Partial<Checking> = {}) => {
 	const engine: Checking = {
 		knex: database,
 		schema,
-		client: 'postgres',
+		detected: detectedOn('postgres'),
 		internals: () => Promise.resolve({ status: 'accepted', adapter: '12' }),
 		permittedQuery: (request, _, queryOf = (hooked) => hooked) => {
 			const query = queryOf(request.query);
@@ -98,7 +105,7 @@ describe('as formas do raio (D-022)', () => {
 	});
 
 	it('no banco onde o servidor completa o raio, o círculo é o mesmo', async () => {
-		const { engine } = engineWith({ client: 'sqlite' });
+		const { engine } = engineWith({ detected: detectedOn('sqlite', '5.1.0') });
 
 		expect(await shapesWith({}, engine)).toEqual(circle);
 	});
@@ -113,7 +120,13 @@ describe('as formas do raio (D-022)', () => {
 		['um cursor, que a lista de uma forma só nunca dá', { cursor: 'AAAA' }, {}, 'GEOSPATIAL_INVALID_INPUT'],
 		['o limit acima do máximo do contrato', { page: { fields: ['*'], limit: 1001 } }, {}, 'INVALID_QUERY'],
 		['os internos recusados', {}, { internals: () => Promise.resolve(refused) }, 'GEOSPATIAL_INTERNALS_UNSUPPORTED'],
-		['um banco onde o raio não roda', {}, { client: 'mysql' as const }, 'GEOSPATIAL_OPERATION_UNAVAILABLE'],
+		['um banco onde o raio não roda', {}, { detected: detectedOn('mysql') }, 'GEOSPATIAL_OPERATION_UNAVAILABLE'],
+		[
+			'um banco sem a extensão espacial',
+			{},
+			{ detected: detectedOn('postgres', null) },
+			'GEOSPATIAL_OPERATION_UNAVAILABLE',
+		],
 		['uma coleção que o esquema não tem', { collection: 'nowhere' }, {}, 'FORBIDDEN'],
 		['uma coleção do sistema, mesmo com uma geometria', { collection: 'directus_users' }, {}, 'FORBIDDEN'],
 	])('%s volta com o erro, sem montar a query permitida', async (_, request, overrides, code) => {

@@ -435,7 +435,7 @@ export type ItemsErrors = {
 	 */
 	403: Errors;
 	/**
-	 * The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
+	 * The operation does not run on the database in use, as on one without its spatial extension, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
 	 */
 	501: Errors;
 	/**
@@ -531,7 +531,7 @@ export type QueryItemsErrors = {
 	 */
 	404: Errors;
 	/**
-	 * The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
+	 * The operation does not run on the database in use, as on one without its spatial extension, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
 	 */
 	501: Errors;
 	/**
@@ -586,7 +586,7 @@ export type QueryShapesErrors = {
 	 */
 	404: Errors;
 	/**
-	 * The operation does not run on the database in use (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
+	 * The operation does not run on the database in use, as on one without its spatial extension (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
 	 */
 	501: Errors;
 	/**
@@ -632,7 +632,7 @@ export type QuerySummaryErrors = {
 	 */
 	404: Errors;
 	/**
-	 * The operation does not run on the database in use, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
+	 * The operation does not run on the database in use, as on one without its spatial extension, or does not measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
 	 */
 	501: Errors;
 	/**

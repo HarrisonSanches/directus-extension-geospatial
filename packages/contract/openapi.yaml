@@ -172,9 +172,9 @@ paths:
                 $ref: '#/components/schemas/Errors'
         '501':
           description: >-
-            The operation does not run on the database in use, or does not measure the type of the geometry field
-            there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the
-            error.
+            The operation does not run on the database in use, as on one without its spatial extension, or does not
+            measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation
+            and the reason in the extensions of the error.
           content:
             application/json:
               schema:
@@ -252,8 +252,8 @@ paths:
                   $ref: '#/components/schemas/Errors'
           '501':
             description: >-
-              The operation does not run on the database in use, or does not measure the type of the geometry field
-              there (code GEOSPATIAL_OPERATION_UNAVAILABLE).
+              The operation does not run on the database in use, as on one without its spatial extension, or does not
+              measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE).
             content:
               application/json:
                 schema:
@@ -406,9 +406,9 @@ paths:
                 $ref: '#/components/schemas/Errors'
         '501':
           description: >-
-            The operation does not run on the database in use, or does not measure the type of the geometry field
-            there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the
-            error.
+            The operation does not run on the database in use, as on one without its spatial extension, or does not
+            measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation
+            and the reason in the extensions of the error.
           content:
             application/json:
               schema:
@@ -493,8 +493,8 @@ paths:
                 $ref: '#/components/schemas/Errors'
         '501':
           description: >-
-            The operation does not run on the database in use (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the
-            operation and the reason in the extensions of the error.
+            The operation does not run on the database in use, as on one without its spatial extension (code
+            GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the error.
           content:
             application/json:
               schema:
@@ -563,9 +563,9 @@ paths:
                 $ref: '#/components/schemas/Errors'
         '501':
           description: >-
-            The operation does not run on the database in use, or does not measure the type of the geometry field
-            there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation and the reason in the extensions of the
-            error.
+            The operation does not run on the database in use, as on one without its spatial extension, or does not
+            measure the type of the geometry field there (code GEOSPATIAL_OPERATION_UNAVAILABLE), with the operation
+            and the reason in the extensions of the error.
           content:
             application/json:
               schema:

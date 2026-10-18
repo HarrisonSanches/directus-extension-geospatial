@@ -45,6 +45,10 @@ goes in the body, with the [`SEARCH` method](/api/#geospatial/searchItems). Ever
 On SQLite, with SpatiaLite, the radius reads only points, and the extension orders up to 50,000 items. Past that, the
 `meta` has `capped`, which says the list is partial.
 
+A database without its spatial extension, PostGIS or SpatiaLite, does not run the radius: SQLite in the official image of
+Directus has no SpatiaLite. There, the radius answers with `GEOSPATIAL_OPERATION_UNAVAILABLE`, and the
+[capabilities](/api/#geospatial/capabilities) give the same reason.
+
 ## With the SDK
 
 The SDK, `directus-geospatial-sdk`, gives commands for the client of the Directus SDK, as `readItems` is, with the fields
