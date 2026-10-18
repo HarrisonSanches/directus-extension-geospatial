@@ -5,7 +5,7 @@ import { combinations } from './combinations.ts';
 import { bringBack as bringBackContainer, takeDown } from './containers.ts';
 import { checkedFetch } from './contract.ts';
 import { connect } from './directus.ts';
-import { type Environment, startEnvironment } from './environment.ts';
+import { type Environment, environmentTimeout, startEnvironment } from './environment.ts';
 
 const combination = inject('combination');
 
@@ -47,7 +47,10 @@ describe.runIf(combinations[combination].database.client === 'postgres')('o capa
 		checkedFetch(`${started().url}/geospatial/capabilities`, { headers: { Authorization: `Bearer ${session}` } });
 
 	beforeAll(async () => {
-		environment = await startEnvironment(combination, inject('coverage'), { name: `${combination}-database-down` });
+		environment = await startEnvironment(combination, inject('coverage'), {
+			name: `${combination}-database-down`,
+			slots: inject('slots'),
+		});
 
 		// Directus looks a static token up in the database before any route, so with the database down it answers with
 		// an error of its own (V-124). A session token only needs the roles and the access Directus keeps in memory,
@@ -57,7 +60,7 @@ describe.runIf(combinations[combination].database.client === 'postgres')('o capa
 
 		session = accessToken ?? '';
 		expect((await capabilities()).status).toBe(200);
-	}, 240_000);
+	}, environmentTimeout);
 
 	afterAll(() => environment?.stop(), 120_000);
 

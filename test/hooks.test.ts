@@ -156,16 +156,19 @@ const takeReads = () =>
 	as('admin').request(customEndpoint<Read[]>({ path: '/geospatial-test-hook/reads', method: 'GET' }));
 
 // The reads of one request. Directus runs the actions after the response, without waiting for them, so they are taken
-// until the action came.
+// until the action came, which a busy machine delays past the second expect.poll waits by default (A-078).
 const readsOfOne = async () => {
 	const reads: Read[] = [];
 
 	await expect
-		.poll(async () => {
-			reads.push(...(await takeReads()));
+		.poll(
+			async () => {
+				reads.push(...(await takeReads()));
 
-			return reads.some(({ kind }) => kind === 'action');
-		})
+				return reads.some(({ kind }) => kind === 'action');
+			},
+			{ timeout: 10_000, interval: 200 },
+		)
 		.toBe(true);
 
 	return reads;

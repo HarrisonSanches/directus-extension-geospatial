@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { combinations } from './combinations.ts';
 import { bringBack, takeDown } from './containers.ts';
 import { type Client, connect } from './directus.ts';
-import { type Environment, startEnvironment } from './environment.ts';
+import { type Environment, environmentTimeout, startEnvironment } from './environment.ts';
 import { circle, createOccurrences, occurrences } from './seed.ts';
 import type { Item } from 'directus-geospatial-contract';
 
@@ -91,6 +91,7 @@ describe.runIf(combinations[combination].database.client === 'postgres')(
 			environment = await startEnvironment(combination, inject('coverage'), {
 				name: `${combination}-redis`,
 				redis: true,
+				slots: inject('slots'),
 			});
 
 			const another = await environment.another();
@@ -100,7 +101,7 @@ describe.runIf(combinations[combination].database.client === 'postgres')(
 
 			await createOccurrences(instance(0), 'occurrences');
 			await instance(0).request(createItems('occurrences', occurrences));
-		}, 300_000);
+		}, environmentTimeout);
 
 		afterAll(async () => {
 			for (const { stream } of logs) {

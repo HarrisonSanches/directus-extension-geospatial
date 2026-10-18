@@ -5,7 +5,7 @@ import { GenericContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { combinations } from './combinations.ts';
 import { connect } from './directus.ts';
-import { type Environment, newSecret, startEnvironment } from './environment.ts';
+import { type Environment, environmentTimeout, newSecret, startEnvironment } from './environment.ts';
 import { callsOn } from './postgres.ts';
 import { circle, seed } from './seed.ts';
 import type { Capabilities } from 'directus-geospatial-contract';
@@ -49,6 +49,7 @@ describe.runIf(combinations[combination].database.client === 'postgres')(
 			environment = await startEnvironment(combination, inject('coverage'), {
 				name: `${combination}-moved-module`,
 				directus,
+				slots: inject('slots'),
 			});
 
 			// The occurrences, for the radius to find nothing to read. Only the admin reads them here.
@@ -59,7 +60,7 @@ describe.runIf(combinations[combination].database.client === 'postgres')(
 			stream.on('data', (chunk: Buffer) => {
 				logs += chunk.toString();
 			});
-		}, 300_000);
+		}, environmentTimeout);
 
 		afterAll(async () => {
 			stream?.destroy();

@@ -1,7 +1,7 @@
 import { createItems, customEndpoint } from '@directus/sdk';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { type Client, connect } from './directus.ts';
-import { type Environment, startEnvironment } from './environment.ts';
+import { type Environment, environmentTimeout, startEnvironment } from './environment.ts';
 import { circle, createOccurrences, occurrences } from './seed.ts';
 import type { Item } from 'directus-geospatial-contract';
 
@@ -49,17 +49,20 @@ describe('a consulta registrada depois de reiniciar o Directus (§7.8)', () => {
 	};
 
 	beforeAll(async () => {
-		environment = await startEnvironment(combination, inject('coverage'), { name: `${combination}-restart` });
+		environment = await startEnvironment(combination, inject('coverage'), {
+			name: `${combination}-restart`,
+			slots: inject('slots'),
+		});
 		url = environment.url;
 		await createOccurrences(admin(), 'occurrences');
 		await admin().request(createItems('occurrences', occurrences));
-	}, 240_000);
+	}, environmentTimeout);
 
 	afterAll(() => environment?.stop(), 120_000);
 
 	it(
 		'o id de antes do reinício responde com o código de consulta desconhecida, e registrar de novo dá o mesmo id',
-		{ timeout: 180_000 },
+		{ timeout: environmentTimeout },
 		async () => {
 			const id = await registered(admin());
 			const before = await itemsOf(admin(), id);
