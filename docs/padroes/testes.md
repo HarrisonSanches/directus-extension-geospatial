@@ -271,15 +271,22 @@ rodada longa, cujos números são os que valem.
 
 ## Os ensaios de falha viram testes
 
-Cada ensaio de falha de uma fase vira teste automatizado quando a fase termina, na suíte de integração ou na de
-ponta a ponta. Os que derrubam uma peça (o banco, o Redis, o processo do Directus) usam os próprios containers do
-teste, que o `test/containers.ts` para sem esperar e sobe de novo. O `startEnvironment` sobe um Redis na rede do banco
-com a opção `redis`, e o `another()` sobe outra instância do Directus sobre o mesmo banco e o mesmo Redis, como uma
-instalação que escala. Os que mudam o Directus montam a imagem na suíte, sobre a oficial, como a do módulo da cadeia
-fora do lugar (`test/moved-module/`), e sobem um ambiente próprio, pelo `startEnvironment`. Com a opção `spatial`
-desligada, o ambiente fica sem a extensão espacial: o SQLite na imagem oficial do Directus, sem a SpatiaLite, e o
-PostGIS sem a extensão no banco do Directus. O do PostGIS roda só nas combinações da noite, porque as quatro de um pull
-request, numa máquina só, já levam o Directus ao limitador de pressão (A-052).
+Cada ensaio de falha de uma fase vira teste automatizado quando a fase termina, na suíte de integração ou na de ponta a
+ponta. Os que derrubam uma peça (o banco, o Redis, o processo do Directus) usam os próprios containers do teste, que o
+`test/containers.ts` para sem esperar e sobe de novo. O `startEnvironment` sobe um Redis na rede do banco com a opção
+`redis`, e o `another()` sobe outra instância do Directus sobre o mesmo banco e o mesmo Redis, como uma instalação que
+escala. Os que mudam o Directus montam a imagem na suíte, sobre a oficial, como a do módulo da cadeia fora do lugar
+(`test/moved-module/`), e sobem um ambiente próprio, pelo `startEnvironment`, com a pasta das vagas da rodada,
+`slots: inject('slots')`. O arquivo que sobe um ambiente próprio tem o nome terminado em `.environment.test.ts`, e com
+várias combinações na mesma rodada ele roda depois dos outros, pelo `sequence.groupOrder` do Vitest, quando os Directus
+das combinações já não atendem a suíte; na CI, com uma combinação por job, os dois rodam juntos. Cada Directus que um
+arquivo de teste sobe, acrescenta ou reinicia espera a sua vez num semáforo entre os processos da rodada
+(`test/semaphore.ts`): no máximo 4 sobem ao mesmo tempo, quantos um job da CI sobe no PostGIS, e o log diz qual vaga
+cada um tomou e quanto esperou. Sem as duas fases e a fila, as quatro combinações de um pull request numa máquina só
+subiam mais de uma dúzia de Directus junto com a suíte, e os Directus das combinações respondiam 503 pelo limitador de
+pressão (A-078). Com a opção `spatial` desligada, o ambiente fica sem a extensão espacial: o SQLite na imagem oficial do
+Directus, sem a SpatiaLite, e o PostGIS sem a extensão no banco do Directus. O do PostGIS roda só nas combinações da
+noite, porque as quatro de um pull request, numa máquina só, já levam o Directus ao limitador de pressão (A-052).
 
 ## Quando cada teste roda
 

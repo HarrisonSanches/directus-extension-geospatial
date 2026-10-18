@@ -1,8 +1,8 @@
 # An official image of Directus with a module of the chain of the ItemsService moved to another file, as a version of
 # Directus that reorganized its files would have it: Directus imports the module from the new file and starts, and the
 # path the adapters of the extension import no longer exists. Deleting the module would stop Directus itself, which
-# imports it statically (V-170). test/internals.test.ts builds it on each Directus version of the suite, whose image,
-# pinned by digest, comes from test/combinations.ts.
+# imports it statically (V-170). test/internals.environment.test.ts builds it on each Directus version of the suite,
+# whose image, pinned by digest, comes from test/combinations.ts.
 ARG DIRECTUS
 FROM ${DIRECTUS}
 

@@ -2,7 +2,7 @@ import { createCollection, customEndpoint } from '@directus/sdk';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { combinations } from './combinations.ts';
 import { type Client, connect } from './directus.ts';
-import { type Environment, extension, observer, startEnvironment } from './environment.ts';
+import { type Environment, environmentTimeout, extension, observer, startEnvironment } from './environment.ts';
 import { circle, createOccurrences } from './seed.ts';
 import type { Capabilities } from 'directus-geospatial-contract';
 
@@ -74,6 +74,7 @@ describe.runIf(client === 'sqlite' || nightly)('um banco sem a extensão espacia
 			name: `${combination}-without-spatial`,
 			packages: [extension, observer],
 			spatial: false,
+			slots: inject('slots'),
 		});
 
 		// SQLite takes a column of any type by its name, so Directus creates the geometry field without SpatiaLite, and only
@@ -93,7 +94,7 @@ describe.runIf(client === 'sqlite' || nightly)('um banco sem a extensão espacia
 				}),
 			);
 		}
-	}, 240_000);
+	}, environmentTimeout);
 
 	afterAll(() => environment?.stop(), 120_000);
 

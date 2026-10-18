@@ -1,6 +1,17 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 import { selectCombinations } from './test/combinations.ts';
 
+// The combinations of the integration suite in this run.
+const integration = selectCombinations(process.env.INTEGRATION);
+
+// The test files that start a Directus of their own, beside the one of the combination (docs/padroes/testes.md).
+const ownEnvironments = 'test/**/*.environment.test.ts';
+
+// With several combinations in one run, on one machine, the files with an environment of their own run after the rest,
+// so their Directus start while the Directus of the combinations are not busy with the suite, which put them past their
+// pressure limiter (A-078). A job of the CI runs one combination, and both run at the same time, as before.
+const ownEnvironmentsGroup = integration.length > 1 ? 1 : 0;
+
 export default defineConfig({
 	test: {
 		coverage: {
@@ -31,15 +42,28 @@ export default defineConfig({
 				resolve: { alias: { '@directus/sdk': 'directus-sdk-oldest' } },
 				test: { name: 'unit:sdk-oldest', include: ['packages/sdk/src/**/*.test.ts'] },
 			},
-			// A project for each combination of the integration suite, and INTEGRATION picks some of them.
-			...selectCombinations(process.env.INTEGRATION).map((combination) => ({
-				test: {
-					name: `integration:${combination}`,
-					include: ['test/**/*.test.ts'],
-					provide: { combination },
-					testTimeout: 30_000,
+			// Two projects for each combination of the integration suite, and INTEGRATION picks some of them: the files on the
+			// Directus of the combination, and the ones with an environment of their own.
+			...integration.flatMap((combination) => [
+				{
+					test: {
+						name: `integration:${combination}`,
+						include: ['test/**/*.test.ts'],
+						exclude: [...configDefaults.exclude, ownEnvironments],
+						provide: { combination },
+						testTimeout: 30_000,
+					},
 				},
-			})),
+				{
+					test: {
+						name: `integration:${combination}:environments`,
+						include: [ownEnvironments],
+						provide: { combination },
+						testTimeout: 30_000,
+						sequence: { groupOrder: ownEnvironmentsGroup },
+					},
+				},
+			]),
 			// The measurements, which only pnpm measure runs, one combination at a time: the radius on 11.17 with the oldest and
 			// the newest PostGIS, and the permitted query on 11.17 and on 12 (F02-07). INTEGRATION picks others.
 			...selectCombinations(process.env.INTEGRATION ?? '11.17-postgis,11.17-postgis-newest,12-postgis').map(

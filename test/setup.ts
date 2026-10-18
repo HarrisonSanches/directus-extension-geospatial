@@ -41,7 +41,7 @@ const start = async (
 		admin: credentials,
 		backend,
 		stop,
-	} = await startEnvironment(combination, coverage, { packages, coverage: recordsCoverage });
+	} = await startEnvironment(combination, coverage, { packages, coverage: recordsCoverage, slots: null });
 	const images = combinations[combination];
 	const admin = connect(url, credentials.token);
 
@@ -97,6 +97,9 @@ export default async function setup(project: TestProject): Promise<() => Promise
 
 	// A folder for each Directus of the run, the ones of the tests included, with the coverage of its processes.
 	const coverage = await mkdtemp(join(tmpdir(), 'geospatial-coverage-'));
+	// The slots where each Directus a test file starts waits for its turn (test/semaphore.ts). The coverage reads every
+	// folder of its own as the coverage of a Directus, so the slots go apart.
+	const slots = await mkdtemp(join(tmpdir(), 'geospatial-slots-'));
 	const licenseKey = await readLicenseKey();
 	// A run of the measurements loads only its own packages beside the extension, and Directus runs without the coverage,
 	// as an installation runs it.
@@ -113,11 +116,13 @@ export default async function setup(project: TestProject): Promise<() => Promise
 	if (failure !== undefined) {
 		await Promise.all(started.map(({ stop }) => stop()));
 		await rm(coverage, { recursive: true, force: true });
+		await rm(slots, { recursive: true, force: true });
 		throw failure.reason;
 	}
 
 	project.provide('directus', Object.fromEntries(started.map(({ combination, directus }) => [combination, directus])));
 	project.provide('coverage', coverage);
+	project.provide('slots', slots);
 
 	return async () => {
 		try {
@@ -131,6 +136,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 			}
 		} finally {
 			await rm(coverage, { recursive: true, force: true });
+			await rm(slots, { recursive: true, force: true });
 		}
 	};
 }

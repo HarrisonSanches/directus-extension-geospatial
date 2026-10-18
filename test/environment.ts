@@ -9,6 +9,7 @@ import { type Combination, combinations } from './combinations.ts';
 import type { Client, DatabaseVersions } from './directus.ts';
 import { activateLicense, hasProjectOfTests, publicUrl } from './license.ts';
 import { directusDatabase, versionsOf as postgresVersionsOf, query } from './postgres.ts';
+import { withSlot } from './semaphore.ts';
 import { directusWithSpatialite, versionsOf as sqliteVersionsOf } from './sqlite.ts';
 
 // Where Node writes the coverage of the Directus processes.
@@ -38,6 +39,17 @@ const copiesOf = async (packages: readonly string[]) =>
 			};
 		}),
 	);
+
+// How many Directus the test files start at the same time in a whole run, as many as a job of the CI starts at once on
+// PostGIS. Starting one takes the processor for about 30 s, and more at once on one machine, with the four combinations
+// of a pull request, put the Directus of the tests past its pressure limiter and the timed tests past their limits
+// (A-078).
+const startingAtOnce = 4;
+
+// How long a test file waits for a Directus of its own to start, or to restart: its turn in the slots of the run, and the
+// start itself. With the four combinations of a pull request on one machine, the turns add up, and four SQLite start at
+// once in about two minutes, since each one migrates a new file (A-078).
+export const environmentTimeout = 600_000;
 
 // The Redis of an installation that scales, the image of the development environment, which Renovate follows
 // (.github/renovate.json5).
@@ -176,6 +188,9 @@ interface Options {
 	// Whether the database has its spatial extension, as every combination has. Without it, SQLite runs on the official
 	// image of Directus, and PostGIS without the extension in the database of Directus.
 	spatial?: boolean;
+	// The folder of the slots of the run, where each Directus a test file starts, adds or restarts waits for its turn
+	// (semaphore.ts), or null for the Directus of the combinations, which the global setup starts before any test file.
+	slots: string | null;
 }
 
 // A Redis on the network of the database, which Directus reaches by the name redis.
@@ -202,7 +217,8 @@ export const startEnvironment = async (
 		coverage: recordsCoverage = true,
 		redis: usesRedis = false,
 		spatial = true,
-	}: Options = {},
+		slots,
+	}: Options,
 ): Promise<Environment> => {
 	const { database } = combinations[combination];
 
@@ -251,12 +267,32 @@ export const startEnvironment = async (
 
 	const instances: StartedTestContainer[] = [];
 
+	// Runs the start of a Directus in its turn, and says in the log how long it waited.
+	const inTurn = async <T>(label: string, run: () => Promise<T>): Promise<T> => {
+		if (slots === null) {
+			return run();
+		}
+
+		const waitingAt = performance.now();
+
+		return withSlot(slots, startingAtOnce, (slot) => {
+			log(`${label}: took the slot ${String(slot + 1)} of ${String(startingAtOnce)} in ${seconds(waitingAt)} s`);
+
+			return run();
+		});
+	};
+
 	const start = async (label: string) => {
-		const startedAt = performance.now();
-		const instance = await container.start();
+		const instance = await inTurn(label, async () => {
+			const startedAt = performance.now();
+			const started = await container.start();
+
+			log(`${label}: Directus started in ${seconds(startedAt)} s`);
+
+			return started;
+		});
 
 		instances.push(instance);
-		log(`${label}: Directus started in ${seconds(startedAt)} s`);
 
 		return instance;
 	};
@@ -278,11 +314,13 @@ export const startEnvironment = async (
 			return start(`${name}, instance ${String(instances.length + 1)}`);
 		},
 		restart: async () => {
-			const restartedAt = performance.now();
+			await inTurn(name, async () => {
+				const restartedAt = performance.now();
 
-			// The same time stop gives Directus to shut down and Node to write the coverage. Docker maps another port.
-			await directus.restart({ timeout: 60_000 });
-			log(`${name}: Directus restarted in ${seconds(restartedAt)} s`);
+				// The same time stop gives Directus to shut down and Node to write the coverage. Docker maps another port.
+				await directus.restart({ timeout: 60_000 });
+				log(`${name}: Directus restarted in ${seconds(restartedAt)} s`);
+			});
 
 			return urlOf(directus);
 		},

@@ -10,7 +10,7 @@ const question: RegisteredQuery = {
 };
 
 // A client of Redis that keeps the scripts it gets, and answers what the test gives it. The scripts themselves run on a
-// Redis in the integration suite (test/redis.test.ts).
+// Redis in the integration suite (test/redis.environment.test.ts).
 const clientAnswering = (answer: unknown) => {
 	const calls: unknown[][] = [];
 	const client: RedisClient & { status: string } = {
