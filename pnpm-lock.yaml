@@ -73,11 +73,11 @@ catalogs:
       specifier: 5.0.3
       version: 5.0.3
     '@vitest/istanbul-lib-coverage':
-      specifier: 1.0.2
-      version: 1.0.2
+      specifier: 2.0.0
+      version: 2.0.0
     '@vitest/istanbul-lib-report':
-      specifier: 1.0.2
-      version: 1.0.2
+      specifier: 2.0.0
+      version: 2.0.0
     ajv:
       specifier: 8.20.0
       version: 8.20.0
@@ -221,10 +221,10 @@ importers:
         version: 5.0.3(vitest@5.0.3)
       '@vitest/istanbul-lib-coverage':
         specifier: 'catalog:'
-        version: 1.0.2
+        version: 2.0.0
       '@vitest/istanbul-lib-report':
         specifier: 'catalog:'
-        version: 1.0.2
+        version: 2.0.0
       ast-v8-to-istanbul:
         specifier: 'catalog:'
         version: 1.0.7
@@ -3447,8 +3447,16 @@ packages:
     resolution: {integrity: sha512-9J/JMwOf9AoJhAywhrn7ScKTL38hsWQP/qPG60OtaAFcQ5OXPwKsxZFlbnuCKmZ61m8/lGgHYnFpdyQZUvG/iA==}
     engines: {node: '>=22'}
 
+  '@vitest/istanbul-lib-coverage@2.0.0':
+    resolution: {integrity: sha512-lrEG3C2XXDdROhFqMY1ykOdLlG6c5swv0B7VT46qH5erygXlTHvDYMVYrHQSjPk5R8HXrsYPM1UniXZakW8YOw==}
+    engines: {node: '>=22'}
+
   '@vitest/istanbul-lib-report@1.0.2':
     resolution: {integrity: sha512-gUsfXZJbzPamoIY5TvHFiMMoXESBrUMo+xqaj+rYrWI69+EnvRlYBlP96ZnHPY4vX8kyUpgAnFUCg5wZG/HkDQ==}
+    engines: {node: '>=22'}
+
+  '@vitest/istanbul-lib-report@2.0.0':
+    resolution: {integrity: sha512-TR6pOY2sYZpwzVGPKQ6ySTLrvaD/WdzFXBoY3eRxi6XJl1XZttVx1+BxQXEJu3zqosqmQeE+tenZPRRnLVgECg==}
     engines: {node: '>=22'}
 
   '@vitest/mocker@5.0.3':
@@ -10586,9 +10594,15 @@ snapshots:
 
   '@vitest/istanbul-lib-coverage@1.0.2': {}
 
+  '@vitest/istanbul-lib-coverage@2.0.0': {}
+
   '@vitest/istanbul-lib-report@1.0.2':
     dependencies:
       '@vitest/istanbul-lib-coverage': 1.0.2
+
+  '@vitest/istanbul-lib-report@2.0.0':
+    dependencies:
+      '@vitest/istanbul-lib-coverage': 2.0.0
 
   '@vitest/mocker@5.0.3(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))':
     dependencies:

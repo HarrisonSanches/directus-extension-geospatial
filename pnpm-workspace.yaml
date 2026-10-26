@@ -41,8 +41,8 @@ catalog:
   '@vitest/coverage-v8': 5.0.3
   # The coverage libraries @vitest/coverage-v8 5.0.2 uses, so the coverage from inside Directus is converted and summed
   # the same way as the one from the unit tests.
-  '@vitest/istanbul-lib-coverage': 1.0.2
-  '@vitest/istanbul-lib-report': 1.0.2
+  '@vitest/istanbul-lib-coverage': 2.0.0
+  '@vitest/istanbul-lib-report': 2.0.0
   # The validation by the JSON Schema of the contract, in the dialect of OpenAPI 3.1 (D-016).
   ajv: 8.20.0
   ast-v8-to-istanbul: 1.0.7
