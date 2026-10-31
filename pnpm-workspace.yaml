@@ -10,10 +10,10 @@ catalog:
   '@arethetypeswrong/cli': 0.18.5
   # The docs site (D-060), on Astro.
   '@astrojs/starlight': 0.42.6
-  '@commitlint/cli': 21.2.3
-  '@commitlint/config-conventional': 21.2.3
-  '@commitlint/lint': 21.2.3
-  '@commitlint/load': 21.2.3
+  '@commitlint/cli': 21.2.4
+  '@commitlint/config-conventional': 21.2.4
+  '@commitlint/lint': 21.2.4
+  '@commitlint/load': 21.2.4
   '@commitlint/types': 21.2.3
   '@directus/errors': 3.0.0
   '@directus/extensions-sdk': 18.0.6
@@ -27,18 +27,18 @@ catalog:
   '@fast-check/vitest': 0.5.0
   '@hey-api/openapi-ts': 0.99.0
   # The lint of the contract (D-016), one package with no dependencies of its own.
-  '@redocly/cli': 2.62.1
+  '@redocly/cli': 2.72.0
   # The reference of the API in the docs site, the one renderer that reads the SEARCH of OpenAPI 3.2 (D-060, V-194).
-  '@scalar/api-reference': 1.74.0
+  '@scalar/api-reference': 1.76.2
   # The mutation testing of the golden rule (docs/padroes/testes.md), and the types of its options, of one version.
-  '@stryker-mutator/api': 10.0.0
-  '@stryker-mutator/core': 10.0.0
-  '@testcontainers/postgresql': 12.2.0
+  '@stryker-mutator/api': 10.1.1
+  '@stryker-mutator/core': 10.1.1
+  '@testcontainers/postgresql': 12.2.1
   '@types/node': 24.19.2
   # TypeScript runs side by side (V-90): this alias is the TypeScript 7 behind tsc, and the typescript name below
   # serves the 6.0 API that typescript-eslint loads, until typescript-eslint supports TypeScript 7 (P-25).
   '@typescript/native': npm:typescript@7.0.2
-  '@vitest/coverage-v8': 5.0.3
+  '@vitest/coverage-v8': 5.0.5
   # The coverage libraries @vitest/coverage-v8 5.0.2 uses, so the coverage from inside Directus is converted and summed
   # the same way as the one from the unit tests.
   '@vitest/istanbul-lib-coverage': 1.0.2
@@ -53,7 +53,7 @@ catalog:
   # The oldest @directus/sdk the peer of the SDK of the extension accepts, under a name of its own, beside the newest
   # one above. It moves with the peer, by hand (V-191).
   directus-sdk-oldest: npm:@directus/sdk@26.0.0
-  eslint: 10.12.0
+  eslint: 10.13.0
   eslint-config-prettier: 10.1.8
   eslint-plugin-import-x: 4.17.1
   # The geodesics of Karney, the same calculation as PostGIS on the ellipsoid (V-42), for the answers the tests expect.
@@ -62,23 +62,23 @@ catalog:
   jiti: 2.7.0
   # The exact version Directus uses and @directus/types names as its peer.
   knex: 3.1.0
-  knip: 6.41.0
+  knip: 6.43.0
   # The exact version @directus/types names as its optional peer, for the type of the logger.
   pino: 9.7.0
   prettier: 3.9.10
   # The format of the .astro pages of the docs site.
-  prettier-plugin-astro: 1.1.1
+  prettier-plugin-astro: 1.1.2
   # Checks the package.json of the published SDK against how Node and the bundlers read it.
   publint: 0.3.25
   # Fails the build of the docs site on a broken link.
   starlight-links-validator: 0.27.0
-  testcontainers: 12.2.0
+  testcontainers: 12.2.1
   # The build of the SDK, as in the packages of Directus (V-59).
-  tsdown: 0.23.1
+  tsdown: 0.23.3
   typescript: npm:@typescript/typescript6@6.0.2
-  typescript-eslint: 8.71.1
-  vite: 8.3.4
-  vitest: 5.0.3
+  typescript-eslint: 8.72.1
+  vite: 8.3.5
+  vitest: 5.0.5
   yaml: 2.9.1
 
 catalogs:
@@ -116,10 +116,10 @@ overrides:
   'js-yaml@>=4.0.0 <4.3.2': 4.3.2
   # GHSA-q8mj-m7cp-5q26, GHSA-x5fp-wj9c-mxmx and GHSA-4mjr-xmp4-gh2g: the client of the dashboard of Stryker pins a
   # version of qs these advisories reach, fixed in the same major. The mutation testing never sends its report there.
-  'qs@>=2.2.5 <6.16.0': 6.16.0
+  'qs@>=2.2.5 <6.16.0': 6.17.0
   # GHSA-866g-f22w-33x8: the AI chat of Scalar, which the docs site turns off (D-060), pins a version of the
   # provider-utils of the AI SDK this advisory reaches, fixed in the same line.
-  '@ai-sdk/provider-utils@>=4.0.0-beta.10 <4.0.33': 4.0.57
+  '@ai-sdk/provider-utils@>=4.0.0-beta.10 <4.0.33': 4.0.62
   # GHSA-rj75-hqrm-r3gf: the code blocks of Starlight nest their CSS at build time with postcss-nested 6, whose
   # postcss-selector-parser 6 this advisory reaches, fixed only in the 7. The postcss-nested 7 moved to it, and the CSS
   # of the docs site comes out the same.
