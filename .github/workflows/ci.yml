@@ -177,7 +177,7 @@ jobs:
       - if: >-
           ${{ !cancelled() && steps.sum.outcome == 'success' && (github.event_name == 'push' ||
           (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
-        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       # One upload for each push and pull request. The night runs on a commit that its push already sent.
@@ -252,10 +252,10 @@ jobs:
         with:
           persist-credentials: false
       # Without the Advanced Security of the private repository, the findings go to the log and fail the job (V-74).
-      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+      - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
         with:
           # Renovate knows this action, and reads its version as the image ghcr.io/zizmorcore/zizmor (V-139).
-          version: 1.30.1
+          version: 1.31.1
           advanced-security: false
 
   renovate:
@@ -271,5 +271,5 @@ jobs:
       - name: renovate-config-validator
         env:
           # renovate: datasource=docker depName=renovate/renovate
-          IMAGE: renovate/renovate:44.150.1@sha256:4355df2a8b79b7d3095c0fc4e4ea6aae958c44aeb134c4d5033e002832517ae3
+          IMAGE: renovate/renovate:44.192.2@sha256:37960a62ba1faa9079a7c4eead9b3f4470748a64ecd207e06c09fd8858673e17
         run: docker run --rm --volume "$PWD:/usr/src/app:ro" "$IMAGE" renovate-config-validator --strict
