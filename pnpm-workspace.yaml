@@ -16,12 +16,12 @@ catalog:
   '@commitlint/load': 21.2.3
   '@commitlint/types': 21.2.3
   '@directus/errors': 3.0.0
-  '@directus/extensions-sdk': 18.0.6
+  '@directus/extensions-sdk': 18.1.0
   # The version released with Directus 12.5.0, the newest the integration suite runs. The SDK of the extension also
   # runs its unit tests and its types against the oldest one its peer accepts, directus-sdk-oldest below (V-191).
-  '@directus/sdk': 27.0.0
+  '@directus/sdk': 27.1.0
   # The version the extensions SDK depends on, so both read the same types.
-  '@directus/types': 18.0.0
+  '@directus/types': 18.1.0
   '@eslint/js': 10.0.1
   # The property tests (docs/padroes/testes.md), with fast-check, each property run as a test of Vitest.
   '@fast-check/vitest': 0.5.0
