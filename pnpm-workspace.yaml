@@ -9,7 +9,7 @@ catalog:
   # Checks the types of the published SDK against each way a project resolves it (CommonJS, ESM, bundlers).
   '@arethetypeswrong/cli': 0.18.5
   # The docs site (D-060), on Astro.
-  '@astrojs/starlight': 0.42.6
+  '@astrojs/starlight': 0.42.10
   '@commitlint/cli': 21.2.3
   '@commitlint/config-conventional': 21.2.3
   '@commitlint/lint': 21.2.3
