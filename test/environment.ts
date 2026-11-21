@@ -41,7 +41,7 @@ const copiesOf = async (packages: readonly string[]) =>
 
 // The Redis of an installation that scales, the image of the development environment, which Renovate follows
 // (.github/renovate.json5).
-const redisImage = 'redis:8.10.2-alpine';
+const redisImage = 'redis:8.10.3-alpine';
 
 export const newSecret = (): string => randomBytes(32).toString('hex');
 
