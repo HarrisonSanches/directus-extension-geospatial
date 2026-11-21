@@ -15,8 +15,8 @@ const directus = {
 		adapter: '12',
 	},
 	'12': {
-		version: '12.5.0',
-		image: 'directus/directus:12.5.0@sha256:7de5d6898b955dab1672619aed590035dcade4f8d7396d913e55543e114d1331',
+		version: '12.7.0',
+		image: 'directus/directus:12.7.0@sha256:f197911d949a37d882f781b0381955b851c86625435014cd67bdaf3eabcff2a7',
 		adapter: '12',
 	},
 };
