@@ -10,8 +10,8 @@ catalogs:
       specifier: 0.18.5
       version: 0.18.5
     '@astrojs/starlight':
-      specifier: 0.42.6
-      version: 0.42.6
+      specifier: 0.43.1
+      version: 0.43.1
     '@commitlint/cli':
       specifier: 21.2.3
       version: 21.2.3
@@ -299,7 +299,7 @@ importers:
     devDependencies:
       '@astrojs/starlight':
         specifier: 'catalog:'
-        version: 0.42.6(@typescript/typescript6@6.0.2)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0)
+        version: 0.43.1(@typescript/typescript6@6.0.2)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0)
       '@scalar/api-reference':
         specifier: 'catalog:'
         version: 1.74.0(@typescript/typescript6@6.0.2)(axios@1.20.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0))(supports-color@7.2.0)(tailwindcss@4.3.3)(zod@4.6.6)
@@ -311,7 +311,7 @@ importers:
         version: link:../contract
       starlight-links-validator:
         specifier: 'catalog:'
-        version: 0.27.0(@astrojs/starlight@0.42.6(@typescript/typescript6@6.0.2)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0))(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0)
+        version: 0.27.0(@astrojs/starlight@0.43.1(@typescript/typescript6@6.0.2)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0))(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0)
 
   packages/extension:
     devDependencies:
@@ -606,8 +606,8 @@ packages:
   '@astrojs/sitemap@3.7.4':
     resolution: {integrity: sha512-LbKNC24bdUWcQf/pThB6qLlSqHojxGjZDURIzFocY8rlWnAn2t74nnhnK6S5x0NHriHoAduLEpVjRykmeGiVvA==}
 
-  '@astrojs/starlight@0.42.6':
-    resolution: {integrity: sha512-Cfs7GdgzgNRCauDxQVsFUVL1thrGHK/rQdbv/SURv/xhGBXx+j5ypOHW9ENPraQxbIzUC8KAnJV7L9mvEVRuyQ==}
+  '@astrojs/starlight@0.43.1':
+    resolution: {integrity: sha512-GhTK+93UNejoQThnYbEkJAlRJiOtctxOCnFtLcUMSTraT75vzS1E89xdMtKOdKcUDD2wx+taJxsfrA3UBs0QgQ==}
     peerDependencies:
       '@astrojs/markdown-remark': ^7.3.0
       astro: ^7.2.10
@@ -2993,9 +2993,6 @@ packages:
   '@types/http-errors@2.0.5':
     resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
 
-  '@types/js-yaml@4.0.9':
-    resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
-
   '@types/jsesc@2.5.1':
     resolution: {integrity: sha512-9VN+6yxLOPLOav+7PwjZbxiID2bVaeq0ED4qSQmdQTdjnXJSaCVKTR58t15oqH1H5t8Ng2ZX1SabJVoN9Q34bw==}
 
@@ -4904,8 +4901,9 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  i18next@26.4.4:
-    resolution: {integrity: sha512-O+rqmQUi54OwAgnZ4SAwO6aRrbXZt36VZXWt6zvq0FpC3vJbH46oQRs6u4Uwm1vf8ZI7UqOXQiJhQVTor7vRiQ==}
+  i18next@27.2.4:
+    resolution: {integrity: sha512-Twhl6dx3IznvyQEv7rrYH2xBMAmOIjNuj/lPicevTa0d/fxg4Km315MlAI07SOWQcw2pypA4qf39RoMJgJ8WEQ==}
+    engines: {node: '>=22'}
     peerDependencies:
       typescript: ^5 || ^6 || ^7
     peerDependenciesMeta:
@@ -7269,18 +7267,22 @@ packages:
   yuku-ast@0.19.0:
     resolution: {integrity: sha512-PyCsiScaelhxBGzL8dyeJkLqvRZycoh78R31Vrt/WqYrm0hMFoKwIw/X7Dx5mBKLWAMlV9I9HEyBOHnj2gZVyw==}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-codegen@0.19.0:
     resolution: {integrity: sha512-uymAKHjDuaP4BEpkXC/BSLz4DUEF5oArZ5AuD3888nb2miChjWSgpPdojEJxm3pjpXkgUaCRJQyNAbnMN33wHg==}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-core@0.19.0:
     resolution: {integrity: sha512-kYK9e1XdfirNhkipzW0wmMcSWcVF/CWnuugodfVYRCUwvoBefweL9HzB96OiKEhsx78V5WbUxbJqlizMX869Qg==}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-parser@0.19.0:
     resolution: {integrity: sha512-XrBh9ZiQK5mJVRxZBAvD6LwRyAYrK3MFtH3+onyuxFL5hFD44EC3QOmIC1FjTj6H2MMwq46/NAI+NZxLZPZgxg==}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   zip-stream@6.0.1:
     resolution: {integrity: sha512-zK7YHHz4ZXpW89AHXUPbQVGKI7uvkd3hzusTdotCg1UxyaVtg0zFJSTfW/Dq5f7OBBVnq6cZIaC8Ti4hb6dtCA==}
@@ -7496,14 +7498,13 @@ snapshots:
       sitemap: 9.0.1
       zod: 4.6.6
 
-  '@astrojs/starlight@0.42.6(@typescript/typescript6@6.0.2)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0)':
+  '@astrojs/starlight@0.43.1(@typescript/typescript6@6.0.2)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0)':
     dependencies:
       '@astrojs/markdown-satteri': 0.4.3
       '@astrojs/mdx': 8.0.3(@astrojs/markdown-satteri@0.4.3)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@astrojs/sitemap': 3.7.4
       '@pagefind/default-ui': 1.5.2
       '@types/hast': 3.0.5
-      '@types/js-yaml': 4.0.9
       '@types/mdast': 4.0.4
       astro: 7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
       astro-expressive-code: 0.44.2(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
@@ -7513,8 +7514,7 @@ snapshots:
       hast-util-to-html: 9.0.5
       hast-util-to-string: 3.0.1
       hastscript: 9.0.1
-      i18next: 26.4.4(@typescript/typescript6@6.0.2)
-      js-yaml: 4.3.2
+      i18next: 27.2.4(@typescript/typescript6@6.0.2)
       klona: 2.0.6
       magic-string: 1.4.3
       mdast-util-directive: 3.1.1(supports-color@7.2.0)
@@ -7527,6 +7527,7 @@ snapshots:
       unified: 11.0.5
       unist-util-visit: 5.1.0
       vfile: 6.0.3
+      yaml: 2.9.1
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -10155,8 +10156,6 @@ snapshots:
 
   '@types/http-errors@2.0.5': {}
 
-  '@types/js-yaml@4.0.9': {}
-
   '@types/jsesc@2.5.1': {}
 
   '@types/json-schema@7.0.15': {}
@@ -12183,7 +12182,7 @@ snapshots:
 
   husky@9.1.7: {}
 
-  i18next@26.4.4(@typescript/typescript6@6.0.2):
+  i18next@27.2.4(@typescript/typescript6@6.0.2):
     optionalDependencies:
       typescript: '@typescript/typescript6@6.0.2'
 
@@ -14079,10 +14078,10 @@ snapshots:
 
   stable-hash-x@0.2.0: {}
 
-  starlight-links-validator@0.27.0(@astrojs/starlight@0.42.6(@typescript/typescript6@6.0.2)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0))(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0):
+  starlight-links-validator@0.27.0(@astrojs/starlight@0.43.1(@typescript/typescript6@6.0.2)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0))(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0):
     dependencies:
       '@astrojs/markdown-satteri': 0.4.3
-      '@astrojs/starlight': 0.42.6(@typescript/typescript6@6.0.2)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0)
+      '@astrojs/starlight': 0.43.1(@typescript/typescript6@6.0.2)(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(supports-color@7.2.0)
       astro: 7.3.8(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
       github-slugger: 2.0.0
       hast-util-from-html: 2.0.3
