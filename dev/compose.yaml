@@ -84,7 +84,7 @@ services:
       start_interval: 2s
 
   cache:
-    image: redis:8.10.2-alpine
+    image: redis:8.12.0-alpine
     # No port: only Directus reaches Redis, inside the network of the environment. Its state is temporary, and the
     # image declares no volume, so it goes away with the container.
     healthcheck:
